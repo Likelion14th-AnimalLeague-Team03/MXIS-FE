@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "MXIS",
+    "slug": "mxisbasic",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "mxis",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.mxis.basic",
+      "permissions": [
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_SCAN",
+        "BLUETOOTH_CONNECT",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.mxis.basic",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Smart Charm connection uses Bluetooth."
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-dev-client",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": true,
+          "modes": [
+            "central"
+          ],
+          "bluetoothAlwaysPermission": "Smart Charm connection uses Bluetooth."
+        }
+      ]
+    ]
+  }
+}
