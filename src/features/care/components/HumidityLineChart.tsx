@@ -1,5 +1,7 @@
 import Svg, { Circle, Line, Polyline } from "react-native-svg";
 
+import { colors } from "@/shared/styles/colors";
+
 const POINTS: [number, number][] = [
   [3.9, 70],
   [39.1, 49],
@@ -20,7 +22,7 @@ type Props = {
   color?: string;
 };
 
-export function HumidityLineChart({ width = 280, color = "#814C27" }: Props) {
+export function HumidityLineChart({ width = 280, color = colors.primary }: Props) {
   const height = (width * VIEW_HEIGHT) / VIEW_WIDTH;
   const polylinePoints = POINTS.map(([x, y]) => `${x},${y}`).join(" ");
 

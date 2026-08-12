@@ -54,7 +54,7 @@ export function ReportScreen() {
           </View>
         </View>
 
-        <Card className="mt-4 border-0 px-4 py-3.5">
+        <Card className="mt-4 border-0 bg-white px-4 py-3.5">
           <Text className="text-xs text-concierge-textMuted">현재 컨디션</Text>
           <Text className="mt-1 text-lg font-bold text-concierge-text">안정적인 상태입니다.</Text>
           <Text className="mt-1 text-[13px] text-concierge-textMuted">
@@ -64,7 +64,7 @@ export function ReportScreen() {
         </Card>
 
         <Text className="mt-5 text-xl font-bold text-concierge-text">최근 환경 요약</Text>
-        <Card className="mt-3 px-3">
+        <Card className="mt-3 bg-white px-3">
           <SummaryRow
             icon={<DropletIcon size={18} />}
             label="평균 습도"
@@ -92,7 +92,7 @@ export function ReportScreen() {
           />
         </Card>
 
-        <Card className="mt-4 flex-row items-center gap-3 px-4 py-3">
+        <Card className="mt-4 flex-row items-center gap-3 bg-white px-4 py-3">
           <View className="size-[58px] items-center justify-center rounded-full bg-concierge-accent">
             <ShieldCheckIcon size={26} color="#FFFFFF" />
           </View>

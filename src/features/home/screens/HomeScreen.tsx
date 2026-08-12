@@ -48,7 +48,7 @@ export function HomeScreen() {
         />
 
         <View className="px-6">
-          <Card className="mt-4 flex-row items-center justify-between border-0 px-5 py-6">
+          <Card className="mt-4 flex-row items-center justify-between border-0 bg-white px-5 py-6">
             <View className="flex-1 pr-4">
               <Text className="text-sm text-concierge-text">제품상태</Text>
               <Text className="mt-1 text-xl font-bold text-concierge-text">
@@ -62,19 +62,19 @@ export function HomeScreen() {
           </Card>
 
           <View className="mt-4 flex-row gap-3">
-            <Card className="flex-1 border-0 px-4 py-5">
+            <Card className="flex-1 border-0 bg-white px-4 py-5">
               <Text className="text-sm text-concierge-text">함께한 날짜</Text>
               <Text className="mt-5 text-xl font-bold text-[#494949]">
                 182일
               </Text>
             </Card>
 
-            <Card className="flex-1 border-0 px-4 py-5">
+            <Card className="flex-1 border-0 bg-white px-4 py-5">
               {confirmed ? (
                 <>
                   <View className="flex-row items-center gap-2">
-                    <View className="rounded-full border border-[#A49486] px-2 py-0.5">
-                      <Text className="text-xs text-[#A49486]">
+                    <View className="rounded-full border border-concierge-accentMuted px-2 py-0.5">
+                      <Text className="text-xs text-concierge-accentMuted">
                         D-{Math.max(daysUntil(confirmed.date), 0)}
                       </Text>
                     </View>

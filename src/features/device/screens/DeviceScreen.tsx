@@ -84,7 +84,7 @@ export function DeviceScreen() {
           <Text className="mt-1 text-xs text-[#6B6B6B]">Visetos Canvas · Black</Text>
           <Text className="mt-1 text-xs text-[#232323]">함께한 외출 50회</Text>
 
-          <Card className="mt-4 border-0 bg-[#F6F5F2] px-4 py-3">
+          <Card className="mt-4 border-0 bg-concierge-chip px-4 py-3">
             <View className="flex-row items-center justify-between">
               <View className="flex-1 flex-row items-center gap-2">
                 <View
@@ -113,7 +113,7 @@ export function DeviceScreen() {
             <Text className="mt-2 text-xs text-[#3E3E3E]">배터리 65%</Text>
           </Card>
 
-          <Card className="mt-4 border-0 px-4 py-4">
+          <Card className="mt-4 border-0 bg-white px-4 py-4">
             <View className="flex-row items-center justify-between">
               <Text className="text-base font-semibold text-concierge-text">보유중인 참</Text>
               <Pressable className="flex-row items-center gap-1">
@@ -164,7 +164,7 @@ export function DeviceScreen() {
             </Pressable>
           </Card>
 
-          <Card className="mt-4 border-0 px-4 py-4">
+          <Card className="mt-4 border-0 bg-white px-4 py-4">
             <View className="flex-row items-center justify-between">
               <Text className="text-sm text-[#222222]">현재 보관 환경</Text>
               <View className="rounded-full bg-[#E7F4EC] px-2 py-1">
@@ -192,7 +192,7 @@ export function DeviceScreen() {
             </Text>
           </Card>
 
-          <Card className="mt-4 border-0 px-4 py-1">
+          <Card className="mt-4 border-0 bg-white px-4 py-1">
             <ListRow icon={<BatteryIcon size={17} />} label="배터리 상태" value="65%" />
             <View className="border-t border-concierge-borderLight" />
             <ListRow

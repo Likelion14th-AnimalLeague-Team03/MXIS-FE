@@ -23,7 +23,7 @@ function StatCard({
   value: string;
 }) {
   return (
-    <Card className="w-[47%] border-0 px-3 py-3">
+    <Card className="w-[47%] border-0 bg-white px-3 py-3">
       <View className="flex-row items-center gap-1.5">
         {icon}
         <Text className="text-base font-semibold text-concierge-text">{label}</Text>
@@ -53,7 +53,7 @@ export function CareHomeScreen() {
           </View>
         </Card>
 
-        <Card className="mt-4 border-0 px-3.5 py-3.5">
+        <Card className="mt-4 border-0 bg-white px-3.5 py-3.5">
           <Text className="text-xs text-concierge-textMuted">현재 컨디션</Text>
           <Text className="mt-1 text-lg font-bold text-concierge-text">
             균형 있게 유지되고 있습니다.

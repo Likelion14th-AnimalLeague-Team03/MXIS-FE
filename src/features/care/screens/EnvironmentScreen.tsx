@@ -67,7 +67,7 @@ export function EnvironmentScreen() {
           })}
         </View>
 
-        <Card className="mt-4 border-0 px-4 py-4">
+        <Card className="mt-4 border-0 bg-white px-4 py-4">
           <Text className="text-lg font-semibold text-concierge-text">습도 변화</Text>
           <View className="mt-4 flex-row">
             <View className="mr-2 justify-between py-1">

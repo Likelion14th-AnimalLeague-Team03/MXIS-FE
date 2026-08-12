@@ -1,11 +1,13 @@
 import Svg, { Path } from "react-native-svg";
 
+import { colors } from "@/shared/styles/colors";
+
 type Props = {
   size?: number;
   color?: string;
 };
 
-export function PencilIcon({ size = 14, color = "#814C27" }: Props) {
+export function PencilIcon({ size = 14, color = colors.primary }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
