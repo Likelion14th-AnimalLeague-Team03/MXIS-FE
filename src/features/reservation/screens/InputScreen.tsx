@@ -146,7 +146,6 @@ export function InputScreen() {
         </Card>
 
         <View className="border border-[#E9DDD2] rounded-[10px] mt-5 p-5">
-          {" "}
           <View className=" flex-row items-center  gap-1.5">
             <WarningIcon />
             <Text className="text-sm font-bold text-concierge-text">
