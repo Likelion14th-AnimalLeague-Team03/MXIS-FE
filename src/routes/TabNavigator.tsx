@@ -1,7 +1,7 @@
 export const TAB_ROUTES = {
-  HOME: "/(tabs)",
   RESERVATION: "/(tabs)/reservation",
-  STATUS: "/(tabs)/status",
+  DEVICE: "/(tabs)/device",
+  HOME: "/(tabs)",
   CARE: "/(tabs)/care",
   MYPAGE: "/(tabs)/mypage"
 } as const;
