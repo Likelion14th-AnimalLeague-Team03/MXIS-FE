@@ -14,7 +14,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <Text className="text-sm font-semibold text-concierge-textSecondary">
         {label}
       </Text>
-      <View className="h-px flex-1 border-b border-dotted border-concierge-borderLight" />
+      <View className="h-px flex-1 " />
       <Text className="text-sm font-semibold text-concierge-text">{value}</Text>
     </View>
   );
@@ -32,12 +32,12 @@ export function CompleteScreen() {
 
       {confirmed ? (
         <View className="flex-1 px-6 pt-4">
-          <View className="items-center">
+          <View className="items-center mt-10">
             <CheckmarkCircleIcon />
             <Text className="mt-5 text-xl font-bold text-concierge-text">
               제품을 위한 시간이 준비되었습니다.
             </Text>
-            <Text className="mt-3 text-center text-sm font-semibold text-concierge-textSecondary">
+            <Text className="mt-5 text-center text-sm font-semibold text-concierge-textSecondary">
               예약 정보를 확인하고 편안하게 방문해 주세요.
             </Text>
           </View>
@@ -60,7 +60,7 @@ export function CompleteScreen() {
 
           <View className="flex-1" />
 
-          <View className="pb-4">
+          <View className="pb-10">
             <PrimaryButton
               label="예약 상세 보기"
               onPress={() => router.replace("/reservation/detail")}

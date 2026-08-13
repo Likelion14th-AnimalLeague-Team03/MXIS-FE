@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   RESERVATION_TIME_SLOTS,
+  RESERVATION_UNAVAILABLE_TIMES,
   RESERVATION_WEEKDAY_LABELS,
 } from "@/features/reservation/constants";
 import { formatDateKoreanFull } from "@/features/reservation/format";
@@ -194,18 +195,37 @@ export function DateTimeScreen() {
         <View className="mt-3 flex-row flex-wrap gap-x-[9px] gap-y-2.5">
           {RESERVATION_TIME_SLOTS.map((slot) => {
             const selected = selectedTime === slot;
+            const unavailable = RESERVATION_UNAVAILABLE_TIMES.includes(slot);
+
             return (
               <Pressable
                 key={slot}
-                onPress={() => setSelectedTime(slot)}
+                onPress={() => {
+                  if (unavailable) {
+                    Alert.alert(
+                      "예약이 마감된 시간이에요",
+                      "다른 시간을 선택해 주세요."
+                    );
+                    return;
+                  }
+                  setSelectedTime(slot);
+                }}
                 className={`w-[23%] items-center rounded-[9px] py-2 ${
                   selected
                     ? "bg-concierge-primary"
-                    : "bg-concierge-surfaceMuted"
+                    : unavailable
+                      ? "bg-concierge-borderLight"
+                      : "bg-concierge-surfaceMuted"
                 }`}
               >
                 <Text
-                  className={`text-[13px] ${selected ? "font-semibold text-white" : "text-concierge-text"}`}
+                  className={`text-[13px] ${
+                    selected
+                      ? "font-semibold text-white"
+                      : unavailable
+                        ? "text-concierge-textMuted line-through"
+                        : "text-concierge-text"
+                  }`}
                 >
                   {slot}
                 </Text>

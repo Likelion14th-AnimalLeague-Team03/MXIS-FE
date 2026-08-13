@@ -1,11 +1,13 @@
 import Svg, { Path } from "react-native-svg";
 
+import { colors } from "@/shared/styles/colors";
+
 type Props = {
   size?: number;
   color?: string;
 };
 
-export function WarningIcon({ size = 16, color = "#E4AB7C" }: Props) {
+export function WarningIcon({ size = 16, color = colors.accent }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 16 16" fill="none">
       <Path
