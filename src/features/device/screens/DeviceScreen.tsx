@@ -14,14 +14,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import deviceHeroBg from "@/features/device/assets/device-hero-bg.png";
-import bag1 from "@/features/device/assets/bag1.png";
-import bag2 from "@/features/device/assets/bag2.png";
-import bag3 from "@/features/device/assets/bag3.png";
 import {
   CONNECTED_CHARM_ID,
   DEVICE_CHARMS,
   NOTIFICATION_SETTINGS,
+  PRODUCTS,
 } from "@/features/device/constants";
+import { useDeviceStore } from "@/features/device/store";
 import { Card } from "@/shared/components/Card";
 import { BatteryIcon } from "@/shared/components/icons/BatteryIcon";
 import { BellIcon } from "@/shared/components/icons/BellIcon";
@@ -41,8 +40,6 @@ if (
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-const PRODUCTS = [bag1, bag2, bag3];
 
 function ListRow({
   icon,
@@ -86,7 +83,8 @@ function ListRow({
 }
 
 export function DeviceScreen() {
-  const [selectedProduct, setSelectedProduct] = useState(2);
+  const selectedProduct = useDeviceStore((state) => state.selectedProductIndex);
+  const setSelectedProduct = useDeviceStore((state) => state.setSelectedProductIndex);
   const [connected, setConnected] = useState(true);
   const [charmListExpanded, setCharmListExpanded] = useState(false);
   const [notificationsExpanded, setNotificationsExpanded] = useState(false);
@@ -140,8 +138,8 @@ export function DeviceScreen() {
         </View>
 
         <View className="mt-4 flex-row gap-3 px-6">
-          {PRODUCTS.map((thumb, index) => (
-            <Pressable key={index} onPress={() => setSelectedProduct(index)}>
+          {PRODUCTS.map((product, index) => (
+            <Pressable key={product.id} onPress={() => setSelectedProduct(index)}>
               <View
                 className={`size-12 overflow-hidden rounded-full border-2 ${
                   selectedProduct === index
@@ -150,7 +148,7 @@ export function DeviceScreen() {
                 }`}
               >
                 <Image
-                  source={thumb}
+                  source={product.image}
                   className="size-full"
                   resizeMode="cover"
                 />
@@ -172,9 +170,9 @@ export function DeviceScreen() {
             className="size-full"
             resizeMode="cover"
           />
-          <View className="absolute inset-0 items-center justify-center">
+          <View className="absolute inset-0 items-center justify-center p-8">
             <Image
-              source={PRODUCTS[selectedProduct]}
+              source={PRODUCTS[selectedProduct].image}
               className="size-full"
               resizeMode="contain"
             />
@@ -183,10 +181,10 @@ export function DeviceScreen() {
 
         <View className="px-6">
           <Text className="mt-3 text-sm font-semibold text-[#171717]">
-            MCM Aren Shopper
+            {PRODUCTS[selectedProduct].name}
           </Text>
           <Text className="mt-1 text-xs text-[#6B6B6B]">
-            Visetos Canvas · Black
+            {PRODUCTS[selectedProduct].variant}
           </Text>
           <Text className="mt-1 text-xs text-[#232323]">함께한 외출 50회</Text>
 

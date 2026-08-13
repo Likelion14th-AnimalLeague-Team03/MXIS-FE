@@ -2,32 +2,45 @@ import Svg, { Circle, Line, Polyline } from "react-native-svg";
 
 import { colors } from "@/shared/styles/colors";
 
-const POINTS: [number, number][] = [
-  [3.9, 70],
-  [39.1, 49],
-  [74.3, 40],
-  [109.4, 73],
-  [144.6, 24],
-  [179.8, 41],
-  [215.0, 18],
-  [258.0, 4]
-];
-
-const VIEW_WIDTH = 262;
-const VIEW_HEIGHT = 90;
+const VIEW_WIDTH = 280;
+const VIEW_HEIGHT = 100;
 const GRID_LINES = [5, 33.3, 61.6, 90];
 
 type Props = {
+  values: number[];
   width?: number;
   color?: string;
+  /** 값이 매핑되는 범위 — EnvironmentScreen의 y축 라벨(25~70%)과 맞춰뒀어요. */
+  min?: number;
+  max?: number;
 };
 
-export function HumidityLineChart({ width = 280, color = colors.primary }: Props) {
+export function HumidityLineChart({
+  values,
+  width = 280,
+  color = colors.primary,
+  min = 20,
+  max = 75,
+}: Props) {
   const height = (width * VIEW_HEIGHT) / VIEW_WIDTH;
-  const polylinePoints = POINTS.map(([x, y]) => `${x},${y}`).join(" ");
+  const dotRadius = 4;
+  const drawableWidth = VIEW_WIDTH - dotRadius * 2;
+  const stepX = values.length > 1 ? drawableWidth / (values.length - 1) : 0;
+
+  const points: [number, number][] = values.map((value, index) => {
+    const clamped = Math.min(Math.max(value, min), max);
+    const y = VIEW_HEIGHT - ((clamped - min) / (max - min)) * VIEW_HEIGHT;
+    return [dotRadius + index * stepX, y];
+  });
+
+  const polylinePoints = points.map(([x, y]) => `${x},${y}`).join(" ");
 
   return (
-    <Svg width={width} height={height} viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}>
+    <Svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+    >
       {GRID_LINES.map((y) => (
         <Line
           key={y}
@@ -48,7 +61,7 @@ export function HumidityLineChart({ width = 280, color = colors.primary }: Props
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      {POINTS.map(([x, y], index) => (
+      {points.map(([x, y], index) => (
         <Circle key={index} cx={x} cy={y} r={4} fill={color} />
       ))}
     </Svg>
