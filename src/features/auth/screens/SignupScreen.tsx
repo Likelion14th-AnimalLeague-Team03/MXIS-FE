@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,15 +10,40 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
+import type { z } from "zod";
 
-import { signup } from "@/features/auth/api/authApi";
+import { AuthApiError, signup } from "@/features/auth/api/authApi";
 import { AuthTextField } from "@/features/auth/components/AuthTextField";
-import {
-  getFirstValidationMessage,
-  signupSchema,
-} from "@/features/auth/utils/validation";
+import { signupSchema } from "@/features/auth/utils/validation";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
+
+type SignupErrors = {
+  name?: string;
+  email?: string;
+  password?: string;
+  passwordConfirm?: string;
+  phone?: string;
+  form?: string;
+};
+
+function getSignupValidationErrors(error: z.ZodError): SignupErrors {
+  return error.issues.reduce<SignupErrors>((acc, issue) => {
+    const field = issue.path[0];
+
+    if (
+      field === "name" ||
+      field === "email" ||
+      field === "password" ||
+      field === "passwordConfirm" ||
+      field === "phone"
+    ) {
+      acc[field] = issue.message;
+    }
+
+    return acc;
+  }, {});
+}
 
 export function SignupScreen() {
   const router = useRouter();
@@ -28,7 +52,12 @@ export function SignupScreen() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [phone, setPhone] = useState("");
+  const [errors, setErrors] = useState<SignupErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const clearFieldError = (field: keyof SignupErrors) => {
+    setErrors((current) => ({ ...current, [field]: undefined, form: undefined }));
+  };
 
   const handleSignup = async () => {
     const parsed = signupSchema.safeParse({
@@ -40,15 +69,13 @@ export function SignupScreen() {
     });
 
     if (!parsed.success) {
-      Alert.alert(
-        "회원가입할 수 없습니다",
-        getFirstValidationMessage(parsed.error),
-      );
+      setErrors(getSignupValidationErrors(parsed.error));
       return;
     }
 
     try {
       setIsSubmitting(true);
+      setErrors({});
       const { passwordConfirm: _passwordConfirm, ...request } = parsed.data;
       await signup({
         ...request,
@@ -57,12 +84,17 @@ export function SignupScreen() {
 
       router.replace("/auth/signup-complete");
     } catch (error) {
-      Alert.alert(
-        "회원가입할 수 없습니다",
-        error instanceof Error
-          ? error.message
-          : "입력하신 정보를 다시 확인해 주세요.",
-      );
+      if (error instanceof AuthApiError && error.code === "EMAIL_ALREADY_EXISTS") {
+        setErrors({ email: "이미 가입된 이메일입니다." });
+        return;
+      }
+
+      setErrors({
+        form:
+          error instanceof Error
+            ? error.message
+            : "입력하신 정보를 다시 확인해 주세요.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -94,50 +126,76 @@ export function SignupScreen() {
               label="이름"
               value={name}
               placeholder="이름을 입력해 주세요"
-              onChangeText={setName}
+              onChangeText={(value) => {
+                setName(value);
+                clearFieldError("name");
+              }}
               textContentType="name"
               autoCapitalize="words"
+              error={errors.name}
             />
             <AuthTextField
               label="이메일"
               value={email}
               placeholder="name@email.com"
-              onChangeText={setEmail}
+              onChangeText={(value) => {
+                setEmail(value);
+                clearFieldError("email");
+              }}
               keyboardType="email-address"
               textContentType="emailAddress"
+              error={errors.email}
             />
             <AuthTextField
               label="비밀번호"
               labelHint="8자 이상"
               value={password}
               placeholder="8자 이상 영문·숫자 조합"
-              onChangeText={setPassword}
+              onChangeText={(value) => {
+                setPassword(value);
+                clearFieldError("password");
+              }}
               secureTextEntry
               textContentType="newPassword"
+              error={errors.password}
             />
             <AuthTextField
               label="비밀번호 확인"
               value={passwordConfirm}
               placeholder="비밀번호를 다시 입력해 주세요"
-              onChangeText={setPasswordConfirm}
+              onChangeText={(value) => {
+                setPasswordConfirm(value);
+                clearFieldError("passwordConfirm");
+              }}
               secureTextEntry
               textContentType="newPassword"
+              error={errors.passwordConfirm}
             />
             <AuthTextField
               label="휴대전화 번호"
               value={phone}
               placeholder="010-0000-0000"
-              onChangeText={setPhone}
+              onChangeText={(value) => {
+                setPhone(value);
+                clearFieldError("phone");
+              }}
               keyboardType="phone-pad"
               textContentType="telephoneNumber"
+              error={errors.phone}
             />
           </View>
+
+          {errors.form ? (
+            <Text className="mt-6 text-center text-[12px] font-medium text-[#C04737]">
+              {errors.form}
+            </Text>
+          ) : null}
 
           <PrimaryButton
             label={isSubmitting ? "확인 중입니다" : "다음"}
             onPress={handleSignup}
             disabled={isSubmitting}
-            className="mt-[92px] h-[52px] rounded-[10px]"
+            className={`${errors.form ? "mt-4" : "mt-[92px]"} h-[52px] rounded-[10px]`}
           />
 
           <View className="mt-4 flex-row justify-center gap-1">

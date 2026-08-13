@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -11,16 +10,32 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
+import type { z } from "zod";
 
 import kakaoSymbol from "@/features/auth/assets/kakao-symbol.png";
 import { AuthTextField } from "@/features/auth/components/AuthTextField";
 import { useKakaoAuthStore } from "@/features/auth/store/kakaoAuthStore";
 import { useAuthStore } from "@/features/auth/store/authStore";
-import {
-  getFirstValidationMessage,
-  loginSchema,
-} from "@/features/auth/utils/validation";
+import { loginSchema } from "@/features/auth/utils/validation";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
+
+type LoginErrors = {
+  email?: string;
+  password?: string;
+  kakao?: string;
+};
+
+function getLoginValidationErrors(error: z.ZodError): LoginErrors {
+  return error.issues.reduce<LoginErrors>((acc, issue) => {
+    const field = issue.path[0];
+
+    if (field === "email" || field === "password") {
+      acc[field] = issue.message;
+    }
+
+    return acc;
+  }, {});
+}
 
 export function LoginScreen() {
   const router = useRouter();
@@ -28,38 +43,52 @@ export function LoginScreen() {
   const setKakaoDraft = useKakaoAuthStore((state) => state.setDraft);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<LoginErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    setErrors((current) => ({ ...current, email: undefined }));
+  };
+
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    setErrors((current) => ({ ...current, password: undefined }));
+  };
 
   const handleLogin = async () => {
     const parsed = loginSchema.safeParse({ email, password });
 
     if (!parsed.success) {
-      Alert.alert("로그인에 실패했습니다", getFirstValidationMessage(parsed.error));
+      setErrors(getLoginValidationErrors(parsed.error));
       return;
     }
 
     try {
       setIsSubmitting(true);
+      setErrors({});
       await signIn(parsed.data);
       router.replace("/(tabs)");
     } catch (error) {
-      Alert.alert(
-        "로그인에 실패했습니다",
-        error instanceof Error
-          ? error.message
-          : "아이디 또는 비밀번호를 다시 확인해 주세요.",
-      );
+      setErrors({
+        password:
+          error instanceof Error
+            ? error.message
+            : "아이디 또는 비밀번호를 다시 확인해 주세요.",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleKakaoLogin = async () => {
+    setErrors((current) => ({ ...current, kakao: undefined }));
+
     if (Platform.OS === "web") {
-      Alert.alert(
-        "카카오 로그인",
-        "카카오 로그인은 Android Development Build에서 확인할 수 있습니다.",
-      );
+      setErrors((current) => ({
+        ...current,
+        kakao: "카카오 로그인은 Android Development Build에서 확인할 수 있습니다.",
+      }));
       return;
     }
 
@@ -71,10 +100,10 @@ export function LoginScreen() {
       const profile = await getProfile();
 
       if (!profile.email) {
-        Alert.alert(
-          "카카오 로그인에 실패했습니다",
-          "카카오 계정에서 이메일 정보를 불러올 수 없습니다.",
-        );
+        setErrors((current) => ({
+          ...current,
+          kakao: "카카오 계정에서 이메일 정보를 불러올 수 없습니다.",
+        }));
         return;
       }
 
@@ -86,10 +115,10 @@ export function LoginScreen() {
       });
       router.push("/auth/kakao-start");
     } catch {
-      Alert.alert(
-        "카카오 로그인에 실패했습니다",
-        "카카오 계정 인증을 다시 시도해 주세요.",
-      );
+      setErrors((current) => ({
+        ...current,
+        kakao: "카카오 계정 인증을 다시 시도해 주세요.",
+      }));
     }
   };
 
@@ -131,17 +160,19 @@ export function LoginScreen() {
               label="이메일"
               value={email}
               placeholder="name@email.com"
-              onChangeText={setEmail}
+              onChangeText={handleEmailChange}
               keyboardType="email-address"
               textContentType="emailAddress"
+              error={errors.email}
             />
             <AuthTextField
               label="비밀번호"
               value={password}
               placeholder="비밀번호를 입력해 주세요"
-              onChangeText={setPassword}
+              onChangeText={handlePasswordChange}
               secureTextEntry
               textContentType="password"
+              error={errors.password}
             />
 
             <View className="flex-row items-center justify-between">
@@ -196,6 +227,11 @@ export function LoginScreen() {
                 카카오로 로그인
               </Text>
             </Pressable>
+            {errors.kakao ? (
+              <Text className="mt-2 text-center text-[12px] font-medium text-[#C04737]">
+                {errors.kakao}
+              </Text>
+            ) : null}
           </View>
         </View>
       </KeyboardAvoidingView>

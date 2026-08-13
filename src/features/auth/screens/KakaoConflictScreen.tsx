@@ -1,4 +1,5 @@
-import { Alert, Text, View } from "react-native";
+import { useState } from "react";
+import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
@@ -22,12 +23,11 @@ export function KakaoConflictScreen() {
   const router = useRouter();
   const draft = useKakaoAuthStore((state) => state.draft);
   const clearDraft = useKakaoAuthStore((state) => state.clearDraft);
+  const [notice, setNotice] = useState("");
 
   const handleConnect = () => {
-    Alert.alert(
-      "계정 연결 안내",
+    setNotice(
       "기존 계정 로그인 후 카카오 계정을 연결하려면 백엔드 연결 API가 추가로 필요합니다.",
-      [{ text: "로그인으로 이동", onPress: () => router.replace("/auth/login") }],
     );
   };
 
@@ -90,6 +90,11 @@ export function KakaoConflictScreen() {
         </View>
 
         <View className="mt-auto">
+          {notice ? (
+            <Text className="mb-3 text-center text-[12px] font-medium text-[#C04737]">
+              {notice}
+            </Text>
+          ) : null}
           <PrimaryButton
             label="기존 계정으로 로그인 후 연결"
             onPress={handleConnect}

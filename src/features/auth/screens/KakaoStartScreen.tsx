@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Text,
@@ -17,7 +17,6 @@ import { useKakaoAuthStore } from "@/features/auth/store/kakaoAuthStore";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
-import { Image } from "react-native";
 
 type ReadonlyFieldProps = {
   label: string;
@@ -52,6 +51,7 @@ export function KakaoStartScreen() {
   const draft = useKakaoAuthStore((state) => state.draft);
   const updatePhone = useKakaoAuthStore((state) => state.updatePhone);
   const signInWithKakao = useAuthStore((state) => state.signInWithKakao);
+  const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleNext = async () => {
@@ -62,6 +62,7 @@ export function KakaoStartScreen() {
 
     try {
       setIsSubmitting(true);
+      setErrorMessage("");
       await signInWithKakao(draft.accessToken);
       router.replace("/(tabs)");
     } catch (error) {
@@ -73,8 +74,7 @@ export function KakaoStartScreen() {
         return;
       }
 
-      Alert.alert(
-        "카카오 로그인에 실패했습니다",
+      setErrorMessage(
         error instanceof Error
           ? error.message
           : "카카오 계정 정보를 다시 확인해 주세요.",
@@ -89,7 +89,7 @@ export function KakaoStartScreen() {
       <SafeAreaView className="flex-1 bg-concierge-bg px-6">
         <StatusBar style="dark" backgroundColor="#FAF6F1" />
         <View className="flex-1 items-center justify-center">
-          <Text className="text-center text-[14px] font-medium text-concierge-textSecondary">
+          <Text className="text-center text-[14px] font-medium text-[#C04737]">
             카카오 계정 정보를 다시 불러와 주세요.
           </Text>
           <PrimaryButton
@@ -176,6 +176,11 @@ export function KakaoStartScreen() {
           </View>
 
           <View className="mt-auto">
+            {errorMessage ? (
+              <Text className="mb-3 text-center text-[12px] font-medium text-[#C04737]">
+                {errorMessage}
+              </Text>
+            ) : null}
             <PrimaryButton
               label={isSubmitting ? "확인 중입니다" : "다음"}
               onPress={handleNext}

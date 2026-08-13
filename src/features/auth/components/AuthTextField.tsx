@@ -11,6 +11,7 @@ type Props = {
   autoCapitalize?: TextInputProps["autoCapitalize"];
   textContentType?: TextInputProps["textContentType"];
   labelHint?: string;
+  error?: string;
 };
 
 export function AuthTextField({
@@ -23,6 +24,7 @@ export function AuthTextField({
   autoCapitalize = "none",
   textContentType,
   labelHint,
+  error,
 }: Props) {
   return (
     <View>
@@ -44,9 +46,16 @@ export function AuthTextField({
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
         textContentType={textContentType}
-        className="h-[52px] rounded-[10px] border border-concierge-border bg-white px-4 text-[14px] font-semibold text-concierge-text"
+        className={`h-[52px] rounded-[10px] border bg-white px-4 text-[14px] font-semibold text-concierge-text ${
+          error ? "border-[#C04737]" : "border-concierge-border"
+        }`}
         style={{ letterSpacing: -0.35 }}
       />
+      {error ? (
+        <Text className="mt-1.5 text-[12px] font-medium text-[#C04737]">
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
