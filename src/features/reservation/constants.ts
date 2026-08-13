@@ -44,3 +44,5 @@ export const RESERVATION_TIME_SLOTS = [
 ];
 
 export const RESERVATION_WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+
+export const RESERVATION_UNAVAILABLE_TIMES = ["12:00", "15:30", "18:00"];

@@ -1,11 +1,13 @@
 import Svg, { Path, Rect } from "react-native-svg";
 
+import { colors } from "@/shared/styles/colors";
+
 type Props = {
   size?: number;
   color?: string;
 };
 
-export function CheckmarkCircleIcon({ size = 67, color = "#E4AB7C" }: Props) {
+export function CheckmarkCircleIcon({ size = 67, color = colors.accent }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 67 67" fill="none">
       <Rect width={67} height={67} rx={33.5} fill={color} />
