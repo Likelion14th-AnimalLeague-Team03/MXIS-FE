@@ -55,12 +55,7 @@ export function SignupScreen() {
         phone: request.phone || undefined,
       });
 
-      Alert.alert("계정 생성 완료", "이제 MXIS 기록을 이어갈 수 있습니다.", [
-        {
-          text: "로그인",
-          onPress: () => router.replace("/auth/login"),
-        },
-      ]);
+      router.replace("/auth/signup-complete");
     } catch (error) {
       Alert.alert(
         "회원가입할 수 없습니다",
