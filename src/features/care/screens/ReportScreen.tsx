@@ -124,7 +124,11 @@ export function ReportScreen() {
             onPress={() => router.push("/care/environment")}
             className="flex-1"
           />
-          <SecondaryButton label="관리 가이드" onPress={() => {}} className="flex-1" />
+          <SecondaryButton
+            label="관리 가이드"
+            onPress={() => router.push("/care/guide")}
+            className="flex-1"
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

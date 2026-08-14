@@ -11,13 +11,13 @@ export const RESERVATION_STORES: ReservationStore[] = [
     id: "haus-seoul",
     name: "MCM HAUS 서울",
     address: "서울 중구 명동길 412",
-    distanceKm: 2.1
+    distanceKm: 3.4
   },
   {
     id: "lotte-main",
     name: "MCM 롯데백화점 본점",
     address: "서울 중구 남대문로 81",
-    distanceKm: 2.1
+    distanceKm: 1.2
   }
 ];
 

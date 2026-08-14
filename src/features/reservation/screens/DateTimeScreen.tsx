@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -67,6 +67,7 @@ export function DateTimeScreen() {
   const [visibleMonth, setVisibleMonth] = useState(() => initialDate ?? today);
   const [selectedDate, setSelectedDate] = useState<Date | null>(initialDate);
   const [selectedTime, setSelectedTime] = useState<string | null>(initialTime);
+  const [showTimeWarning, setShowTimeWarning] = useState(false);
 
   const weeks = useMemo(() => getCalendarWeeks(visibleMonth), [visibleMonth]);
   const canSubmit = Boolean(selectedDate && selectedTime);
@@ -192,6 +193,13 @@ export function DateTimeScreen() {
         <Text className="mt-5 text-sm font-semibold text-concierge-text">
           예약 가능 시간
         </Text>
+        {showTimeWarning ? (
+          <View className="mt-3 self-start rounded-lg bg-[#FCE9E9] px-3 py-2">
+            <Text className="text-xs font-medium text-[#E05252]">
+              다른 시간을 선택해주세요
+            </Text>
+          </View>
+        ) : null}
         <View className="mt-3 flex-row flex-wrap gap-x-[9px] gap-y-2.5">
           {RESERVATION_TIME_SLOTS.map((slot) => {
             const selected = selectedTime === slot;
@@ -202,12 +210,10 @@ export function DateTimeScreen() {
                 key={slot}
                 onPress={() => {
                   if (unavailable) {
-                    Alert.alert(
-                      "예약이 마감된 시간이에요",
-                      "다른 시간을 선택해 주세요."
-                    );
+                    setShowTimeWarning(true);
                     return;
                   }
+                  setShowTimeWarning(false);
                   setSelectedTime(slot);
                 }}
                 className={`w-[23%] items-center rounded-[9px] py-2 ${
