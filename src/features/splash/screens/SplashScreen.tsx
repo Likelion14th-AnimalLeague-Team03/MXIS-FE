@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 
 import mxisLogo from "@/features/splash/assets/mxis-logo.png";
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { getAuthenticatedEntryRoute } from "@/features/onboarding/storage";
 
 const SPLASH_DURATION_MS = 1600;
 
@@ -15,7 +16,11 @@ export function SplashScreen() {
   useEffect(() => {
     const timer = setTimeout(async () => {
       const isAuthenticated = await restoreSession();
-      router.replace(isAuthenticated ? "/(tabs)" : "/auth/login");
+      const nextRoute = isAuthenticated
+        ? await getAuthenticatedEntryRoute()
+        : "/auth/login";
+
+      router.replace(nextRoute);
     }, SPLASH_DURATION_MS);
 
     return () => clearTimeout(timer);

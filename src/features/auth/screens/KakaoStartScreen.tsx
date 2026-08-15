@@ -15,6 +15,7 @@ import { AuthApiError } from "@/features/auth/api/authApi";
 import kakaoSymbol from "@/features/auth/assets/kakao-symbol.png";
 import { useKakaoAuthStore } from "@/features/auth/store/kakaoAuthStore";
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { getAuthenticatedEntryRoute } from "@/features/onboarding/storage";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 
@@ -64,7 +65,7 @@ export function KakaoStartScreen() {
       setIsSubmitting(true);
       setErrorMessage("");
       await signInWithKakao(draft.accessToken);
-      router.replace("/(tabs)");
+      router.replace(await getAuthenticatedEntryRoute());
     } catch (error) {
       if (
         error instanceof AuthApiError &&

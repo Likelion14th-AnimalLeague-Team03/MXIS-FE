@@ -17,6 +17,7 @@ import { AuthTextField } from "@/features/auth/components/AuthTextField";
 import { useKakaoAuthStore } from "@/features/auth/store/kakaoAuthStore";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { loginSchema } from "@/features/auth/utils/validation";
+import { getAuthenticatedEntryRoute } from "@/features/onboarding/storage";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 
 type LoginErrors = {
@@ -68,7 +69,7 @@ export function LoginScreen() {
       setIsSubmitting(true);
       setErrors({});
       await signIn(parsed.data);
-      router.replace("/(tabs)");
+      router.replace(await getAuthenticatedEntryRoute());
     } catch (error) {
       setErrors({
         password:
