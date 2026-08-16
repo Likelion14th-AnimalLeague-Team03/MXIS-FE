@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   Text,
   TextInput,
   View,
@@ -24,6 +26,8 @@ const MOCK_KAKAO_PROFILE = {
   email: "minji@kakao.com",
   phone: "",
 };
+
+const MOCK_LINKED_MCM_EMAILS = ["linked@mcm.com"];
 
 type ReadonlyFieldProps = {
   label: string;
@@ -58,9 +62,12 @@ export function KakaoStartScreen() {
   const draft = useKakaoAuthStore((state) => state.draft);
   const setDraft = useKakaoAuthStore((state) => state.setDraft);
   const updatePhone = useKakaoAuthStore((state) => state.updatePhone);
+  const clearDraft = useKakaoAuthStore((state) => state.clearDraft);
   const signInWithKakao = useAuthStore((state) => state.signInWithKakao);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMissingAccountModalVisible, setIsMissingAccountModalVisible] =
+    useState(false);
 
   const kakaoProfile = draft ?? MOCK_KAKAO_PROFILE;
 
@@ -70,10 +77,26 @@ export function KakaoStartScreen() {
     }
   }, [draft, setDraft]);
 
+  const hasLinkedMcmAccount = MOCK_LINKED_MCM_EMAILS.includes(
+    kakaoProfile.email.toLowerCase(),
+  );
+
+  const handleMissingAccountConfirm = () => {
+    setIsMissingAccountModalVisible(false);
+    clearDraft();
+    router.replace("/auth/login");
+  };
+
   const handleNext = async () => {
     try {
       setIsSubmitting(true);
       setErrorMessage("");
+
+      if (!hasLinkedMcmAccount) {
+        setIsMissingAccountModalVisible(true);
+        return;
+      }
+
       await signInWithKakao(kakaoProfile.accessToken);
       router.replace(await getAuthenticatedEntryRoute());
     } catch (error) {
@@ -181,6 +204,43 @@ export function KakaoStartScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={isMissingAccountModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleMissingAccountConfirm}
+      >
+        <View className="flex-1 items-center justify-center bg-[rgba(117,117,117,0.57)] px-6">
+          <View className="w-full rounded-[16px] bg-[#F2EBE5] px-5 pb-[18px] pt-[22px]">
+            <Text
+              className="text-[20px] font-semibold text-black"
+              style={{ letterSpacing: -0.5, lineHeight: 28 }}
+            >
+              카카오와 연결된{"\n"}MCM 계정을 찾을 수 없어요.
+            </Text>
+
+            <Text
+              className="mt-[14px] text-[14px] font-medium text-[#63635E]"
+              style={{ letterSpacing: -0.35, lineHeight: 20 }}
+            >
+              MCM 계정으로 로그인 해주세요.
+            </Text>
+
+            <Pressable
+              onPress={handleMissingAccountConfirm}
+              className="mt-[18px] h-[48px] items-center justify-center rounded-[10px] bg-[#814C27]"
+            >
+              <Text
+                className="text-[14px] font-semibold text-[#F2EBE5]"
+                style={{ letterSpacing: -0.35, lineHeight: 20 }}
+              >
+                확인
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

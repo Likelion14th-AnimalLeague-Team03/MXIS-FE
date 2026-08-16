@@ -3,16 +3,14 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { completeCharmOnboarding } from "@/features/onboarding/storage";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { CheckmarkCircleIcon } from "@/shared/components/icons/CheckmarkCircleIcon";
 
 export function CharmConnectedScreen() {
   const router = useRouter();
 
-  const handleNext = async () => {
-    await completeCharmOnboarding();
-    router.replace("/(tabs)");
+  const handleNext = () => {
+    router.push("/onboarding/product-select");
   };
 
   return (
