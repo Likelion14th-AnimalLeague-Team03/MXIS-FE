@@ -9,19 +9,24 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
 
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
 
 function BluetoothMark() {
   return (
-    <View className="h-[96px] w-[96px] items-center justify-center rounded-full border border-concierge-primary">
-      <Text
-        className="text-[48px] font-bold text-concierge-primary"
-        style={{ letterSpacing: -1.2 }}
-      >
-        B
-      </Text>
+    <View className="h-[86px] w-[86px] items-center justify-center rounded-full border border-concierge-primary">
+      <View className="h-[64px] w-[48px] items-center justify-center">
+        <Svg width={42} height={56} viewBox="0 0 48 64" fill="none">
+          <Path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M26.172 15.792L31.436 21.056L26.172 26.32V15.792ZM26.172 48.208L31.436 42.944L26.172 37.68V48.208ZM20.532 32.036L9.1 20.532L12.408 17.224L21.508 26.32V4.512L38.056 21.056L27.148 32.04L38.128 43.02L21.584 59.568V37.68L12.408 46.776L9.1 43.468L20.532 32.036ZM23.612 64C37.604 64 47.228 57.38 47.228 31.96C47.228 6.62 37.604 0 23.616 0C9.628 0 0 6.62 0 32.04C0 57.376 9.624 64 23.612 64Z"
+            fill="#814C27"
+          />
+        </Svg>
+      </View>
     </View>
   );
 }
@@ -85,7 +90,7 @@ export function BluetoothPermissionScreen() {
           필요합니다.
         </Text>
 
-        <View className="mt-5 h-[249px] items-center justify-center rounded-[18px] bg-white">
+        <View className="mt-5 h-[214px] items-center justify-center rounded-[18px] bg-white">
           <BluetoothMark />
         </View>
 
