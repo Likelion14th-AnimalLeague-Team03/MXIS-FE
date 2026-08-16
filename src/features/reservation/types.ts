@@ -13,6 +13,10 @@ export type ReservationDraft = {
   note: string;
 };
 
+export type ReservationCareType = "FREE" | "PAID";
+
+export type ReservationStatus = "PENDING" | "CONFIRMED";
+
 export type ConfirmedReservation = {
   productName: string;
   storeName: string;
@@ -21,4 +25,6 @@ export type ConfirmedReservation = {
   date: Date;
   time: string;
   note: string;
+  careType: ReservationCareType;
+  status: ReservationStatus;
 };

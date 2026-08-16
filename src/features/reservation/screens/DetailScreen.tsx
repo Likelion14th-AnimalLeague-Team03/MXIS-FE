@@ -5,10 +5,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import productThumb from "@/features/reservation/assets/product-thumb-small.png";
 import { formatDateShort } from "@/features/reservation/format";
+import type { ReservationStatus } from "@/features/reservation/types";
 import { useReservationStore } from "@/features/reservation/store";
 import { AlertModal } from "@/shared/components/AlertModal";
 import { Card } from "@/shared/components/Card";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
+
+const STATUS_LABEL: Record<ReservationStatus, string> = {
+  PENDING: "승인 대기중",
+  CONFIRMED: "예약 확정",
+};
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -53,11 +59,9 @@ export function DetailScreen() {
               title="예약 상세"
               onBack={() => router.back()}
               right={
-                <View className="rounded-full bg-concierge-chip px-2 py-1.5">
-                  <Text className="text-xs text-concierge-textSecondary">
-                    예약 확정
-                  </Text>
-                </View>
+                <Text className="text-sm text-concierge-textSecondary">
+                  {STATUS_LABEL[confirmed.status]}
+                </Text>
               }
             />
           </View>
@@ -90,7 +94,7 @@ export function DetailScreen() {
                 label="일정"
                 value={`${formatDateShort(confirmed.date)} · ${confirmed.time}`}
               />
-              <DetailRow label="예약 상태" value="예약 확정" />
+              <DetailRow label="예약 상태" value={STATUS_LABEL[confirmed.status]} />
 
               <View className="border-t border-concierge-borderLight" />
 
@@ -168,6 +172,7 @@ export function DetailScreen() {
         visible={doneVisible}
         title="예약이 취소되었어요."
         description="예약 취소가 완료되었습니다. 새로운 일정으로 언제든 다시 예약할 수 있어요."
+        layout="column"
         actions={[{ label: "확인", onPress: handleDone, variant: "accent" }]}
         onRequestClose={handleDone}
       />

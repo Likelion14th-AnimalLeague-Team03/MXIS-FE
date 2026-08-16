@@ -92,7 +92,7 @@ export function InputScreen() {
           />
           <View>
             <Text className="text-base font-semibold text-[#121212]">
-              MCM Aren Shopper
+              Ella 바세토스 보스턴 백
             </Text>
             <Text className="mt-1 text-[13px] text-[#63635E]">
               Visetos Canvas · Cognac

@@ -85,7 +85,7 @@ export function StoreScreen() {
         layout="column"
         actions={[
           { label: "위치 권한 허용", onPress: () => setLocationGranted(true), variant: "accent" },
-          { label: "나중에", onPress: () => setLocationGranted(false) },
+          { label: "확인", onPress: () => setLocationGranted(false) },
         ]}
       />
     </SafeAreaView>

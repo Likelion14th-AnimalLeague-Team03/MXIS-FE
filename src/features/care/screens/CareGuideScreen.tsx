@@ -3,7 +3,8 @@ import { Image, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path, Rect } from "react-native-svg";
 
-import guideBg from "@/features/care/assets/guide-bg.png";
+import guide1 from "@/features/care/assets/guide1.png";
+import guide2 from "@/features/care/assets/guide2.png";
 import { Card } from "@/shared/components/Card";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { colors } from "@/shared/styles/colors";
@@ -13,6 +14,11 @@ const CARE_STEPS = [
   "결 방향을 따라 부드럽게 닦아주세요.",
   "강한 힘을 주지 않고 가볍게 닦아주세요."
 ];
+
+// 추천 관리 이미지는 텍스트가 이미지 안에 그려진 완성본이라 그대로 보여주면 돼요.
+// GUIDE_IMAGES[0]=guide1, [1]=guide2 — 나중엔 AI 진단 결과로 정해지는 인덱스로 바꾸면 됩니다.
+const GUIDE_IMAGES = [guide1, guide2];
+const recommendedGuideIndex = 1;
 
 function CheckSquareIcon({
   size = 14,
@@ -63,28 +69,16 @@ export function CareGuideScreen() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
       <ScrollView className="flex-1 px-6" contentContainerClassName="pb-8">
-        <View className="mt-3 flex-row items-center">
-          <ScreenHeader title="관리 가이드" onBack={() => router.back()} className="flex-1" />
-          <View className="rounded-full border border-concierge-primary px-2 py-1">
-            <Text className="text-xs text-concierge-primary">Visetos</Text>
-          </View>
+        <View className="mt-3">
+          <ScreenHeader title="관리 가이드" onBack={() => router.back()} />
         </View>
 
         <View className="mt-4 overflow-hidden rounded-2xl">
-          <Image source={guideBg} className="h-[280px] w-full" resizeMode="cover" />
-          <View className="absolute inset-0 bg-black/35" />
-          <View className="absolute inset-0 justify-end p-4">
-            <View className="mb-3 flex-row items-center gap-1.5 self-start rounded-full bg-white/20 px-2.5 py-1.5">
-              <CheckSquareIcon size={13} color="#FFFFFF" />
-              <Text className="text-xs font-medium text-white">지급 추천하는 관리</Text>
-            </View>
-            <Text className="text-2xl font-bold leading-8 text-white">
-              이번 주에는 직사광선을 피해 통풍이 잘되는 공간에 보관하세요
-            </Text>
-            <Text className="mt-2 text-[13px] text-white/80">
-              최근 사용 빈도가 높아 잠시 형태와 표면을 쉬어주는 것이 좋습니다.
-            </Text>
-          </View>
+          <Image
+            source={GUIDE_IMAGES[recommendedGuideIndex]}
+            className="h-[280px] w-full"
+            resizeMode="cover"
+          />
         </View>
 
         <View className="mt-5 flex-row items-center gap-1.5">

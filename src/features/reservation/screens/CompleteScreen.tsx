@@ -10,11 +10,10 @@ import { ScreenHeader } from "@/shared/components/ScreenHeader";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <View className="flex-row items-center gap-2">
+    <View className="flex-row items-center justify-between py-1.5">
       <Text className="text-sm font-semibold text-concierge-textSecondary">
         {label}
       </Text>
-      <View className="h-px flex-1 " />
       <Text className="text-sm font-semibold text-concierge-text">{value}</Text>
     </View>
   );
@@ -23,6 +22,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 export function CompleteScreen() {
   const router = useRouter();
   const confirmed = useReservationStore((state) => state.confirmed);
+  const isFree = confirmed?.careType === "FREE";
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -35,14 +35,16 @@ export function CompleteScreen() {
           <View className="items-center mt-10">
             <CheckmarkCircleIcon />
             <Text className="mt-5 text-xl font-bold text-concierge-text">
-              제품을 위한 시간이 준비되었습니다.
+              {isFree ? "무상 케어 예약이 완료되었습니다." : "예약 요청이 전달되었습니다."}
             </Text>
             <Text className="mt-5 text-center text-sm font-semibold text-concierge-textSecondary">
-              예약 정보를 확인하고 편안하게 방문해 주세요.
+              {isFree
+                ? "예약 정보를 확인하고 편안하게 방문해 주세요."
+                : "매장에서 확인 후 예약을 확정해 드립니다."}
             </Text>
           </View>
 
-          <View className="mt-6 gap-3 rounded-xl px-4 py-3.5">
+          <View className="mt-6 gap-1 rounded-xl px-4 py-3.5">
             <InfoRow label="제품" value={confirmed.productName} />
             <InfoRow label="매장" value={confirmed.storeName} />
             <InfoRow label="날짜" value={formatDateDot(confirmed.date)} />
@@ -54,7 +56,9 @@ export function CompleteScreen() {
               방문 안내
             </Text>
             <Text className="text-sm text-concierge-textSecondary">
-              예약 시간 5분 전 매장에 도착해 제품을 함께 전달해 주세요.
+              {isFree
+                ? "예약 시간 5분 전 매장에 도착해 제품을 함께 전달해 주세요."
+                : "예약확정 여부는 예약 페이지에서 확인 가능합니다."}
             </Text>
           </View>
 

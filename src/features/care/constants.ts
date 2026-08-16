@@ -10,3 +10,12 @@ export const HUMIDITY_LAST_30_DAYS_PEAKS = [50, 68, 32, 71, 38, 60, 29, 65, 44];
 export const HUMIDITY_LAST_12_MONTHS = [
   45, 48, 52, 55, 60, 65, 68, 66, 58, 50, 46, 44
 ];
+
+// 온도 변화 그래프 목업 데이터.
+export const TEMPERATURE_LAST_7_DAYS = [21, 23, 19, 25, 20, 22, 24];
+
+export const TEMPERATURE_LAST_30_DAYS_PEAKS = [18, 24, 15, 27, 17, 23, 14, 25, 20];
+
+export const TEMPERATURE_LAST_12_MONTHS = [
+  8, 10, 14, 18, 22, 25, 28, 27, 23, 17, 12, 9
+];
