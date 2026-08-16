@@ -1,43 +1,93 @@
 import { useRouter } from "expo-router";
 import { useState, type ReactNode } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import outIcon from "@/features/care/assets/out.png";
+import popIcon from "@/features/care/assets/pop.png";
+import temperatureIcon from "@/features/care/assets/temperature.png";
+import waterIcon from "@/features/care/assets/water.png";
 import { HumidityLineChart } from "@/features/care/components/HumidityLineChart";
 import {
   HUMIDITY_LAST_7_DAYS,
   HUMIDITY_LAST_12_MONTHS,
   HUMIDITY_LAST_30_DAYS_PEAKS,
+  TEMPERATURE_LAST_7_DAYS,
+  TEMPERATURE_LAST_12_MONTHS,
+  TEMPERATURE_LAST_30_DAYS_PEAKS,
 } from "@/features/care/constants";
 import { Card } from "@/shared/components/Card";
-import { DropletIcon } from "@/shared/components/icons/DropletIcon";
-import { FootprintIcon } from "@/shared/components/icons/FootprintIcon";
-import { ShieldIcon } from "@/shared/components/icons/ShieldIcon";
-import { ThermometerIcon } from "@/shared/components/icons/ThermometerIcon";
+import { WarningIcon } from "@/shared/components/icons/WarningIcon";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 
 const RANGES = ["최근 7일", "최근 30일", "최근 1년"] as const;
+type Range = (typeof RANGES)[number];
 
-const HUMIDITY_VALUES_BY_RANGE: Record<(typeof RANGES)[number], number[]> = {
+const HUMIDITY_VALUES_BY_RANGE: Record<Range, number[]> = {
   "최근 7일": HUMIDITY_LAST_7_DAYS,
   "최근 30일": HUMIDITY_LAST_30_DAYS_PEAKS,
   "최근 1년": HUMIDITY_LAST_12_MONTHS,
 };
 
+const TEMPERATURE_VALUES_BY_RANGE: Record<Range, number[]> = {
+  "최근 7일": TEMPERATURE_LAST_7_DAYS,
+  "최근 30일": TEMPERATURE_LAST_30_DAYS_PEAKS,
+  "최근 1년": TEMPERATURE_LAST_12_MONTHS,
+};
+
+type Metric = "HUMIDITY" | "TEMP";
+
+function MetricToggle({
+  metric,
+  onSelect,
+}: {
+  metric: Metric;
+  onSelect: (metric: Metric) => void;
+}) {
+  return (
+    <View className="flex-row rounded-lg bg-concierge-surfaceMuted p-0.5">
+      {(["TEMP", "HUMIDITY"] as Metric[]).map((option) => {
+        const selected = metric === option;
+        return (
+          <Pressable
+            key={option}
+            onPress={() => onSelect(option)}
+            className={`rounded-md px-2.5 py-1 ${selected ? "bg-white" : ""}`}
+          >
+            <Text
+              className={`text-xs ${selected ? "font-semibold text-concierge-text" : "text-concierge-textMuted"}`}
+            >
+              {option === "TEMP" ? "온도" : "습도"}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 function StatTile({
   icon,
   label,
   value,
+  muted = false,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
+  muted?: boolean;
 }) {
   return (
     <View className="w-[47%] flex-row items-center gap-3 rounded-2xl border border-concierge-borderLight bg-white px-4 py-4">
       <View>
         <Text className="text-xs text-concierge-textMuted">{label}</Text>
-        <Text className="mt-2 text-lg font-bold text-concierge-text">
+        <Text
+          className={
+            muted
+              ? "mt-2 text-sm font-semibold text-concierge-textMuted"
+              : "mt-2 text-lg font-bold text-concierge-text"
+          }
+        >
           {value}
         </Text>
       </View>
@@ -48,9 +98,59 @@ function StatTile({
   );
 }
 
+// 진단 API가 붙기 전까지, 데이터 수집중 상태의 디자인도 테스트해볼 수 있는 토글이에요.
+function DataTestToggle({
+  hasData,
+  onToggle,
+}: {
+  hasData: boolean;
+  onToggle: (value: boolean) => void;
+}) {
+  return (
+    <View className="mt-4 flex-row items-center gap-2 rounded-xl border border-dashed border-concierge-border bg-white px-3 py-2.5">
+      <Text className="text-xs font-semibold text-concierge-textMuted">테스트</Text>
+      <View className="flex-1 flex-row justify-end gap-1.5">
+        {[
+          { key: true, label: "데이터 있음" },
+          { key: false, label: "수집중" },
+        ].map((option) => (
+          <Pressable
+            key={String(option.key)}
+            onPress={() => onToggle(option.key)}
+            className={`rounded-full px-2.5 py-1 ${
+              hasData === option.key ? "bg-concierge-primary" : "bg-concierge-chip"
+            }`}
+          >
+            <Text
+              className={`text-xs ${
+                hasData === option.key ? "text-white" : "text-concierge-textSecondary"
+              }`}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const HUMIDITY_LABELS = ["70%", "55%", "40%", "25%"];
+const TEMPERATURE_LABELS = ["30°C", "23°C", "17°C", "10°C"];
+
 export function EnvironmentScreen() {
   const router = useRouter();
-  const [range, setRange] = useState<(typeof RANGES)[number]>("최근 30일");
+  const [range, setRange] = useState<Range>("최근 30일");
+  const [metric, setMetric] = useState<Metric>("HUMIDITY");
+  const [hasData, setHasData] = useState(true);
+
+  const isHumidity = metric === "HUMIDITY";
+  const values = isHumidity
+    ? HUMIDITY_VALUES_BY_RANGE[range]
+    : TEMPERATURE_VALUES_BY_RANGE[range];
+  const axisLabels = isHumidity ? HUMIDITY_LABELS : TEMPERATURE_LABELS;
+  const chartMin = isHumidity ? 20 : 5;
+  const chartMax = isHumidity ? 75 : 35;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -58,6 +158,8 @@ export function EnvironmentScreen() {
         <View className="mt-3">
           <ScreenHeader title="환경 데이터" onBack={() => router.back()} />
         </View>
+
+        <DataTestToggle hasData={hasData} onToggle={setHasData} />
 
         <View className="mt-4 flex-row rounded-xl bg-white p-1">
           {RANGES.map((label) => {
@@ -81,47 +183,74 @@ export function EnvironmentScreen() {
         </View>
 
         <Card className="mt-4 border-0 bg-white px-4 py-4">
-          <Text className="text-lg font-semibold text-concierge-text">
-            습도 변화
-          </Text>
+          <View className="flex-row items-center justify-between">
+            <Text className="text-lg font-semibold text-concierge-text">
+              {isHumidity ? "습도 변화" : "온도 변화"}
+            </Text>
+            <MetricToggle metric={metric} onSelect={setMetric} />
+          </View>
           <View className="mt-4 flex-row">
             <View className="mr-2 justify-between py-1">
-              {["70%", "55%", "40%", "25%"].map((label) => (
+              {axisLabels.map((label) => (
                 <Text key={label} className="text-xs text-concierge-textMuted">
                   {label}
                 </Text>
               ))}
             </View>
-            <HumidityLineChart
-              width={270}
-              values={HUMIDITY_VALUES_BY_RANGE[range]}
-            />
+            {hasData ? (
+              <HumidityLineChart width={270} values={values} min={chartMin} max={chartMax} />
+            ) : (
+              <View className="h-[100px] flex-1 items-center justify-center">
+                <Text className="text-xs font-medium text-concierge-textMuted">
+                  데이터 수집중
+                </Text>
+              </View>
+            )}
           </View>
           <Text className="mt-4 text-sm text-concierge-textMuted">
-            권장 범위 안에서 비교적 안정적으로 유지되었습니다.
+            {hasData
+              ? "권장 범위 안에서 비교적 안정적으로 유지되었습니다."
+              : "충분한 데이터가 모이지 않았습니다."}
           </Text>
         </Card>
 
+        {range === "최근 1년" ? (
+          <View className="mt-3 rounded-xl border border-concierge-border bg-white px-3 py-2.5">
+            <View className="flex-row items-center gap-1.5">
+              <WarningIcon size={12} />
+              <Text className="text-xs font-semibold text-concierge-text">
+                평균치 안내
+              </Text>
+            </View>
+            <Text className="mt-1 text-xs text-concierge-textMuted">
+              충격횟수, 외출횟수 평균 1년 탭에서는 7일, 30일과 다르게 평균치임을
+              알려드립니다.
+            </Text>
+          </View>
+        ) : null}
+
         <View className="mt-4 flex-row flex-wrap justify-between gap-y-3">
           <StatTile
-            icon={<ThermometerIcon size={18} />}
+            icon={<Image source={temperatureIcon} className="size-[18px]" resizeMode="contain" />}
             label="평균 온도"
-            value="22°C"
+            value={hasData ? "22°C" : "수집중"}
+            muted={!hasData}
           />
           <StatTile
-            icon={<DropletIcon size={18} />}
+            icon={<Image source={waterIcon} className="size-[18px]" resizeMode="contain" />}
             label="평균 습도"
-            value="42%"
+            value={hasData ? "42%" : "수집중"}
+            muted={!hasData}
           />
           <StatTile
-            icon={<FootprintIcon size={18} />}
-            label="외출 횟수"
-            value="18회"
+            icon={<Image source={outIcon} className="size-[18px]" resizeMode="contain" />}
+            label="외출"
+            value="1회"
           />
           <StatTile
-            icon={<ShieldIcon size={18} />}
-            label="충격 횟수"
-            value="2회"
+            icon={<Image source={popIcon} className="size-[18px]" resizeMode="contain" />}
+            label="충격"
+            value="0회"
           />
         </View>
 
@@ -129,10 +258,16 @@ export function EnvironmentScreen() {
           <Text className="text-lg font-bold text-concierge-text">
             데이터 해석
           </Text>
-          <Text className="text-[15px] font-medium text-[#222222]">
-            이전 30일보다 습도 변화가 높았지만,{"\n"}온·습도 환경은
-            안정적이었습니다.
-          </Text>
+          {hasData ? (
+            <Text className="text-[15px] font-medium text-[#222222]">
+              이전 30일보다 습도 변화가 높았지만,{"\n"}온·습도 환경은 안정적이었습니다.
+            </Text>
+          ) : (
+            <Text className="text-[15px] font-medium text-[#222222]">
+              현재 데이터를 수집하고 있습니다.{"\n\n"}충분한 기록이 쌓이면 제품의 사용
+              환경과 패턴을 종합해 안내해 드립니다.
+            </Text>
+          )}
         </Card>
       </ScrollView>
     </SafeAreaView>

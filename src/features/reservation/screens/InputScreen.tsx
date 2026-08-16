@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
   Image,
   Pressable,
@@ -15,6 +16,7 @@ import { useReservationStore } from "@/features/reservation/store";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { WarningIcon } from "@/shared/components/icons/WarningIcon";
+import { NoticeModal } from "@/shared/components/NoticeModal";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 
 function SelectRow({
@@ -60,9 +62,13 @@ export function InputScreen() {
   const confirmDraft = useReservationStore((state) => state.confirmDraft);
 
   const canSubmit = Boolean(draft.storeName && draft.date && draft.time);
+  const [noticeVisible, setNoticeVisible] = useState(false);
 
   const handleSubmit = () => {
-    if (!canSubmit) return;
+    if (!canSubmit) {
+      setNoticeVisible(true);
+      return;
+    }
     confirmDraft();
     router.replace("/reservation/complete");
   };
@@ -86,7 +92,7 @@ export function InputScreen() {
           />
           <View>
             <Text className="text-base font-semibold text-[#121212]">
-              MCM Aren Shopper
+              Ella 바세토스 보스턴 백
             </Text>
             <Text className="mt-1 text-[13px] text-[#63635E]">
               Visetos Canvas · Cognac
@@ -159,12 +165,15 @@ export function InputScreen() {
       </ScrollView>
 
       <View className="px-6 pb-4 pt-2">
-        <PrimaryButton
-          label="예약 요청하기"
-          onPress={handleSubmit}
-          disabled={!canSubmit}
-        />
+        <PrimaryButton label="예약 요청하기" onPress={handleSubmit} />
       </View>
+
+      <NoticeModal
+        visible={noticeVisible}
+        title="예약 정보를 모두 입력해 주세요."
+        description="예약을 요청하려면 방문 매장과 방문 일정을 모두 선택해 주세요."
+        onConfirm={() => setNoticeVisible(false)}
+      />
     </SafeAreaView>
   );
 }

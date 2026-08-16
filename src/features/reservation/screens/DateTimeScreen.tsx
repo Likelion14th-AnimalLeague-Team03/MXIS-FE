@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -67,6 +67,7 @@ export function DateTimeScreen() {
   const [visibleMonth, setVisibleMonth] = useState(() => initialDate ?? today);
   const [selectedDate, setSelectedDate] = useState<Date | null>(initialDate);
   const [selectedTime, setSelectedTime] = useState<string | null>(initialTime);
+  const [showTimeWarning, setShowTimeWarning] = useState(false);
 
   const weeks = useMemo(() => getCalendarWeeks(visibleMonth), [visibleMonth]);
   const canSubmit = Boolean(selectedDate && selectedTime);
@@ -92,12 +93,12 @@ export function DateTimeScreen() {
       <View className="px-6 pt-3">
         <ScreenHeader title="날짜·시간 선택" onBack={() => router.back()} />
 
-        <View className="mt-4">
-          <Text className="text-base font-semibold text-concierge-text">
+        <View className="mt-4 rounded-xl bg-concierge-surfaceMuted px-4 py-3.5">
+          <Text className="text-base font-bold text-concierge-text">
             {storeName ?? "매장을 먼저 선택해 주세요"}
           </Text>
           {storeAddress ? (
-            <Text className="mt-1 text-xs text-concierge-textMuted">
+            <Text className="mt-1 text-sm text-concierge-textMuted">
               {storeAddress}
             </Text>
           ) : null}
@@ -178,20 +179,16 @@ export function DateTimeScreen() {
           ))}
         </View>
 
-        <View className="mt-4 rounded-xl bg-concierge-surfaceMuted px-4 py-3">
-          <Text className="text-xs text-concierge-textSecondary">
-            선택한 일정
-          </Text>
-          <Text className="mt-1 text-[15px] font-semibold text-concierge-text">
-            {selectedDate && selectedTime
-              ? `${formatDateKoreanFull(selectedDate)} · ${selectedTime}`
-              : "날짜와 시간을 선택해 주세요"}
-          </Text>
-        </View>
-
         <Text className="mt-5 text-sm font-semibold text-concierge-text">
           예약 가능 시간
         </Text>
+        {showTimeWarning ? (
+          <View className="mt-3 self-start rounded-lg bg-[#FCE9E9] px-3 py-2">
+            <Text className="text-xs font-medium text-[#E05252]">
+              다른 시간을 선택해주세요
+            </Text>
+          </View>
+        ) : null}
         <View className="mt-3 flex-row flex-wrap gap-x-[9px] gap-y-2.5">
           {RESERVATION_TIME_SLOTS.map((slot) => {
             const selected = selectedTime === slot;
@@ -202,19 +199,17 @@ export function DateTimeScreen() {
                 key={slot}
                 onPress={() => {
                   if (unavailable) {
-                    Alert.alert(
-                      "예약이 마감된 시간이에요",
-                      "다른 시간을 선택해 주세요."
-                    );
+                    setShowTimeWarning(true);
                     return;
                   }
+                  setShowTimeWarning(false);
                   setSelectedTime(slot);
                 }}
                 className={`w-[23%] items-center rounded-[9px] py-2 ${
                   selected
                     ? "bg-concierge-primary"
                     : unavailable
-                      ? "bg-concierge-borderLight"
+                      ? "bg-[#E2DDD7]"
                       : "bg-concierge-surfaceMuted"
                 }`}
               >
@@ -223,7 +218,7 @@ export function DateTimeScreen() {
                     selected
                       ? "font-semibold text-white"
                       : unavailable
-                        ? "text-concierge-textMuted line-through"
+                        ? "text-[#A8A19A]"
                         : "text-concierge-text"
                   }`}
                 >
@@ -232,6 +227,17 @@ export function DateTimeScreen() {
               </Pressable>
             );
           })}
+        </View>
+
+        <View className="mt-4 rounded-xl bg-concierge-surfaceMuted px-4 py-3">
+          <Text className="text-xs text-concierge-textSecondary">
+            선택한 일정
+          </Text>
+          <Text className="mt-1 text-[15px] font-semibold text-concierge-text">
+            {selectedDate && selectedTime
+              ? `${formatDateKoreanFull(selectedDate)} · ${selectedTime}`
+              : "날짜와 시간을 선택해 주세요"}
+          </Text>
         </View>
       </ScrollView>
 
