@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -42,20 +42,23 @@ const MOCK_CHARM_DEVICES: MockCharmDevice[] = [
 const CONNECTION_DELAY_MS = 1200;
 const SEARCH_DELAY_MS = 700;
 
-function StatusPill({ status }: { status: Exclude<CharmConnectionStatus, "idle"> }) {
+// 안드로이드에서 알약 배지 안 한글 텍스트가 위쪽이 잘려 보이는 문제가 있어서,
+// 텍스트 줄높이에 기대지 않고 고정 높이 + 가운데 정렬로 넉넉하게 감싸줍니다.
+function StatusPill({
+  status,
+}: {
+  status: Exclude<CharmConnectionStatus, "idle">;
+}) {
   const isFailed = status === "failed";
   const color = isFailed ? "#A51F21" : "#814C27";
   const label = isFailed ? "연결 실패" : "연결 중";
 
   return (
     <View
-      className="shrink-0 rounded-full border px-[9px] py-[5px]"
+      className="h-6 shrink-0 items-center justify-center rounded-full border px-2.5"
       style={{ borderColor: color }}
     >
-      <Text
-        className="text-[12px] font-medium"
-        style={{ color, letterSpacing: -0.12, lineHeight: 17 }}
-      >
+      <Text className="text-xs font-medium" style={{ color, lineHeight: 18 }}>
         {label}
       </Text>
     </View>
@@ -81,8 +84,8 @@ function CharmDeviceCard({
   return (
     <Pressable
       onPress={() => onPress(device)}
-      className={`flex-row items-center gap-[10px] overflow-hidden rounded-[12px] bg-white px-4 ${
-        isFailed ? "min-h-[68px] py-[13px]" : "h-[46px] py-[13px]"
+      className={`flex-row items-center gap-2.5 overflow-hidden rounded-xl bg-white px-4 ${
+        isFailed ? "min-h-[56px] py-2.5" : "h-11 py-2.5"
       }`}
     >
       <View
@@ -90,19 +93,17 @@ function CharmDeviceCard({
         style={{ backgroundColor: dotColor }}
       />
 
-      <View className={isFailed ? "w-[225px] shrink-0" : "min-w-0 flex-1"}>
+      <View className="min-w-0 flex-1">
         <Text
-          className="text-[14px] font-semibold text-[#121212]"
+          className="text-sm font-semibold text-concierge-text"
           numberOfLines={1}
-          style={{ letterSpacing: -0.35, lineHeight: 20 }}
         >
           {device.name}
         </Text>
         {isFailed ? (
           <Text
-            className="mt-[2px] w-[237px] text-[14px] font-semibold text-[#63635E]"
+            className="mt-0.5 text-xs font-medium text-concierge-textSecondary"
             numberOfLines={1}
-            style={{ letterSpacing: -0.35, lineHeight: 20 }}
           >
             연결 실패했습니다. 다시 시도해주세요.
           </Text>
@@ -117,20 +118,13 @@ function CharmDeviceCard({
 function SearchBottomActions({ onSearchAgain }: { onSearchAgain: () => void }) {
   return (
     <View className="gap-2">
-      <SecondaryButton
-        label="다시 검색"
-        onPress={onSearchAgain}
-        className="h-[52px] rounded-[10px]"
-      />
+      <SecondaryButton label="다시 검색" onPress={onSearchAgain} />
       <Link href="/onboarding/connection-help" asChild>
         <Pressable
           hitSlop={12}
-          className="min-h-[34px] items-center justify-center"
+          className="min-h-[32px] items-center justify-center"
         >
-          <Text
-            className="text-center text-[14px] font-medium text-[#63635E]"
-            style={{ letterSpacing: -0.35, lineHeight: 20 }}
-          >
+          <Text className="text-center text-sm font-medium text-concierge-textSecondary">
             MXIS Charm을 찾지 못하셨나요? 연결 도움말
           </Text>
         </Pressable>
@@ -139,6 +133,7 @@ function SearchBottomActions({ onSearchAgain }: { onSearchAgain: () => void }) {
   );
 }
 
+// 스크롤 없이 화면 안에 항상 다 들어오도록, ScrollView 대신 고정 flex 레이아웃을 씁니다.
 export function CharmScanScreen() {
   const router = useRouter();
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
@@ -222,74 +217,53 @@ export function CharmScanScreen() {
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-concierge-bg">
       <StatusBar style="dark" backgroundColor="#FAF6F1" />
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="min-h-full px-6 pb-7 pt-[66px]"
-        showsVerticalScrollIndicator={false}
-      >
-        <Text
-          className="text-[24px] font-bold text-[#121212]"
-          style={{ letterSpacing: -0.6, lineHeight: 34 }}
-        >
-          MXIS Charm을 찾고 있어요.
-        </Text>
-        <Text
-          className="mt-3 text-[14px] font-medium text-[#63635E]"
-          style={{ letterSpacing: -0.35, lineHeight: 20 }}
-        >
-          스마트폰 가까이에 두고 잠시만 기다려 주세요.
-        </Text>
+      <View className="flex-1 px-6 pb-6 pt-6">
+        <View className="flex-1">
+          <Text className="text-2xl font-bold text-concierge-text">
+            MXIS Charm을 찾고 있어요.
+          </Text>
+          <Text className="mt-5 text-sm text-concierge-textSecondary">
+            스마트폰 가까이에 두고 잠시만 기다려 주세요.
+          </Text>
 
-        <View
-          className={`h-[301px] items-center justify-center overflow-visible ${
-            hasEmptyResult ? "mt-[78px]" : "mt-[58px]"
-          }`}
-        >
-          <Image
-            source={charmOnboardingDevice}
-            className={
-              hasEmptyResult ? "h-[264px] w-[264px]" : "h-[208px] w-[208px]"
-            }
-            resizeMode="contain"
-          />
+          <View
+            className={`items-center justify-center overflow-visible ${
+              hasEmptyResult ? "mt-40 mb-20 h-[200px]" : "mt-20 mb-10 h-[180px]"
+            }`}
+          >
+            <Image
+              source={charmOnboardingDevice}
+              className={
+                hasEmptyResult ? "h-[370px] w-[370px]" : "h-[280px] w-[280px]"
+              }
+              resizeMode="contain"
+            />
+          </View>
+
+          {hasEmptyResult ? (
+            <View className="mt-4 items-center">
+              <Text className="text-center text-lg font-bold text-concierge-primary">
+                연결 가능한 참을 찾을 수 없어요
+              </Text>
+              <Text className="mt-1.5 text-center text-sm font-semibold text-concierge-textSecondary">
+                Charm의 전원이 켜져있는지 확인해 주세요
+              </Text>
+            </View>
+          ) : (
+            <View className="mt-4 gap-2">
+              {devices.map((device) => (
+                <CharmDeviceCard
+                  key={device.id}
+                  device={device}
+                  onPress={handleConnectDevice}
+                />
+              ))}
+            </View>
+          )}
         </View>
 
-        {hasEmptyResult ? (
-          <View className="mt-[44px] items-center">
-            <Text
-              className="text-center text-[20px] font-bold text-[#814C27]"
-              style={{ letterSpacing: -0.5, lineHeight: 28 }}
-            >
-              연결 가능한 참을 찾을 수 없어요
-            </Text>
-            <Text
-              className="mt-2 text-center text-[14px] font-semibold text-[#656565]"
-              style={{ letterSpacing: -0.35, lineHeight: 20 }}
-            >
-              Charm의 전원이 켜져있는지 확인해 주세요
-            </Text>
-          </View>
-        ) : (
-          <View className="mt-[42px] gap-3">
-            {devices.map((device) => (
-              <CharmDeviceCard
-                key={device.id}
-                device={device}
-                onPress={handleConnectDevice}
-              />
-            ))}
-          </View>
-        )}
-
-        <View
-          className={hasEmptyResult ? "mt-auto pt-[54px]" : "mt-auto pt-[72px]"}
-        >
-          <View className="mb-7 items-center">
-            <View className="h-[26px] w-px bg-white" />
-          </View>
-          <SearchBottomActions onSearchAgain={resetSearch} />
-        </View>
-      </ScrollView>
+        <SearchBottomActions onSearchAgain={resetSearch} />
+      </View>
     </SafeAreaView>
   );
 }

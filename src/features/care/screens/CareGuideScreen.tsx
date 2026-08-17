@@ -71,7 +71,7 @@ export function CareGuideScreen() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
       <ScrollView className="flex-1 px-6" contentContainerClassName="pb-8">
-        <View className="mt-3">
+        <View className="mt-6">
           <ScreenHeader title="관리 가이드" onBack={() => router.back()} />
         </View>
 
@@ -85,7 +85,7 @@ export function CareGuideScreen() {
         </View>
 
         <View className="mt-5 flex-row items-center gap-1.5">
-          <CheckSquareIcon size={16} color={colors.primary} filled />
+          <CheckSquareIcon size={16} color={colors.primary} />
           <Text className="text-xs font-medium text-concierge-textMuted">
             일상 관리
           </Text>

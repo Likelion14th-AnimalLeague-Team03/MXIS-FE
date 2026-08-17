@@ -64,58 +64,10 @@ function daysUntil(date: Date) {
   );
 }
 
-// Charm 진단 API가 붙기 전까지, 5가지 상태 디자인을 바로 확인해볼 수 있는 테스트 토글
-function StatusTestToggle({
-  current,
-  onSelect,
-}: {
-  current: CharmState;
-  onSelect: (state: CharmState) => void;
-}) {
-  const options: { key: CharmState; label: string }[] = [
-    { key: "COLLECTING", label: "수집중" },
-    { key: "NEEDS_UPDATE", label: "업데이트필요" },
-    { key: "EXCELLENT", label: "Excellent" },
-    { key: "STANDARD", label: "Standard" },
-    { key: "NEEDS_ATTENTION", label: "Needs Attention" },
-  ];
-
-  return (
-    <View className="mx-6 mt-3 flex-row flex-wrap items-center gap-2 rounded-xl border border-dashed border-concierge-border bg-white px-3 py-2.5">
-      <Text className="text-xs font-semibold text-concierge-textMuted">
-        테스트
-      </Text>
-      <View className="flex-1 flex-row flex-wrap justify-end gap-1.5">
-        {options.map((option) => (
-          <Pressable
-            key={option.key}
-            onPress={() => onSelect(option.key)}
-            className={`rounded-full px-2.5 py-1 ${
-              current === option.key
-                ? "bg-concierge-primary"
-                : "bg-concierge-chip"
-            }`}
-          >
-            <Text
-              className={`text-xs ${
-                current === option.key
-                  ? "text-white"
-                  : "text-concierge-textSecondary"
-              }`}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 export function HomeScreen() {
   const router = useRouter();
   const confirmed = useReservationStore((state) => state.confirmed);
-  const [charmState, setCharmState] = useState<CharmState>("EXCELLENT");
+  const [charmState] = useState<CharmState>("EXCELLENT");
   const [reconnectModalVisible, setReconnectModalVisible] = useState(false);
 
   const isConnected =
@@ -144,9 +96,7 @@ export function HomeScreen() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
       <ScrollView className="flex-1" contentContainerClassName="pb-8">
-        <StatusTestToggle current={charmState} onSelect={setCharmState} />
-
-        <View className="px-6 pt-4">
+        <View className="px-6 pt-6">
           <Text className="text-[15px] font-semibold text-[#747270]">
             안녕하세요, 김멋사님!
           </Text>

@@ -24,33 +24,21 @@ export function CharmConnectedScreen() {
       <StatusBar style="dark" backgroundColor="#FAF6F1" />
 
       <View className="flex-1 px-6 pb-7">
-        <View className="flex-1 items-center justify-center pt-[66px]">
-          <View className="mb-[23px] h-12 w-px" />
-          <CheckmarkCircleIcon size={67} color="#E4AB7C" />
+        <View className="flex-1 items-center justify-center">
+          <CheckmarkCircleIcon size={56} color="#E4AB7C" />
 
-          <Text
-            className="mt-[23px] w-full text-center text-[24px] font-bold text-[#121212]"
-            style={{ letterSpacing: -0.6, lineHeight: 34 }}
-          >
+          <Text className="mt-5 w-full text-center text-2xl font-bold text-concierge-text">
             연결이 완료되었습니다.
           </Text>
 
-          <Text
-            className="mt-[23px] w-[320px] text-center text-[14px] font-normal text-[#63635E]"
-            style={{ letterSpacing: -0.14, lineHeight: 20 }}
-          >
-            이제부터 MXIS Charm과 함께한 환경과 시간을 기록하고, 필요한 순간에 케어를
-            제안해 드립니다.
+          <Text className="mt-3 w-[300px] text-center text-sm text-concierge-textSecondary">
+            이제부터 MXIS Charm과 함께한 환경과 시간을 기록하고, 필요한 순간에
+            케어를 제안해 드립니다.
           </Text>
         </View>
 
-        <View className="mb-[40px] items-center">
-          <View className="mb-[22px] h-[26px] w-px bg-white" />
-          <PrimaryButton
-            label="다음"
-            onPress={handleNext}
-            className="h-[50px] w-full rounded-[10px]"
-          />
+        <View className="items-center pb-2">
+          <PrimaryButton label="다음" onPress={handleNext} className="w-full" />
         </View>
       </View>
     </SafeAreaView>

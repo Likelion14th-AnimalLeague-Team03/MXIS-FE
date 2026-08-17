@@ -13,12 +13,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
 import heroBackground from "@/features/device/assets/final/device-hero-bg-final.png";
-import ellaMainTransparent from "@/features/device/assets/final/ella-main-transparent-crop.png";
 import charmBear from "@/features/device/assets/charm2.png";
 import charmRabbit from "@/features/device/assets/charm3.png";
-import ellaBostonThumbnail from "@/features/onboarding/assets/products/ella-boston-thumbnail.png";
-import himmelShopperThumbnail from "@/features/onboarding/assets/products/himmel-shopper-thumbnail.png";
-import starkBackpackThumbnail from "@/features/onboarding/assets/products/stark-backpack-thumbnail.png";
+import ellaBostonThumbnail from "@/features/device/assets/bag1.png";
+import himmelShopperThumbnail from "@/features/device/assets/bag2.png";
+import starkBackpackThumbnail from "@/features/device/assets/bag3.png";
 import { BatteryIcon } from "@/shared/components/icons/BatteryIcon";
 import { InfoIcon } from "@/shared/components/icons/InfoIcon";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
@@ -59,7 +58,7 @@ const PRODUCTS: Product[] = [
     color: "cognac",
     outings: 50,
     thumb: ellaBostonThumbnail,
-    hero: ellaMainTransparent,
+    hero: ellaBostonThumbnail,
   },
   {
     id: "himmel",
@@ -74,7 +73,12 @@ const PRODUCTS: Product[] = [
 
 const CHARMS_BY_ID: Record<string, Charm> = {
   "sn-0001": { id: "sn-0001", label: "SN-0001", image: charmBear, battery: 65 },
-  "sn-0022": { id: "sn-0022", label: "SN-0022", image: charmRabbit, battery: 82 },
+  "sn-0022": {
+    id: "sn-0022",
+    label: "SN-0022",
+    image: charmRabbit,
+    battery: 82,
+  },
   "sn-0033": { id: "sn-0033", label: "SN-0033", image: charmBear, battery: 73 },
 };
 
@@ -137,7 +141,7 @@ function formatLastSyncedAt(value: string | null) {
   const diffMs = Math.max(0, now - syncedAt);
   const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
 
-  if (diffHours < 1) return "방금 전";
+  if (diffHours < 1) return "방금전";
   if (diffHours < 24) return `${diffHours}시간 전`;
 
   const date = new Date(value);
@@ -160,7 +164,12 @@ function ConfirmModal({
   onCancel: () => void;
 }) {
   return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onCancel}
+    >
       <View className="flex-1 items-center justify-center bg-black/35 px-6">
         <View className="w-full max-w-[342px] rounded-[16px] bg-[#FAF6F1] px-5 pb-[18px] pt-[22px]">
           <Text
@@ -212,20 +221,27 @@ export function DeviceScreen() {
   const setPendingCharmId = useDeviceStore((state) => state.setPendingCharmId);
   const lastSyncedAt = useDeviceStore((state) => state.lastSyncedAt);
 
-  const selectedIndex = PRODUCTS.findIndex((product) => product.id === selectedProductId);
+  const selectedIndex = PRODUCTS.findIndex(
+    (product) => product.id === selectedProductId,
+  );
   const selectedProduct = PRODUCTS[selectedIndex] ?? PRODUCTS[1];
   const isMainProduct = selectedProduct.id === mainProductId;
   const ownedCharms = ownedCharmIds
     .map((id) => CHARMS_BY_ID[id])
     .filter((charm): charm is Charm => Boolean(charm));
-  const connectedCharm = ownedCharms.find((charm) => charm.id === currentCharmId) ?? null;
-  const pendingCharm = ownedCharms.find((charm) => charm.id === pendingCharmId) ?? null;
+  const connectedCharm =
+    ownedCharms.find((charm) => charm.id === currentCharmId) ?? null;
+  const pendingCharm =
+    ownedCharms.find((charm) => charm.id === pendingCharmId) ?? null;
   const hasConnectedCharm = Boolean(connectedCharm);
-  const isPendingCharmConnected = Boolean(pendingCharm && pendingCharm.id === currentCharmId);
-  const lastSyncedLabel = hasConnectedCharm ? "연결 중" : formatLastSyncedAt(lastSyncedAt);
+  const isPendingCharmConnected = Boolean(
+    pendingCharm && pendingCharm.id === currentCharmId,
+  );
+  const lastSyncedLabel = formatLastSyncedAt(lastSyncedAt);
 
   const visibleProducts = useMemo(() => {
-    const previous = PRODUCTS[(selectedIndex - 1 + PRODUCTS.length) % PRODUCTS.length];
+    const previous =
+      PRODUCTS[(selectedIndex - 1 + PRODUCTS.length) % PRODUCTS.length];
     const next = PRODUCTS[(selectedIndex + 1) % PRODUCTS.length];
 
     return [previous, selectedProduct, next];
@@ -233,7 +249,8 @@ export function DeviceScreen() {
 
   const moveProduct = (direction: "prev" | "next") => {
     const offset = direction === "prev" ? -1 : 1;
-    const nextIndex = (selectedIndex + offset + PRODUCTS.length) % PRODUCTS.length;
+    const nextIndex =
+      (selectedIndex + offset + PRODUCTS.length) % PRODUCTS.length;
     setSelectedProductId(PRODUCTS[nextIndex].id);
     setCharmExpanded(false);
   };
@@ -271,11 +288,8 @@ export function DeviceScreen() {
         contentContainerClassName="mx-auto w-full max-w-[390px] pb-8"
         showsVerticalScrollIndicator={false}
       >
-        <View className="px-6 pt-4">
-          <Text
-            className="text-[20px] font-bold text-[#171717]"
-            style={{ letterSpacing: -0.5, lineHeight: 28 }}
-          >
+        <View className="px-6 pt-6">
+          <Text className="text-xl font-bold text-concierge-text">
             연동 및 기기관리
           </Text>
         </View>
@@ -286,25 +300,33 @@ export function DeviceScreen() {
           </Pressable>
 
           <View className="flex-1 items-center">
-            <View className="flex-row items-center justify-center gap-[15px]">
+            <View className="flex-row items-center justify-center gap-[20px]">
               {visibleProducts.map((product) => {
                 const selected = product.id === selectedProduct.id;
                 return (
-                  <Pressable key={product.id} onPress={() => setSelectedProductId(product.id)}>
+                  <Pressable
+                    key={product.id}
+                    onPress={() => setSelectedProductId(product.id)}
+                  >
                     <View
-                      className={`h-20 w-20 items-center justify-center rounded-full ${
-                        selected ? "border border-[#E4AB7C]" : ""
-                      }`}
+                      className="h-20 w-20 items-center justify-center"
+                      style={{
+                        borderRadius: 40,
+                        borderWidth: 1,
+                        borderColor: selected ? "#E4AB7C" : "transparent",
+                      }}
                     >
                       <Image
                         source={product.thumb}
-                        resizeMode="contain"
-                        style={{ height: selected ? 68 : 58, width: selected ? 68 : 58 }}
+                        resizeMode="cover"
+                        style={{ height: 55, width: 55 }}
                       />
                     </View>
                     <View
                       className="mt-[2px] h-[3px] w-[22px] self-center rounded-full"
-                      style={{ backgroundColor: selected ? "#E4AB7C" : "transparent" }}
+                      style={{
+                        backgroundColor: selected ? "#E4AB7C" : "transparent",
+                      }}
                     />
                   </Pressable>
                 );
@@ -314,7 +336,7 @@ export function DeviceScreen() {
               className="mt-1 text-[14px] font-medium text-[#6B6B6B]"
               style={{ letterSpacing: -0.35, lineHeight: 20 }}
             >
-              좌우로 넘겨  가방을 선택하세요
+              좌우로 넘겨 가방을 선택하세요
             </Text>
           </View>
 
@@ -327,8 +349,12 @@ export function DeviceScreen() {
           className="mt-[10px] overflow-hidden self-center"
           style={{ height: 220.43, width: 388 }}
         >
-          <Image source={heroBackground} style={{ height: 220.43, width: 388 }} resizeMode="cover" />
-          <View className="absolute inset-0 items-center justify-center">
+          <Image
+            source={heroBackground}
+            style={{ height: 220.43, width: 388 }}
+            resizeMode="cover"
+          />
+          <View className="absolute inset-0 items-center mt-12">
             <Image
               source={selectedProduct.hero}
               resizeMode="contain"
@@ -356,7 +382,10 @@ export function DeviceScreen() {
                 className="mt-[2px] text-[14px] font-medium text-[#232323]"
                 style={{ letterSpacing: -0.35, lineHeight: 20 }}
               >
-                함께한 외출 <Text className="text-[#814C27]">{selectedProduct.outings}회</Text>
+                함께한 외출{" "}
+                <Text className="text-[#814C27]">
+                  {selectedProduct.outings}회
+                </Text>
               </Text>
             </View>
             {isMainProduct ? <Pill label="현재 메인" /> : null}
@@ -380,17 +409,26 @@ export function DeviceScreen() {
           </Pressable>
 
           <View className="mt-[26px] overflow-hidden rounded-[12px] bg-white">
-            <View className="min-h-[84px] flex-row items-center border border-[#E4E1DD] px-4 py-3">
-              <Image
-                source={connectedCharm?.image ?? charmBear}
-                resizeMode="contain"
-                style={{ height: 61, width: 61 }}
-              />
+            <View className="min-h-[84px] flex-row items-center px-4 py-3">
+              <View
+                className="h-[61px] w-[61px] items-center justify-center overflow-hidden rounded-full border bg-white"
+                style={{ borderColor: "#E4E1DD" }}
+              >
+                <Image
+                  source={connectedCharm?.image ?? charmBear}
+                  resizeMode="contain"
+                  style={{ height: 52, width: 52 }}
+                />
+              </View>
               <View className="ml-3 flex-1">
                 <View className="flex-row items-center gap-[6px]">
                   <View
                     className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: hasConnectedCharm ? "#71EBA3" : "#898989" }}
+                    style={{
+                      backgroundColor: hasConnectedCharm
+                        ? "#71EBA3"
+                        : "#898989",
+                    }}
                   />
                   <Text
                     className="text-[14px] font-semibold text-[#121212]"
@@ -452,7 +490,9 @@ export function DeviceScreen() {
                           />
                           {selected ? (
                             <View className="absolute inset-0 items-center justify-center bg-black/35">
-                              <Text className="text-[12px] font-semibold text-white">선택</Text>
+                              <Text className="text-[12px] font-semibold text-white">
+                                선택
+                              </Text>
                             </View>
                           ) : null}
                         </View>
@@ -464,7 +504,9 @@ export function DeviceScreen() {
                         </Text>
                         {connected ? (
                           <View className="mt-1 rounded-[10px] bg-[#E1F7E7] px-2 py-[2px]">
-                            <Text className="text-[11px] font-medium text-[#269247]">연결중</Text>
+                            <Text className="text-[11px] font-medium text-[#269247]">
+                              연결중
+                            </Text>
                           </View>
                         ) : null}
                       </Pressable>
@@ -492,14 +534,18 @@ export function DeviceScreen() {
                       disabled={!pendingCharm}
                       className="h-7 items-center justify-center rounded-[6px] bg-white px-3"
                     >
-                      <Text className="text-[12px] font-medium text-[#A51F21]">참 삭제</Text>
+                      <Text className="text-[12px] font-medium text-[#A51F21]">
+                        참 삭제
+                      </Text>
                     </Pressable>
                     {isPendingCharmConnected ? (
                       <Pressable
                         onPress={() => setDisconnectModalVisible(true)}
                         className="h-7 items-center justify-center rounded-[6px] bg-[#814C27] px-3"
                       >
-                        <Text className="text-[12px] font-medium text-white">연결 해제</Text>
+                        <Text className="text-[12px] font-medium text-white">
+                          연결 해제
+                        </Text>
                       </Pressable>
                     ) : (
                       <Pressable
@@ -507,7 +553,9 @@ export function DeviceScreen() {
                         disabled={!pendingCharm}
                         className="h-7 items-center justify-center rounded-[6px] bg-[#814C27] px-3"
                       >
-                        <Text className="text-[12px] font-medium text-white">참 연결</Text>
+                        <Text className="text-[12px] font-medium text-white">
+                          참 연결
+                        </Text>
                       </Pressable>
                     )}
                   </View>
@@ -552,7 +600,9 @@ export function DeviceScreen() {
               className="mt-[5px] text-[12px] font-medium text-[#686868]"
               style={{ letterSpacing: -0.12, lineHeight: 17 }}
             >
-              {hasConnectedCharm ? "권장 범위로 유지 중이에요" : "데이터가 없어요"}
+              {hasConnectedCharm
+                ? "권장 범위로 유지 중이에요"
+                : "데이터가 없어요"}
             </Text>
           </View>
 
@@ -560,7 +610,9 @@ export function DeviceScreen() {
             <View className="flex-row items-center justify-between py-[9px]">
               <View className="flex-row items-center gap-3">
                 <BatteryIcon size={17} />
-                <Text className="text-[14px] font-medium text-[#262626]">배터리 상태</Text>
+                <Text className="text-[14px] font-medium text-[#262626]">
+                  배터리 상태
+                </Text>
               </View>
               <Text className="text-[14px] font-medium text-[#262626]">
                 {hasConnectedCharm ? `${connectedCharm?.battery}%` : "-%"}
@@ -570,7 +622,9 @@ export function DeviceScreen() {
             <View className="flex-row items-center justify-between py-[9px]">
               <View className="flex-row items-center gap-3">
                 <InfoIcon size={15} />
-                <Text className="text-[14px] font-medium text-[#262626]">마지막 연동</Text>
+                <Text className="text-[14px] font-medium text-[#262626]">
+                  마지막 연동
+                </Text>
               </View>
               <Text className="text-[14px] font-medium text-[#676767]">
                 {lastSyncedLabel}
@@ -583,7 +637,9 @@ export function DeviceScreen() {
       <ConfirmModal
         visible={deleteModalVisible}
         title={`${pendingCharm?.label ?? "SN-0001"}을 가방에서 삭제할까요?`}
-        body={"참을 삭제하면 현재 가방과의 연결이 해지되며\n보유 중인 참 목록에서도 삭제돼요.\n필요하면 나중에 다시 등록할 수 있어요."}
+        body={
+          "참을 삭제하면 현재 가방과의 연결이 해지되며\n보유 중인 참 목록에서도 삭제돼요.\n필요하면 나중에 다시 등록할 수 있어요."
+        }
         confirmLabel="삭제"
         onConfirm={confirmDeleteCharm}
         onCancel={() => setDeleteModalVisible(false)}

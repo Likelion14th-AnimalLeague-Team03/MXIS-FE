@@ -15,16 +15,6 @@ const EMPTY_DRAFT: ReservationDraft = {
   note: ""
 };
 
-const MOCK_RESERVATION: Omit<ConfirmedReservation, "careType" | "status"> = {
-  productName: "Ella 바세토스 보스턴 백",
-  storeName: "MCM HAUS 서울",
-  storeAddress: "서울 강남구 압구정로 412",
-  serviceName: "제품 컨디션 점검",
-  date: new Date(2026, 7, 21),
-  time: "14:30",
-  note: "손잡이 주변의 사용감이 신경 쓰여 함께 확인 부탁드립니다."
-};
-
 type ReservationState = {
   draft: ReservationDraft;
   confirmed: ConfirmedReservation | null;
@@ -40,7 +30,6 @@ type ReservationState = {
   updateConfirmedDateTime: (date: Date, time: string) => void;
   cancelReservation: () => void;
   approveReservation: () => void;
-  setTestState: (state: "NONE" | "PENDING" | "CONFIRMED", careType?: ReservationCareType) => void;
 };
 
 export const useReservationStore = create<ReservationState>((set, get) => ({
@@ -81,18 +70,5 @@ export const useReservationStore = create<ReservationState>((set, get) => ({
   approveReservation: () =>
     set((state) =>
       state.confirmed ? { confirmed: { ...state.confirmed, status: "CONFIRMED" } } : {}
-    ),
-  setTestState: (state, careType = "PAID") => {
-    if (state === "NONE") {
-      set({ confirmed: null });
-      return;
-    }
-    set((prev) => ({
-      confirmed: {
-        ...(prev.confirmed ?? MOCK_RESERVATION),
-        careType,
-        status: state
-      }
-    }));
-  }
+    )
 }));

@@ -18,7 +18,11 @@ function PromoCard({ onPress }: { onPress: () => void }) {
     <Card className="mt-4 border-0 bg-white px-5 py-5">
       <View className="flex-row items-center gap-4">
         <View className="size-[85px] items-center justify-center rounded-full bg-concierge-surfaceMuted">
-          <Image source={calendarIcon} className="size-10" resizeMode="contain" />
+          <Image
+            source={calendarIcon}
+            className="size-10"
+            resizeMode="contain"
+          />
         </View>
         <View className="flex-1">
           <Text className="text-xl font-semibold text-[#221F1D]">
@@ -34,67 +38,12 @@ function PromoCard({ onPress }: { onPress: () => void }) {
   );
 }
 
-// 실제 무상케어 제안 API가 붙기 전까지, 테스트용으로 화면 상태를 바로 전환해볼 수 있는 토글이에요.
-type TestState = "FREE_SUGGESTION" | "PENDING" | "CONFIRMED";
-
-function StatusTestToggle({
-  current,
-  onSelect,
-}: {
-  current: TestState;
-  onSelect: (state: TestState) => void;
-}) {
-  const options: { key: TestState; label: string }[] = [
-    { key: "FREE_SUGGESTION", label: "무상제안" },
-    { key: "PENDING", label: "승인대기" },
-    { key: "CONFIRMED", label: "확정" },
-  ];
-
-  return (
-    <View className="mt-3 flex-row items-center gap-2 rounded-xl border border-dashed border-concierge-border bg-white px-3 py-2.5">
-      <Text className="text-xs font-semibold text-concierge-textMuted">테스트</Text>
-      <View className="flex-1 flex-row flex-wrap justify-end gap-1.5">
-        {options.map((option) => (
-          <Pressable
-            key={option.key}
-            onPress={() => onSelect(option.key)}
-            className={`rounded-full px-2.5 py-1 ${
-              current === option.key ? "bg-concierge-primary" : "bg-concierge-chip"
-            }`}
-          >
-            <Text
-              className={`text-xs ${
-                current === option.key ? "text-white" : "text-concierge-textSecondary"
-              }`}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 export function EntryScreen() {
   const router = useRouter();
   const confirmed = useReservationStore((state) => state.confirmed);
-  const setTestState = useReservationStore((state) => state.setTestState);
-  const setPendingCareType = useReservationStore((state) => state.setPendingCareType);
-
-  const testState: TestState = confirmed
-    ? confirmed.status === "PENDING"
-      ? "PENDING"
-      : "CONFIRMED"
-    : "FREE_SUGGESTION";
-
-  const handleTestSelect = (state: TestState) => {
-    if (state === "FREE_SUGGESTION") {
-      setTestState("NONE");
-      return;
-    }
-    setTestState(state, "PAID");
-  };
+  const setPendingCareType = useReservationStore(
+    (state) => state.setPendingCareType,
+  );
 
   const goToInput = (careType: "FREE" | "PAID") => {
     setPendingCareType(careType);
@@ -103,14 +52,12 @@ export function EntryScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
-      <ScrollView className="flex-1 px-6 pt-4" contentContainerClassName="pb-6">
+      <ScrollView className="flex-1 px-6 pt-6" contentContainerClassName="pb-6">
         <Text className="text-xl font-bold text-concierge-text">
           케어 컨시어지 예약
         </Text>
 
-        <StatusTestToggle current={testState} onSelect={handleTestSelect} />
-
-        <Text className="mt-6 text-base font-semibold text-[#1E1A17]">
+        <Text className="mt-10 text-base font-semibold text-[#1E1A17]">
           예약 현황
         </Text>
 
@@ -118,7 +65,11 @@ export function EntryScreen() {
           <Card className="mt-3 rounded-[20px] border-0 bg-concierge-surfaceMuted px-6 py-6">
             <View className="flex-row items-center gap-4">
               <View className="size-[85px] items-center justify-center rounded-full bg-white">
-                <Image source={timeIcon} className="size-9" resizeMode="contain" />
+                <Image
+                  source={timeIcon}
+                  className="size-9"
+                  resizeMode="contain"
+                />
               </View>
               <View className="flex-1">
                 <Text className="text-xl font-semibold text-[#1E1A17]">
@@ -169,25 +120,28 @@ export function EntryScreen() {
                 </Text>
               </View>
               <View className="flex-row items-center gap-1 rounded-[10px] border border-concierge-border bg-white px-3 py-1.5">
-                <Text className="text-xs text-[#3E352F]">
-                  매장 자세히 보기
-                </Text>
+                <Text className="text-xs text-[#3E352F]">매장 자세히 보기</Text>
                 <ChevronRightIcon size={6} />
               </View>
             </View>
 
             <View className="mt-4 flex-row gap-2">
               <Pressable
-                onPress={() => router.push("/reservation/detail")}
-                className="flex-1 items-center justify-center rounded-xl border border-concierge-border bg-white py-3"
+                onPress={() =>
+                  router.push({
+                    pathname: "/reservation/datetime",
+                    params: { mode: "edit" },
+                  })
+                }
+                className="flex-1 items-center justify-center rounded-xl border border-concierge-border  py-3"
               >
-                <Text className="text-base font-semibold text-[#5C4A40]">
+                <Text className="text-base font-semibold  text-[#5C4A40]">
                   일정 변경
                 </Text>
               </Pressable>
               <Pressable
                 onPress={() => router.push("/reservation/detail")}
-                className="flex-1 items-center justify-center rounded-xl bg-concierge-primary py-3"
+                className="flex-1 items-center justify-center rounded-xl bg-[#8C6748] py-3"
               >
                 <Text className="text-base font-semibold text-white">
                   예약 상세 보기
@@ -199,7 +153,11 @@ export function EntryScreen() {
           <Card className="mt-3 rounded-[20px] border-0 bg-concierge-surfaceMuted px-6 py-6">
             <View className="flex-row items-center gap-4">
               <View className="size-[85px] items-center justify-center rounded-full bg-white">
-                <Image source={giftIcon} className="size-9" resizeMode="contain" />
+                <Image
+                  source={giftIcon}
+                  className="size-12"
+                  resizeMode="contain"
+                />
               </View>
               <View className="flex-1">
                 <Text className="text-xl font-semibold text-[#1E1A17]">

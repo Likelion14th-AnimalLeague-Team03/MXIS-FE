@@ -54,7 +54,7 @@ export function DetailScreen() {
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
       {confirmed ? (
         <>
-          <View className="px-6 pt-3">
+          <View className="px-6 pt-6 mb-2">
             <ScreenHeader
               title="예약 상세"
               onBack={() => router.back()}
@@ -94,7 +94,10 @@ export function DetailScreen() {
                 label="일정"
                 value={`${formatDateShort(confirmed.date)} · ${confirmed.time}`}
               />
-              <DetailRow label="예약 상태" value={STATUS_LABEL[confirmed.status]} />
+              <DetailRow
+                label="예약 상태"
+                value={STATUS_LABEL[confirmed.status]}
+              />
 
               <View className="border-t border-concierge-borderLight" />
 
@@ -163,7 +166,11 @@ export function DetailScreen() {
         description="예약을 취소하면 현재 예약 정보가 삭제되며, 다시 예약하려면 새로운 일정을 선택해야 합니다."
         actions={[
           { label: "돌아가기", onPress: () => setConfirmVisible(false) },
-          { label: "예약 취소", onPress: handleConfirmCancel, variant: "accent" },
+          {
+            label: "예약 취소",
+            onPress: handleConfirmCancel,
+            variant: "accent",
+          },
         ]}
         onRequestClose={() => setConfirmVisible(false)}
       />
@@ -171,7 +178,9 @@ export function DetailScreen() {
       <AlertModal
         visible={doneVisible}
         title="예약이 취소되었어요."
-        description="예약 취소가 완료되었습니다. 새로운 일정으로 언제든 다시 예약할 수 있어요."
+        description={
+          "예약 취소가 완료되었습니다. \n 새로운 일정으로 언제든 다시 예약할 수 있어요."
+        }
         layout="column"
         actions={[{ label: "확인", onPress: handleDone, variant: "accent" }]}
         onRequestClose={handleDone}

@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -43,61 +43,16 @@ function SummaryRow({
   );
 }
 
-// 진단 API가 붙기 전까지, 데이터 수집중 상태의 디자인도 테스트해볼 수 있는 토글이에요.
-function DataTestToggle({
-  hasData,
-  onToggle,
-}: {
-  hasData: boolean;
-  onToggle: (value: boolean) => void;
-}) {
-  return (
-    <View className="mt-4 flex-row items-center gap-2 rounded-xl border border-dashed border-concierge-border bg-white px-3 py-2.5">
-      <Text className="text-xs font-semibold text-concierge-textMuted">
-        테스트
-      </Text>
-      <View className="flex-1 flex-row justify-end gap-1.5">
-        {[
-          { key: true, label: "데이터 있음" },
-          { key: false, label: "수집중" },
-        ].map((option) => (
-          <Pressable
-            key={String(option.key)}
-            onPress={() => onToggle(option.key)}
-            className={`rounded-full px-2.5 py-1 ${
-              hasData === option.key
-                ? "bg-concierge-primary"
-                : "bg-concierge-chip"
-            }`}
-          >
-            <Text
-              className={`text-xs ${
-                hasData === option.key
-                  ? "text-white"
-                  : "text-concierge-textSecondary"
-              }`}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 export function ReportScreen() {
   const router = useRouter();
-  const [hasData, setHasData] = useState(true);
+  const hasData = true;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
       <ScrollView className="flex-1 px-6" contentContainerClassName="pb-8">
-        <View className="mt-3">
+        <View className="mt-6">
           <ScreenHeader title="상태 리포트" onBack={() => router.back()} />
         </View>
-
-        <DataTestToggle hasData={hasData} onToggle={setHasData} />
 
         <Card className="mt-4 border-0 bg-white px-4 py-3.5">
           <Text className="text-xs text-concierge-textMuted">현재 컨디션</Text>
@@ -167,7 +122,7 @@ export function ReportScreen() {
         </Card>
 
         <Card className="mt-4 flex-row items-center gap-3 bg-white px-4 py-3">
-          <View className="size-[58px] items-center  justify-center rounded-full bg-concierge-accent">
+          <View className="size-[58px] items-center  justify-center rounded-full bg-concierge-accent/30">
             <ShieldCheckIcon size={30} />
           </View>
           <View className="flex-1">

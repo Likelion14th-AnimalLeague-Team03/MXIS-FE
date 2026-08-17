@@ -28,10 +28,10 @@ export function AuthTextField({
 }: Props) {
   return (
     <View>
-      <Text className="mb-2 text-[14px] font-semibold text-concierge-text">
+      <Text className="mb-2 text-sm font-semibold text-concierge-text">
         {label}
         {labelHint ? (
-          <Text className="font-medium text-concierge-textSecondary">
+          <Text className="text-xs font-medium text-concierge-textSecondary">
             {" "}
             {labelHint}
           </Text>
@@ -46,13 +46,12 @@ export function AuthTextField({
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
         textContentType={textContentType}
-        className={`h-[52px] rounded-[10px] border bg-white px-4 text-[14px] font-semibold text-concierge-text ${
+        className={`h-12 rounded-xl border bg-white px-4 text-sm font-semibold text-concierge-text ${
           error ? "border-[#C04737]" : "border-concierge-border"
         }`}
-        style={{ letterSpacing: -0.35 }}
       />
       {error ? (
-        <Text className="mt-1.5 text-[12px] font-medium text-[#C04737]">
+        <Text className="mt-1.5 text-xs font-medium text-[#C04737]">
           {error}
         </Text>
       ) : null}

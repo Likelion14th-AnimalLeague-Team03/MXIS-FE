@@ -75,7 +75,7 @@ export function InputScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
-      <Text className="px-6 pt-4 text-xl font-bold text-concierge-text">
+      <Text className="px-6 pt-6 text-xl font-bold pb-2 text-concierge-text">
         케어 컨시어지 예약
       </Text>
 
@@ -164,7 +164,7 @@ export function InputScreen() {
         </View>
       </ScrollView>
 
-      <View className="px-6 pb-4 pt-2">
+      <View className="px-6 pb-6 pt-2">
         <PrimaryButton label="예약 요청하기" onPress={handleSubmit} />
       </View>
 

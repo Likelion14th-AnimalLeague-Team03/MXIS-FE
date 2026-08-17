@@ -98,49 +98,6 @@ function StatTile({
   );
 }
 
-// 진단 API가 붙기 전까지, 데이터 수집중 상태의 디자인도 테스트해볼 수 있는 토글이에요.
-function DataTestToggle({
-  hasData,
-  onToggle,
-}: {
-  hasData: boolean;
-  onToggle: (value: boolean) => void;
-}) {
-  return (
-    <View className="mt-4 flex-row items-center gap-2 rounded-xl border border-dashed border-concierge-border bg-white px-3 py-2.5">
-      <Text className="text-xs font-semibold text-concierge-textMuted">
-        테스트
-      </Text>
-      <View className="flex-1 flex-row justify-end gap-1.5">
-        {[
-          { key: true, label: "데이터 있음" },
-          { key: false, label: "수집중" },
-        ].map((option) => (
-          <Pressable
-            key={String(option.key)}
-            onPress={() => onToggle(option.key)}
-            className={`rounded-full px-2.5 py-1 ${
-              hasData === option.key
-                ? "bg-concierge-primary"
-                : "bg-concierge-chip"
-            }`}
-          >
-            <Text
-              className={`text-xs ${
-                hasData === option.key
-                  ? "text-white"
-                  : "text-concierge-textSecondary"
-              }`}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 // 권장 범위 — 습도 45~55%, 온도 18~20°C. 그래프에 연두색 밴드로 강조돼요.
 const HUMIDITY_RECOMMENDED = { min: 45, max: 55 };
 const TEMPERATURE_RECOMMENDED = { min: 18, max: 20 };
@@ -153,7 +110,7 @@ export function EnvironmentScreen() {
   const router = useRouter();
   const [range, setRange] = useState<Range>("최근 30일");
   const [metric, setMetric] = useState<Metric>("HUMIDITY");
-  const [hasData, setHasData] = useState(true);
+  const hasData = true;
 
   const isHumidity = metric === "HUMIDITY";
   const values = isHumidity
@@ -171,11 +128,9 @@ export function EnvironmentScreen() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
       <ScrollView className="flex-1 px-6" contentContainerClassName="pb-8">
-        <View className="mt-3">
+        <View className="mt-6">
           <ScreenHeader title="환경 데이터" onBack={() => router.back()} />
         </View>
-
-        <DataTestToggle hasData={hasData} onToggle={setHasData} />
 
         <View className="mt-4 flex-row rounded-xl bg-white p-1">
           {RANGES.map((label) => {

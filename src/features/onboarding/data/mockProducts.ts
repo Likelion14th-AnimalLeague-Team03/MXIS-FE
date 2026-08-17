@@ -1,9 +1,8 @@
 import type { ImageSourcePropType } from "react-native";
 
-import ellaBostonDetail from "@/features/onboarding/assets/products/ella-boston-detail.png";
-import ellaBostonThumbnail from "@/features/onboarding/assets/products/ella-boston-thumbnail.png";
-import himmelShopperThumbnail from "@/features/onboarding/assets/products/himmel-shopper-thumbnail.png";
-import starkBackpackThumbnail from "@/features/onboarding/assets/products/stark-backpack-thumbnail.png";
+import ellaBostonThumbnail from "@/features/onboarding/assets/products/bag1.png";
+import starkBackpackThumbnail from "@/features/onboarding/assets/products/bag2.png";
+import himmelShopperThumbnail from "@/features/onboarding/assets/products/bag3.png";
 
 export type OnboardingProduct = {
   id: string;
@@ -23,7 +22,7 @@ export const MOCK_ONBOARDING_PRODUCTS: OnboardingProduct[] = [
     color: "Cognac",
     productCode: "MWBFAEA01CO001",
     thumbnail: ellaBostonThumbnail,
-    detailImage: ellaBostonDetail,
+    detailImage: ellaBostonThumbnail,
   },
   {
     id: "stark-backpack",
@@ -46,10 +45,13 @@ export const MOCK_ONBOARDING_PRODUCTS: OnboardingProduct[] = [
 ];
 
 export function getOnboardingProductById(productId?: string | string[]) {
-  const normalizedProductId = Array.isArray(productId) ? productId[0] : productId;
+  const normalizedProductId = Array.isArray(productId)
+    ? productId[0]
+    : productId;
 
   return (
-    MOCK_ONBOARDING_PRODUCTS.find((product) => product.id === normalizedProductId) ??
-    MOCK_ONBOARDING_PRODUCTS[0]
+    MOCK_ONBOARDING_PRODUCTS.find(
+      (product) => product.id === normalizedProductId,
+    ) ?? MOCK_ONBOARDING_PRODUCTS[0]
   );
 }

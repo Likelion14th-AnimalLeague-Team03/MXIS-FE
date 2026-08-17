@@ -20,7 +20,7 @@ export function StoreScreen() {
     const q = query.trim();
     const filtered = q
       ? RESERVATION_STORES.filter(
-          (store) => store.name.includes(q) || store.address.includes(q)
+          (store) => store.name.includes(q) || store.address.includes(q),
         )
       : RESERVATION_STORES;
 
@@ -40,10 +40,10 @@ export function StoreScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
-      <View className="px-6 pt-3">
+      <View className="px-6 pt-6">
         <ScreenHeader title="매장 선택" onBack={() => router.back()} />
 
-        <View className="mt-4 flex-row items-center gap-2 rounded-xl bg-white px-4 py-4">
+        <View className="mt-6 flex-row items-center gap-2 rounded-xl bg-white px-4 py-4">
           <MapPinIcon size={20} />
           <TextInput
             value={query}
@@ -55,39 +55,37 @@ export function StoreScreen() {
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-6" contentContainerClassName="gap-3 pb-6">
+      <ScrollView
+        className="flex-1 px-6 mt-3"
+        contentContainerClassName="gap-2"
+      >
         {stores.map((store) => {
           const selected = draft.storeName === store.name;
           return (
             <Pressable
               key={store.id}
               onPress={() => handleSelect(store.name, store.address)}
-              className={`mt-3 flex-row items-center justify-between rounded-xl border bg-white px-4 py-4 ${
+              className={` flex-row items-center justify-between rounded-xl border bg-white px-4 py-4 ${
                 selected ? "border-black" : "border-concierge-borderLight"
               }`}
             >
               <View>
-                <Text className="text-base font-semibold text-concierge-text">{store.name}</Text>
-                <Text className="mt-1 text-xs text-concierge-textMuted">{store.address}</Text>
+                <Text className="text-base font-semibold text-concierge-text">
+                  {store.name}
+                </Text>
+                <Text className="mt-1 text-xs text-concierge-textMuted">
+                  {store.address}
+                </Text>
               </View>
               {locationGranted ? (
-                <Text className="text-sm text-concierge-text">{store.distanceKm}km</Text>
+                <Text className="text-sm text-concierge-text">
+                  {store.distanceKm}km
+                </Text>
               ) : null}
             </Pressable>
           );
         })}
       </ScrollView>
-
-      <AlertModal
-        visible={locationGranted === null}
-        title="위치 권한 동의"
-        description="가까운 MCM 매장을 안내하기 위해 현재 위치 정보가 필요해요."
-        layout="column"
-        actions={[
-          { label: "위치 권한 허용", onPress: () => setLocationGranted(true), variant: "accent" },
-          { label: "확인", onPress: () => setLocationGranted(false) },
-        ]}
-      />
     </SafeAreaView>
   );
 }

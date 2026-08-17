@@ -90,10 +90,10 @@ export function DateTimeScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
-      <View className="px-6 pt-3">
+      <View className="px-6 pt-6">
         <ScreenHeader title="날짜·시간 선택" onBack={() => router.back()} />
 
-        <View className="mt-4 rounded-xl bg-concierge-surfaceMuted px-4 py-3.5">
+        <View className="mt-4 rounded-xl bg-[#F6F5F2] px-4 py-3.5">
           <Text className="text-base font-bold text-concierge-text">
             {storeName ?? "매장을 먼저 선택해 주세요"}
           </Text>
@@ -107,18 +107,18 @@ export function DateTimeScreen() {
 
       <ScrollView className="flex-1 px-6" contentContainerClassName="pb-6">
         <View className="mt-4 rounded-xl border border-concierge-border bg-white px-4 py-3">
-          <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center ">
             <Text className="text-[15px] font-bold text-concierge-text">
               {visibleMonth.getFullYear()}년 {visibleMonth.getMonth() + 1}월
             </Text>
-            <View className="flex-row gap-4">
+            <View className="flex-row  ml-3 gap-4">
               <Pressable onPress={() => goToMonth(-1)} hitSlop={8}>
-                <Text className="text-base font-medium text-concierge-textSecondary">
+                <Text className="text-lg font-medium text-concierge-textSecondary">
                   ‹
                 </Text>
               </Pressable>
               <Pressable onPress={() => goToMonth(1)} hitSlop={8}>
-                <Text className="text-base font-medium text-concierge-textSecondary">
+                <Text className="text-lg font-medium text-concierge-textSecondary">
                   ›
                 </Text>
               </Pressable>

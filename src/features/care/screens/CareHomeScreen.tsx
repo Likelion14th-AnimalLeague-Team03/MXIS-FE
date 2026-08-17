@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -54,63 +54,18 @@ function StatCard({
   );
 }
 
-// 진단 API가 붙기 전까지, 데이터 수집중 상태의 디자인도 테스트해볼 수 있는 토글이에요.
-function DataTestToggle({
-  hasData,
-  onToggle,
-}: {
-  hasData: boolean;
-  onToggle: (value: boolean) => void;
-}) {
-  return (
-    <View className="mt-3 flex-row items-center gap-2 rounded-xl border border-dashed border-concierge-border bg-white px-3 py-2.5">
-      <Text className="text-xs font-semibold text-concierge-textMuted">
-        테스트
-      </Text>
-      <View className="flex-1 flex-row justify-end gap-1.5">
-        {[
-          { key: true, label: "데이터 있음" },
-          { key: false, label: "수집중" },
-        ].map((option) => (
-          <Pressable
-            key={String(option.key)}
-            onPress={() => onToggle(option.key)}
-            className={`rounded-full px-2.5 py-1 ${
-              hasData === option.key
-                ? "bg-concierge-primary"
-                : "bg-concierge-chip"
-            }`}
-          >
-            <Text
-              className={`text-xs ${
-                hasData === option.key
-                  ? "text-white"
-                  : "text-concierge-textSecondary"
-              }`}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 export function CareHomeScreen() {
   const router = useRouter();
   const selectedProduct = useDeviceStore((state) => state.selectedProductIndex);
   const product = PRODUCTS[selectedProduct];
-  const [hasData, setHasData] = useState(true);
+  const hasData = true;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
       <ScrollView className="flex-1 px-6" contentContainerClassName="pb-8">
-        <Text className="pt-4 text-xl font-bold text-concierge-text">
+        <Text className="pt-6 text-xl font-bold text-concierge-text">
           케어진단
         </Text>
-
-        <DataTestToggle hasData={hasData} onToggle={setHasData} />
 
         <Card className="mt-4 flex-row items-center gap-4 overflow-hidden border-concierge-borderLight bg-white p-0">
           <View className="h-[171px] w-[45%] overflow-hidden">

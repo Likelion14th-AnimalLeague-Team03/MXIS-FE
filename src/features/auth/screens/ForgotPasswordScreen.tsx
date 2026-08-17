@@ -12,7 +12,7 @@ export function ForgotPasswordScreen() {
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-concierge-bg">
       <StatusBar style="dark" backgroundColor="#FAF6F1" />
-      <View className="flex-1 px-6 pb-8 pt-9">
+      <View className="flex-1 px-6 pb-8 pt-6">
         <ScreenHeader title="비밀번호 찾기" onBack={() => router.back()} />
 
         <View className="flex-1 justify-center">

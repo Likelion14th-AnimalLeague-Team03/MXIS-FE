@@ -99,18 +99,15 @@ export function SignupScreen() {
         <ScrollView
           className="flex-1"
           keyboardShouldPersistTaps="handled"
-          contentContainerClassName="px-6 pb-7 pt-9"
+          contentContainerClassName="px-6 pb-7 pt-6"
         >
           <ScreenHeader title="회원가입" onBack={() => router.back()} />
 
-          <Text
-            className="mt-8 text-[14px] font-medium text-concierge-textSecondary"
-            style={{ letterSpacing: -0.35, lineHeight: 20 }}
-          >
+          <Text className="mt-5 text-sm text-concierge-textSecondary">
             MXIS Charm 케어 여정을 위한 기본 정보를 입력해 주세요.
           </Text>
 
-          <View className="mt-7 gap-[18px]">
+          <View className="mt-5 gap-3.5">
             <AuthTextField
               label="이름"
               value={name}
@@ -175,7 +172,7 @@ export function SignupScreen() {
           </View>
 
           {errors.form ? (
-            <Text className="mt-6 text-center text-[12px] font-medium text-[#C04737]">
+            <Text className="mt-5 text-center text-xs font-medium text-[#C04737]">
               {errors.form}
             </Text>
           ) : null}
@@ -184,18 +181,18 @@ export function SignupScreen() {
             label={isSubmitting ? "확인 중입니다" : "다음"}
             onPress={handleSignup}
             disabled={isSubmitting}
-            className={`${errors.form ? "mt-4" : "mt-[92px]"} h-[52px] rounded-[10px]`}
+            className={errors.form ? "mt-4" : "mt-8"}
           />
 
           <View className="mt-4 flex-row justify-center gap-1">
-            <Text className="text-[14px] font-semibold text-[#898989]">
+            <Text className="text-sm font-semibold text-concierge-textMuted">
               이미 계정이 있으신가요?
             </Text>
             <Pressable
               onPress={() => router.replace("/auth/login")}
               hitSlop={10}
             >
-              <Text className="text-[14px] font-semibold text-concierge-textSecondary">
+              <Text className="text-sm font-semibold text-concierge-textSecondary">
                 로그인
               </Text>
             </Pressable>

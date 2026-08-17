@@ -34,14 +34,14 @@ export function AlertModal({
       animationType="fade"
       onRequestClose={onRequestClose}
     >
-      <View className="flex-1 items-center justify-center bg-black/50 px-8">
+      <View className="flex-1 items-center justify-center whitespace-pre-line bg-black/50 px-8">
         <View
           className="w-full rounded-2xl px-7 pt-6"
           style={{ backgroundColor: CARD_BG }}
         >
           <Text className="text-base font-bold text-black">{title}</Text>
           {description ? (
-            <Text className="mt-2 text-[13px] leading-5 text-concierge-primary">
+            <Text className="mt-2 text-[13px] leading-5 text-black">
               {description}
             </Text>
           ) : null}

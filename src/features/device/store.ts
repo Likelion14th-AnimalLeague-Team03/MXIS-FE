@@ -21,7 +21,7 @@ export const useDeviceStore = create<DeviceState>((set) => ({
   ownedCharmIds: ["sn-0001", "sn-0022"],
   currentCharmId: "sn-0001",
   pendingCharmId: "sn-0001",
-  lastSyncedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  lastSyncedAt: new Date().toISOString(),
   addOwnedCharm: (id) =>
     set((state) => {
       const ownedCharmIds = state.ownedCharmIds.includes(id)

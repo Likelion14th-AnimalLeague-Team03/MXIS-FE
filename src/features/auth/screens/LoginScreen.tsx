@@ -130,7 +130,7 @@ export function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
       >
-        <View className="flex-1 px-6 pb-7 pt-[92px]">
+        <View className="flex-1 px-6 pb-7 pt-6">
           <View className="flex-row items-center">
             <Text className="text-[20px] font-semibold text-concierge-text">
               MCM

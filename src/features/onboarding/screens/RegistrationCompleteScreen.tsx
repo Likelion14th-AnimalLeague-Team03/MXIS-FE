@@ -16,17 +16,11 @@ import { CheckmarkCircleIcon } from "@/shared/components/icons/CheckmarkCircleIc
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-row items-start justify-between gap-4">
+      <Text className="text-sm text-concierge-textSecondary">{label}</Text>
       <Text
-        className="text-[14px] font-normal text-[#63635E]"
-        style={{ letterSpacing: -0.14, lineHeight: 20 }}
-      >
-        {label}
-      </Text>
-      <Text
-        className="flex-1 text-right text-[14px] font-medium text-[#121212]"
+        className="flex-1 text-right text-sm font-medium text-concierge-text"
         numberOfLines={1}
         adjustsFontSizeToFit
-        style={{ letterSpacing: -0.14, lineHeight: 20 }}
       >
         {value}
       </Text>
@@ -45,7 +39,8 @@ export function RegistrationCompleteScreen() {
   }, []);
 
   const charmName = link?.charmName ?? "SN-0001";
-  const productName = link?.productName ?? fallbackProduct.name.replace("\n", " ");
+  const productName =
+    link?.productName ?? fallbackProduct.name.replace("\n", " ");
   const material = link?.material ?? fallbackProduct.material;
 
   const handleStartCareJourney = async () => {
@@ -57,50 +52,39 @@ export function RegistrationCompleteScreen() {
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-concierge-bg">
       <StatusBar style="dark" backgroundColor="#FAF6F1" />
 
-      <View className="mx-auto min-h-full w-full max-w-[390px] px-6 pb-7 pt-[132px]">
-        <View className="items-center">
-          <View className="mb-[23px] h-12 w-px" />
-          <CheckmarkCircleIcon size={67} color="#E4AB7C" />
+      <View className="flex-1 px-6 pb-7">
+        <View className="flex-1 items-center justify-center">
+          <CheckmarkCircleIcon size={56} color="#E4AB7C" />
 
-          <Text
-            className="mt-[23px] w-full text-center text-[24px] font-bold text-[#121212]"
-            style={{ letterSpacing: -0.6, lineHeight: 34 }}
-          >
+          <Text className="mt-5 w-full text-center text-2xl font-bold text-concierge-text">
             연결이 완료되었습니다.
           </Text>
 
-          <Text
-            className="mt-[23px] w-[320px] text-center text-[14px] font-normal text-[#63635E]"
-            style={{ letterSpacing: -0.14, lineHeight: 20 }}
-          >
+          <Text className="mt-3 w-[300px] text-center text-sm text-concierge-textSecondary">
             이제부터 제품과 함께한 환경과 시간을 기록하고, 필요한 순간에 케어를
             제안해 드립니다.
           </Text>
-        </View>
 
-        <View className="mt-[30px] rounded-[14px] bg-[#F6F5F2] p-4">
-          <View className="flex-row items-center gap-2">
-            <View className="h-2 w-2 rounded-full bg-[#2F684A]" />
-            <Text
-              className="text-[14px] font-medium text-[#121212]"
-              style={{ letterSpacing: -0.14, lineHeight: 20 }}
-            >
-              <Text className="font-bold">{charmName}</Text> 연결됨
-            </Text>
-          </View>
+          <View className="mt-6 w-full rounded-xl bg-concierge-chip p-4">
+            <View className="flex-row items-center gap-2">
+              <View className="h-2 w-2 rounded-full bg-[#2F684A]" />
+              <Text className="text-sm text-concierge-text">
+                <Text className="font-bold">{charmName}</Text> 연결됨
+              </Text>
+            </View>
 
-          <View className="mt-[10px] gap-[10px]">
-            <SummaryRow label="제품" value={productName} />
-            <SummaryRow label="소재" value={material} />
-            <SummaryRow label="동기화" value="자동 기록 시작" />
+            <View className="mt-2.5 gap-2">
+              <SummaryRow label="제품" value={productName} />
+              <SummaryRow label="소재" value={material} />
+              <SummaryRow label="동기화" value="자동 기록 시작" />
+            </View>
           </View>
         </View>
 
-        <View className="mt-auto mb-[38px]">
+        <View className="pb-2">
           <PrimaryButton
             label="케어 여정 시작하기"
             onPress={handleStartCareJourney}
-            className="h-[50px] rounded-[10px]"
           />
         </View>
       </View>

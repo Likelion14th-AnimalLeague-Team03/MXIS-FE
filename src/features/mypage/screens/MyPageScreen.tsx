@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import * as Notifications from "expo-notifications";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { NOTIFICATION_SETTINGS } from "@/features/device/constants";
@@ -101,6 +102,17 @@ export function MyPageScreen() {
     setNotificationValues((prev) => ({ ...prev, [key]: value }));
   };
 
+  // 안드로이드는 13(API 33) 이상부터 알림 표시에 런타임 권한이 필요해서,
+  // 알림 설정 화면을 열 때 시스템 권한 안내창을 띄워줘요.
+  const handlePressNotificationSection = () => {
+    if (Platform.OS === "android") {
+      Notifications.requestPermissionsAsync().catch(() => {
+        // 권한 요청이 실패해도 아코디언은 그대로 열어줘요.
+      });
+    }
+    toggleSection("notifications");
+  };
+
   const handleLogout = async () => {
     await signOut();
     setLogoutModalVisible(false);
@@ -110,7 +122,7 @@ export function MyPageScreen() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
       <ScrollView className="flex-1 px-6" contentContainerClassName="pb-8">
-        <Text className="mt-10 text-xl font-bold text-concierge-text">
+        <Text className="mt-6 text-xl font-bold text-concierge-text">
           마이페이지
         </Text>
 
@@ -144,7 +156,7 @@ export function MyPageScreen() {
           </Pressable>
         </View>
 
-        <View className="-mx-6 mt-[11px] border-t border-concierge-borderLight" />
+        <View className="-mx-6 mt-4 border-t border-concierge-borderLight" />
 
         <View className="mt-[20px] px-3">
           <Pressable
@@ -185,7 +197,7 @@ export function MyPageScreen() {
           <View className="border-t border-concierge-borderLight" />
 
           <Pressable
-            onPress={() => toggleSection("notifications")}
+            onPress={handlePressNotificationSection}
             className="flex-row items-center justify-between py-2"
           >
             <Text className="text-sm text-concierge-textSecondary">

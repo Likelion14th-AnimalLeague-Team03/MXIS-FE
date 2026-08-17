@@ -26,7 +26,7 @@ export function CompleteScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
-      <View className="px-6 pt-3">
+      <View className="px-6 pt-6">
         <ScreenHeader title="" onBack={() => router.back()} />
       </View>
 
@@ -35,7 +35,9 @@ export function CompleteScreen() {
           <View className="items-center mt-10">
             <CheckmarkCircleIcon />
             <Text className="mt-5 text-xl font-bold text-concierge-text">
-              {isFree ? "무상 케어 예약이 완료되었습니다." : "예약 요청이 전달되었습니다."}
+              {isFree
+                ? "무상 케어 예약이 완료되었습니다."
+                : "예약 요청이 전달되었습니다."}
             </Text>
             <Text className="mt-5 text-center text-sm font-semibold text-concierge-textSecondary">
               {isFree
