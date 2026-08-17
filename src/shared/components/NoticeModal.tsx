@@ -25,7 +25,7 @@ export function NoticeModal({
       onRequestClose={onConfirm}
     >
       <View className="flex-1 items-center justify-center bg-black/50 px-8">
-        <View className="w-full rounded-2xl bg-concierge-bg px-7 pt-6">
+        <View className="w-full rounded-2xl bg-concierge-bg px-7 pb-6 pt-6">
           <Text className=" text-base font-bold text-concierge-text">
             {title}
           </Text>

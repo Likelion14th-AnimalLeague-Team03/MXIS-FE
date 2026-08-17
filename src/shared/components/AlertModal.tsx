@@ -47,12 +47,12 @@ export function AlertModal({
           ) : null}
 
           {layout === "column" ? (
-            <View className="mt-5 gap-2">
+            <View className="mb-6 mt-5 gap-2">
               {actions.map((action) => (
                 <Pressable
                   key={action.label}
                   onPress={action.onPress}
-                  className={`items-center justify-center rounded-xl ${
+                  className={`items-center justify-center rounded-xl px-4 py-[13px] ${
                     action.variant === "accent"
                       ? "bg-concierge-primary"
                       : "border border-concierge-border bg-white"
@@ -61,7 +61,7 @@ export function AlertModal({
                   <Text
                     className={`text-base font-semibold ${
                       action.variant === "accent"
-                        ? "text-black"
+                        ? "text-white"
                         : "text-concierge-primary"
                     }`}
                   >
