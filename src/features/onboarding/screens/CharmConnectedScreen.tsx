@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
@@ -8,8 +8,14 @@ import { CheckmarkCircleIcon } from "@/shared/components/icons/CheckmarkCircleIc
 
 export function CharmConnectedScreen() {
   const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
 
   const handleNext = () => {
+    if (returnTo === "device") {
+      router.replace("/(tabs)/device");
+      return;
+    }
+
     router.push("/onboarding/product-select");
   };
 

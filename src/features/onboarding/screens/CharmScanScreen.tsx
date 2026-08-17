@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { Link, useRouter } from "expo-router";
+import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useDeviceStore } from "@/features/device/store";
 import charmOnboardingDevice from "@/features/onboarding/assets/charm-onboarding-device.png";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
 
@@ -140,6 +141,8 @@ function SearchBottomActions({ onSearchAgain }: { onSearchAgain: () => void }) {
 
 export function CharmScanScreen() {
   const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const addOwnedCharm = useDeviceStore((state) => state.addOwnedCharm);
   const [scanResultState, setScanResultState] =
     useState<ScanResultState>("found");
   const [devices, setDevices] = useState<MockCharmDevice[]>(MOCK_CHARM_DEVICES);
@@ -192,6 +195,15 @@ export function CharmScanScreen() {
 
     timerRef.current = setTimeout(() => {
       if (selectedDevice.id === "sn-0033") {
+        if (returnTo === "device") {
+          addOwnedCharm("sn-0033");
+          router.replace({
+            pathname: "/onboarding/charm-connected",
+            params: { returnTo: "device" },
+          });
+          return;
+        }
+
         router.replace("/onboarding/charm-connected");
         return;
       }
