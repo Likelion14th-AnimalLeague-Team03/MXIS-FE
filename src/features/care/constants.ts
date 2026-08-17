@@ -3,8 +3,8 @@
 // 최근 7일: 하루 단위로 전부 표시.
 export const HUMIDITY_LAST_7_DAYS = [58, 62, 45, 70, 40, 55, 48];
 
-// 최근 30일: 30개를 전부 그리는 대신, 변동 폭이 컸던 날 위주로 골라 표시.
-export const HUMIDITY_LAST_30_DAYS_PEAKS = [50, 68, 32, 71, 38, 60, 29, 65, 44];
+// 최근 30일: 30개를 전부 그리는 대신, 변동 폭이 컸던 날 위주로 10개만 골라 표시.
+export const HUMIDITY_LAST_30_DAYS_PEAKS = [50, 68, 32, 71, 38, 60, 29, 65, 44, 57];
 
 // 최근 1년: 매달 평균 값 12개.
 export const HUMIDITY_LAST_12_MONTHS = [
@@ -14,7 +14,7 @@ export const HUMIDITY_LAST_12_MONTHS = [
 // 온도 변화 그래프 목업 데이터.
 export const TEMPERATURE_LAST_7_DAYS = [21, 23, 19, 25, 20, 22, 24];
 
-export const TEMPERATURE_LAST_30_DAYS_PEAKS = [18, 24, 15, 27, 17, 23, 14, 25, 20];
+export const TEMPERATURE_LAST_30_DAYS_PEAKS = [18, 24, 15, 27, 17, 23, 14, 25, 20, 19];
 
 export const TEMPERATURE_LAST_12_MONTHS = [
   8, 10, 14, 18, 22, 25, 28, 27, 23, 17, 12, 9

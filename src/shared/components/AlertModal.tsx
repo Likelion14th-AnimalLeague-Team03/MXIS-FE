@@ -36,7 +36,7 @@ export function AlertModal({
     >
       <View className="flex-1 items-center justify-center bg-black/50 px-8">
         <View
-          className="w-full rounded-2xl px-5 pt-6"
+          className="w-full rounded-2xl px-7 pt-6"
           style={{ backgroundColor: CARD_BG }}
         >
           <Text className="text-base font-bold text-black">{title}</Text>
@@ -52,7 +52,7 @@ export function AlertModal({
                 <Pressable
                   key={action.label}
                   onPress={action.onPress}
-                  className={`items-center justify-center rounded-xl px-4 py-[13px] ${
+                  className={`items-center justify-center rounded-xl ${
                     action.variant === "accent"
                       ? "bg-concierge-primary"
                       : "border border-concierge-border bg-white"
@@ -61,8 +61,8 @@ export function AlertModal({
                   <Text
                     className={`text-base font-semibold ${
                       action.variant === "accent"
-                        ? "text-white"
-                        : "text-concierge-text"
+                        ? "text-black"
+                        : "text-concierge-primary"
                     }`}
                   >
                     {action.label}
@@ -83,8 +83,8 @@ export function AlertModal({
                   <Text
                     className={`text-sm font-semibold ${
                       action.variant === "accent"
-                        ? "text-black"
-                        : "text-concierge-primary"
+                        ? "text-concierge-primary"
+                        : "text-concierge-text"
                     }`}
                   >
                     {action.label}

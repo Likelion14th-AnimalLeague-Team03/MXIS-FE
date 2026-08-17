@@ -108,7 +108,9 @@ function DataTestToggle({
 }) {
   return (
     <View className="mt-4 flex-row items-center gap-2 rounded-xl border border-dashed border-concierge-border bg-white px-3 py-2.5">
-      <Text className="text-xs font-semibold text-concierge-textMuted">테스트</Text>
+      <Text className="text-xs font-semibold text-concierge-textMuted">
+        테스트
+      </Text>
       <View className="flex-1 flex-row justify-end gap-1.5">
         {[
           { key: true, label: "데이터 있음" },
@@ -118,12 +120,16 @@ function DataTestToggle({
             key={String(option.key)}
             onPress={() => onToggle(option.key)}
             className={`rounded-full px-2.5 py-1 ${
-              hasData === option.key ? "bg-concierge-primary" : "bg-concierge-chip"
+              hasData === option.key
+                ? "bg-concierge-primary"
+                : "bg-concierge-chip"
             }`}
           >
             <Text
               className={`text-xs ${
-                hasData === option.key ? "text-white" : "text-concierge-textSecondary"
+                hasData === option.key
+                  ? "text-white"
+                  : "text-concierge-textSecondary"
               }`}
             >
               {option.label}
@@ -135,8 +141,13 @@ function DataTestToggle({
   );
 }
 
-const HUMIDITY_LABELS = ["70%", "55%", "40%", "25%"];
-const TEMPERATURE_LABELS = ["30°C", "23°C", "17°C", "10°C"];
+// 권장 범위 — 습도 45~55%, 온도 18~20°C. 그래프에 연두색 밴드로 강조돼요.
+const HUMIDITY_RECOMMENDED = { min: 45, max: 55 };
+const TEMPERATURE_RECOMMENDED = { min: 18, max: 20 };
+
+// 데이터 수집중일 땐 권장 범위와 무관하게 이 기본 축 범위로 기본 그래프만 그려요.
+const HUMIDITY_BASIC_RANGE = { min: 25, max: 70 };
+const TEMPERATURE_BASIC_RANGE = { min: 10, max: 30 };
 
 export function EnvironmentScreen() {
   const router = useRouter();
@@ -148,9 +159,14 @@ export function EnvironmentScreen() {
   const values = isHumidity
     ? HUMIDITY_VALUES_BY_RANGE[range]
     : TEMPERATURE_VALUES_BY_RANGE[range];
-  const axisLabels = isHumidity ? HUMIDITY_LABELS : TEMPERATURE_LABELS;
-  const chartMin = isHumidity ? 20 : 5;
-  const chartMax = isHumidity ? 75 : 35;
+  const recommended = isHumidity ? HUMIDITY_RECOMMENDED : TEMPERATURE_RECOMMENDED;
+  const basicRange = isHumidity ? HUMIDITY_BASIC_RANGE : TEMPERATURE_BASIC_RANGE;
+  const unit = isHumidity ? "%" : "°C";
+
+  // y축 최소/최대는 고정값이 아니라 백엔드가 넘겨주는 데이터의 최소값-5 ~ 최대값+5로 계산해요.
+  // 데이터 수집중일 땐 계산할 데이터가 없으니 기본 범위를 써요.
+  const chartMin = hasData ? Math.min(...values) - 5 : basicRange.min;
+  const chartMax = hasData ? Math.max(...values) + 5 : basicRange.max;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -189,23 +205,23 @@ export function EnvironmentScreen() {
             </Text>
             <MetricToggle metric={metric} onSelect={setMetric} />
           </View>
-          <View className="mt-4 flex-row">
-            <View className="mr-2 justify-between py-1">
-              {axisLabels.map((label) => (
-                <Text key={label} className="text-xs text-concierge-textMuted">
-                  {label}
-                </Text>
-              ))}
-            </View>
-            {hasData ? (
-              <HumidityLineChart width={270} values={values} min={chartMin} max={chartMax} />
-            ) : (
-              <View className="h-[100px] flex-1 items-center justify-center">
+          <View className="mt-4">
+            <HumidityLineChart
+              width={306}
+              values={hasData ? values : []}
+              min={chartMin}
+              max={chartMax}
+              recommendedMin={hasData ? recommended.min : undefined}
+              recommendedMax={hasData ? recommended.max : undefined}
+              unit={unit}
+            />
+            {!hasData ? (
+              <View className="absolute inset-0 items-center justify-center">
                 <Text className="text-xs font-medium text-concierge-textMuted">
                   데이터 수집중
                 </Text>
               </View>
-            )}
+            ) : null}
           </View>
           <Text className="mt-4 text-sm text-concierge-textMuted">
             {hasData
@@ -214,7 +230,7 @@ export function EnvironmentScreen() {
           </Text>
         </Card>
 
-        {range === "최근 1년" ? (
+        {hasData && range === "최근 1년" ? (
           <View className="mt-3 rounded-xl border border-concierge-border bg-white px-3 py-2.5">
             <View className="flex-row items-center gap-1.5">
               <WarningIcon size={12} />
@@ -231,24 +247,48 @@ export function EnvironmentScreen() {
 
         <View className="mt-4 flex-row flex-wrap justify-between gap-y-3">
           <StatTile
-            icon={<Image source={temperatureIcon} className="size-[18px]" resizeMode="contain" />}
+            icon={
+              <Image
+                source={temperatureIcon}
+                className="size-[18px]"
+                resizeMode="contain"
+              />
+            }
             label="평균 온도"
             value={hasData ? "22°C" : "수집중"}
             muted={!hasData}
           />
           <StatTile
-            icon={<Image source={waterIcon} className="size-[18px]" resizeMode="contain" />}
+            icon={
+              <Image
+                source={waterIcon}
+                className="size-[18px]"
+                resizeMode="contain"
+              />
+            }
             label="평균 습도"
             value={hasData ? "42%" : "수집중"}
             muted={!hasData}
           />
           <StatTile
-            icon={<Image source={outIcon} className="size-[18px]" resizeMode="contain" />}
+            icon={
+              <Image
+                source={outIcon}
+                className="size-[18px]"
+                resizeMode="contain"
+              />
+            }
             label="외출"
             value="1회"
           />
           <StatTile
-            icon={<Image source={popIcon} className="size-[18px]" resizeMode="contain" />}
+            icon={
+              <Image
+                source={popIcon}
+                className="size-[18px]"
+                resizeMode="contain"
+              />
+            }
             label="충격"
             value="0회"
           />
@@ -260,12 +300,13 @@ export function EnvironmentScreen() {
           </Text>
           {hasData ? (
             <Text className="text-[15px] font-medium text-[#222222]">
-              이전 30일보다 습도 변화가 높았지만,{"\n"}온·습도 환경은 안정적이었습니다.
+              이전 30일보다 습도 변화가 높았지만,{"\n"}온·습도 환경은
+              안정적이었습니다.
             </Text>
           ) : (
             <Text className="text-[15px] font-medium text-[#222222]">
-              현재 데이터를 수집하고 있습니다.{"\n\n"}충분한 기록이 쌓이면 제품의 사용
-              환경과 패턴을 종합해 안내해 드립니다.
+              현재 데이터를 수집하고 있습니다.{"\n\n"}충분한 기록이 쌓이면
+              제품의 사용 환경과 패턴을 종합해 안내해 드립니다.
             </Text>
           )}
         </Card>

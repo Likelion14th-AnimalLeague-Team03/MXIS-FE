@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import clockIcon from "@/features/device/assets/clock.png";
+import clockIcon from "@/features/home/assets/time.png";
+import updateIcon from "@/features/home/assets/update.png";
 import homeProduct from "@/features/home/assets/home-back.png";
 import { formatDateShort } from "@/features/reservation/format";
 import { useReservationStore } from "@/features/reservation/store";
@@ -15,30 +16,38 @@ import { ProgressRing } from "@/shared/components/ProgressRing";
 import { colors } from "@/shared/styles/colors";
 
 const RECONNECT_PROMPT_INTERVAL_MS = 10 * 60 * 1000;
-const ACCENT_TEXT = "#C1703F";
+const ACCENT_TEXT = "#814C27";
 
-type CharmState = "COLLECTING" | "NEEDS_UPDATE" | "EXCELLENT" | "STANDARD" | "NEEDS_ATTENTION";
+type CharmState =
+  | "COLLECTING"
+  | "NEEDS_UPDATE"
+  | "EXCELLENT"
+  | "STANDARD"
+  | "NEEDS_ATTENTION";
 
 type Grade = "EXCELLENT" | "STANDARD" | "NEEDS_ATTENTION";
 
-const GRADE_CONTENT: Record<Grade, { label: string; description: string; percent: number; color: string }> = {
+const GRADE_CONTENT: Record<
+  Grade,
+  { label: string; description: string; percent: number; color: string }
+> = {
   EXCELLENT: {
     label: "Excellent",
     description: "가벼운 케어와 함께 컨디션을 유지해 주세요.",
     percent: 100,
-    color: "#4C9A6D",
+    color: "#335940",
   },
   STANDARD: {
     label: "Standard",
     description: "가벼운 케어와 함께 컨디션을 유지해 주세요.",
     percent: 70,
-    color: colors.accent,
+    color: "#814C17",
   },
   NEEDS_ATTENTION: {
     label: "Needs Attention",
     description: "전문적인 케어를 받아보시길 권장합니다.",
     percent: 35,
-    color: "#C1573A",
+    color: "#A51F21",
   },
 };
 
@@ -55,7 +64,7 @@ function daysUntil(date: Date) {
   );
 }
 
-// Charm 진단 API가 붙기 전까지, 5가지 상태 디자인을 바로 확인해볼 수 있는 테스트 토글이에요.
+// Charm 진단 API가 붙기 전까지, 5가지 상태 디자인을 바로 확인해볼 수 있는 테스트 토글
 function StatusTestToggle({
   current,
   onSelect,
@@ -73,19 +82,25 @@ function StatusTestToggle({
 
   return (
     <View className="mx-6 mt-3 flex-row flex-wrap items-center gap-2 rounded-xl border border-dashed border-concierge-border bg-white px-3 py-2.5">
-      <Text className="text-xs font-semibold text-concierge-textMuted">테스트</Text>
+      <Text className="text-xs font-semibold text-concierge-textMuted">
+        테스트
+      </Text>
       <View className="flex-1 flex-row flex-wrap justify-end gap-1.5">
         {options.map((option) => (
           <Pressable
             key={option.key}
             onPress={() => onSelect(option.key)}
             className={`rounded-full px-2.5 py-1 ${
-              current === option.key ? "bg-concierge-primary" : "bg-concierge-chip"
+              current === option.key
+                ? "bg-concierge-primary"
+                : "bg-concierge-chip"
             }`}
           >
             <Text
               className={`text-xs ${
-                current === option.key ? "text-white" : "text-concierge-textSecondary"
+                current === option.key
+                  ? "text-white"
+                  : "text-concierge-textSecondary"
               }`}
             >
               {option.label}
@@ -103,7 +118,8 @@ export function HomeScreen() {
   const [charmState, setCharmState] = useState<CharmState>("EXCELLENT");
   const [reconnectModalVisible, setReconnectModalVisible] = useState(false);
 
-  const isConnected = charmState !== "COLLECTING" && charmState !== "NEEDS_UPDATE";
+  const isConnected =
+    charmState !== "COLLECTING" && charmState !== "NEEDS_UPDATE";
 
   // 참(Charm)이 끊긴 상태면 재연결 안내 모달을 바로 띄우고, 10분 주기로 다시 띄워요.
   useEffect(() => {
@@ -136,8 +152,7 @@ export function HomeScreen() {
           </Text>
           {charmState === "COLLECTING" ? (
             <Text className="mt-1 text-2xl font-bold text-concierge-text">
-              Charm과 함께 제품을 사용하면 환경과 사용 기록이 차곡차곡
-              쌓입니다.
+              Charm과 함께 제품을 사용하면 환경과 사용 기록이 차곡차곡 쌓입니다.
             </Text>
           ) : charmState === "NEEDS_UPDATE" ? (
             <Text className="mt-1 text-2xl font-bold text-concierge-text">
@@ -162,8 +177,8 @@ export function HomeScreen() {
         />
 
         <View className="px-6">
-          <Card className="mt-4 flex-row items-center justify-between border-0 bg-white px-5 py-6">
-            <View className="flex-1 pr-4">
+          <Card className="mt-4 flex-row items-center justify-between border-0 bg-white px-5 pr-10 py-6 ">
+            <View className="flex-1 pr-6">
               <Text className="text-sm text-concierge-text">제품상태</Text>
               {isConnected ? (
                 <Text
@@ -179,7 +194,7 @@ export function HomeScreen() {
                     : "데이터 업데이트가 필요해요"}
                 </Text>
               )}
-              <Text className="mt-1 text-sm text-concierge-text">
+              <Text className="mt-1 text-sm max-w-[180px] text-concierge-text">
                 {isConnected
                   ? GRADE_CONTENT[charmState as Grade].description
                   : charmState === "COLLECTING"
@@ -194,18 +209,27 @@ export function HomeScreen() {
                 size={60}
               />
             ) : charmState === "COLLECTING" ? (
-              <Image source={clockIcon} className="size-11" resizeMode="contain" />
+              <Image
+                source={clockIcon}
+                className="size-13"
+                resizeMode="contain"
+              />
             ) : (
-              <View className="size-11 items-center justify-center rounded-full border border-concierge-borderLight">
-                <RefreshIcon size={20} color={colors.text} />
-              </View>
+              <Image
+                source={updateIcon}
+                className="size-13"
+                resizeMode="contain"
+              />
             )}
           </Card>
 
           <View className="mt-4 flex-row gap-3">
             <Card className="flex-1 border-0 bg-white px-4 py-5">
               <Text className="text-sm text-concierge-text">함께한 날짜</Text>
-              <Text className="mt-5 text-xl font-bold" style={{ color: ACCENT_TEXT }}>
+              <Text
+                className="mt-5 text-xl font-bold"
+                style={{ color: ACCENT_TEXT }}
+              >
                 182일
               </Text>
             </Card>
@@ -244,15 +268,23 @@ export function HomeScreen() {
                   <Text className="text-sm text-concierge-text">
                     다가오는 예약
                   </Text>
-                  <Text className="mt-5 text-sm font-semibold" style={{ color: ACCENT_TEXT }}>
+
+                  <Text
+                    className="mt-5 text-sm font-semibold"
+                    style={{ color: ACCENT_TEXT }}
+                  >
                     예정된 예약이 없어요
                   </Text>
-                  <Text className="mt-1 text-xs text-concierge-textMuted">
+
+                  <Text className="mt-1 mb-4 text-xs text-concierge-textMuted">
                     제품 케어가 필요할때 간편하게 예약할 수 있어요.
                   </Text>
+
+                  <View className="-mx-4 border-t border-concierge-borderLight" />
+
                   <Pressable
                     onPress={() => router.push("/reservation/input")}
-                    className="mt-4 flex-row items-center justify-between"
+                    className="mt-2 flex-row items-center justify-between"
                   >
                     <Text className="text-sm text-concierge-text">
                       케어 예약하기
