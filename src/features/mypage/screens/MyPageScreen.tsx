@@ -5,6 +5,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   UIManager,
   View,
@@ -13,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { NOTIFICATION_SETTINGS } from "@/features/device/constants";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { LogoutIcon } from "@/shared/components/icons/LogoutIcon";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
@@ -78,18 +80,25 @@ const TERMS_SECTIONS: TermsSection[] = [
   },
 ];
 
-// "내 정보 확인"도 다른 약관 항목들과 같은 아코디언 그룹에 속해요 — 키 하나로 통일해서 관리합니다.
-type SectionKey = "info" | (typeof TERMS_SECTIONS)[number]["key"];
+// "내 정보 확인"/"알림 설정"도 약관 항목들과 같은 아코디언 그룹에 속해요 — 키 하나로 통일해서 관리합니다.
+type SectionKey = "info" | "notifications" | (typeof TERMS_SECTIONS)[number]["key"];
 
 export function MyPageScreen() {
   const router = useRouter();
   const signOut = useAuthStore((state) => state.signOut);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [openKey, setOpenKey] = useState<SectionKey | null>(null);
+  const [notificationValues, setNotificationValues] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(NOTIFICATION_SETTINGS.map((item) => [item.key, item.defaultValue])),
+  );
 
   const toggleSection = (key: SectionKey) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setOpenKey((prev) => (prev === key ? null : key));
+  };
+
+  const handleToggleNotification = (key: string, value: boolean) => {
+    setNotificationValues((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleLogout = async () => {
@@ -170,6 +179,49 @@ export function MyPageScreen() {
                   mi***@gmail.com
                 </Text>
               </View>
+            </View>
+          ) : null}
+
+          <View className="border-t border-concierge-borderLight" />
+
+          <Pressable
+            onPress={() => toggleSection("notifications")}
+            className="flex-row items-center justify-between py-2"
+          >
+            <Text className="text-sm text-concierge-textSecondary">
+              알림 설정
+            </Text>
+            <View
+              style={{
+                transform: [
+                  { rotate: openKey === "notifications" ? "-90deg" : "90deg" },
+                ],
+              }}
+            >
+              <ChevronRightIcon size={6} color="#63635E" />
+            </View>
+          </Pressable>
+
+          {openKey === "notifications" ? (
+            <View className="mb-3 mt-1 gap-4 rounded-xl bg-concierge-chip px-4 py-4">
+              {NOTIFICATION_SETTINGS.map((item) => (
+                <View
+                  key={item.key}
+                  className="flex-row items-center justify-between"
+                >
+                  <Text className="text-sm text-concierge-text">
+                    {item.label}
+                  </Text>
+                  <Switch
+                    value={notificationValues[item.key]}
+                    onValueChange={(value) =>
+                      handleToggleNotification(item.key, value)
+                    }
+                    trackColor={{ false: "#898989", true: "#4EC576" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+              ))}
             </View>
           ) : null}
 
