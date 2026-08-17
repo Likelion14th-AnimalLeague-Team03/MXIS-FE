@@ -42,7 +42,7 @@ function StatCard({
           <Text
             className={
               muted
-                ? "mt-3 text-base font-semibold text-concierge-textMuted"
+                ? "mt-3 text-base font-semibold text-concierge-accentMuted"
                 : "mt-3 text-2xl font-bold text-concierge-text"
             }
           >
@@ -64,7 +64,9 @@ function DataTestToggle({
 }) {
   return (
     <View className="mt-3 flex-row items-center gap-2 rounded-xl border border-dashed border-concierge-border bg-white px-3 py-2.5">
-      <Text className="text-xs font-semibold text-concierge-textMuted">테스트</Text>
+      <Text className="text-xs font-semibold text-concierge-textMuted">
+        테스트
+      </Text>
       <View className="flex-1 flex-row justify-end gap-1.5">
         {[
           { key: true, label: "데이터 있음" },
@@ -74,12 +76,16 @@ function DataTestToggle({
             key={String(option.key)}
             onPress={() => onToggle(option.key)}
             className={`rounded-full px-2.5 py-1 ${
-              hasData === option.key ? "bg-concierge-primary" : "bg-concierge-chip"
+              hasData === option.key
+                ? "bg-concierge-primary"
+                : "bg-concierge-chip"
             }`}
           >
             <Text
               className={`text-xs ${
-                hasData === option.key ? "text-white" : "text-concierge-textSecondary"
+                hasData === option.key
+                  ? "text-white"
+                  : "text-concierge-textSecondary"
               }`}
             >
               {option.label}
@@ -137,7 +143,9 @@ export function CareHomeScreen() {
         <Card className="mt-4 border-0 bg-white px-3.5 py-3.5">
           <Text className="text-xs text-concierge-textMuted">현재 컨디션</Text>
           <Text className="mt-1 text-lg font-bold text-concierge-text">
-            {hasData ? "균형 있게 유지되고 있습니다." : "데이터가 수집되고 있습니다."}
+            {hasData
+              ? "균형 있게 유지되고 있습니다."
+              : "데이터가 수집되고 있습니다."}
           </Text>
           <Text className="mt-1 text-[11px] text-concierge-textMuted">
             {hasData
@@ -156,32 +164,32 @@ export function CareHomeScreen() {
         </Card>
 
         <Card className="mt-3 border-0 bg-white px-3.5 py-6">
-          <View className="flex-row items-center justify-between">
-            <Text className="flex-1 text-sm font-semibold text-concierge-text">
-              지금 추천하는 관리를 확인해보세요.
+          <Text className="text-sm font-semibold text-concierge-text">
+            지금 추천하는 관리를 확인해보세요.
+          </Text>
+          <Pressable
+            onPress={() => router.push("/care/guide")}
+            className="mt-2 flex-row items-center justify-end gap-1"
+          >
+            <Text className="text-[11px] font-medium text-concierge-text">
+              관리 가이드 가기
             </Text>
-            <Pressable
-              onPress={() => router.push("/care/guide")}
-              className="flex-row items-center gap-1"
-            >
-              <Text className="text-[11px] font-medium text-concierge-text">
-                관리 가이드 가기
-              </Text>
-              <ChevronRightIcon size={5} />
-            </Pressable>
-          </View>
+            <ChevronRightIcon size={5} />
+          </Pressable>
         </Card>
 
         <Pressable
           onPress={() => router.push("/care/environment")}
-          className="mt-6 flex-row items-center justify-between"
+          className="mt-6 mx-2 flex-row items-center justify-between"
         >
           <View>
             <Text className="text-2xl font-semibold text-concierge-text">
               환경 요약
             </Text>
             <Text className="mt-1 text-[13px] text-concierge-textMuted">
-              {hasData ? "최근 30일 동안의 평균이에요." : "데이터가 충분히 쌓이면 확인할 수 있어요."}
+              {hasData
+                ? "최근 30일 동안의 평균이에요."
+                : "데이터가 충분히 쌓이면 확인할 수 있어요."}
             </Text>
           </View>
           <ChevronRightIcon size={9} />
@@ -189,27 +197,51 @@ export function CareHomeScreen() {
 
         <View className="mt-3 flex-row flex-wrap justify-between gap-y-3">
           <StatCard
-            icon={<Image source={temperatureIcon} className="size-[18px]" resizeMode="contain" />}
-            label="현재 온도"
+            icon={
+              <Image
+                source={temperatureIcon}
+                className="size-[18px] mt-1.5 "
+                resizeMode="contain"
+              />
+            }
+            label="온도"
             caption="이상적입니다."
             value={hasData ? "22°C" : "-°C"}
             muted={!hasData}
           />
           <StatCard
-            icon={<Image source={waterIcon} className="size-[18px]" resizeMode="contain" />}
-            label="현재 습도"
+            icon={
+              <Image
+                source={waterIcon}
+                className="size-[18px] mt-1.5"
+                resizeMode="contain"
+              />
+            }
+            label="습도"
             caption="이상적입니다."
             value={hasData ? "42 %" : "- %"}
             muted={!hasData}
           />
           <StatCard
-            icon={<Image source={popIcon} className="size-[18px]" resizeMode="contain" />}
+            icon={
+              <Image
+                source={popIcon}
+                className="size-[18px] mt-1.5 "
+                resizeMode="contain"
+              />
+            }
             label="충격"
             value={hasData ? "낮음" : "수집중"}
             muted={!hasData}
           />
           <StatCard
-            icon={<Image source={outIcon} className="size-[18px]" resizeMode="contain" />}
+            icon={
+              <Image
+                source={outIcon}
+                className="size-[18px] mt-1.5"
+                resizeMode="contain"
+              />
+            }
             label="최근 이동"
             value={hasData ? "18회" : "수집중"}
             muted={!hasData}

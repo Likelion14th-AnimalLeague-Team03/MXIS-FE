@@ -5,8 +5,8 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Switch,
   Text,
-  TextInput,
   UIManager,
   View,
 } from "react-native";
@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { NOTIFICATION_SETTINGS } from "@/features/device/constants";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { LogoutIcon } from "@/shared/components/icons/LogoutIcon";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
@@ -26,30 +27,78 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const OTHER_LINKS = [
-  "서비스 이용약관",
-  "개인정보 수집·이용 약관",
-  "브랜드 소식 및 마케팅 알림 약관",
+type TermsGroup = { heading: string; content: string };
+
+type TermsSection = {
+  key: string;
+  label: string;
+  meta: string;
+  description: string;
+  groups: TermsGroup[];
+  linkLabel?: string;
+  note?: string;
+};
+
+const TERMS_SECTIONS: TermsSection[] = [
+  {
+    key: "service",
+    label: "서비스 이용약관",
+    meta: "시행일 2026.08.01",
+    description: "MXIS 서비스 이용 조건과 권리·의무를 안내합니다.",
+    groups: [
+      {
+        heading: "주요 내용",
+        content: "서비스 제공 · Smart Charm 연결 · 케어 정보 · 예약",
+      },
+    ],
+    linkLabel: "서비스 이용약관 전문 보기",
+  },
+  {
+    key: "privacy",
+    label: "개인정보 수집·이용 약관",
+    meta: "시행일 2026.08.01",
+    description: "서비스 제공을 위해 아래 정보를 수집·이용합니다.",
+    groups: [
+      {
+        heading: "수집 항목",
+        content: "이름, 이메일, 제품 정보, Smart Charm 연동 정보, 센서 기록 데이터",
+      },
+      { heading: "이용 목적", content: "회원 관리 · 제품 케어 · 예약 및 알림 제공" },
+    ],
+    linkLabel: "개인정보 처리방침 전문 보기",
+  },
+  {
+    key: "marketing",
+    label: "브랜드 소식 및 마케팅 알림 약관",
+    meta: "선택 동의",
+    description: "MCM의 새로운 제품과 브랜드 소식을 받아볼 수 있어요.",
+    groups: [
+      { heading: "안내 내용", content: "신제품 · 컬렉션 · 브랜드 이벤트 · MXIS 혜택" },
+      { heading: "수신 방법", content: "앱 푸시 알림" },
+    ],
+    note: "동의하지 않아도 기본 서비스 이용에는 제한이 없습니다.",
+  },
 ];
 
-const IS_SOCIAL_LOGIN = false;
+// "내 정보 확인"/"알림 설정"도 약관 항목들과 같은 아코디언 그룹에 속해요 — 키 하나로 통일해서 관리합니다.
+type SectionKey = "info" | "notifications" | (typeof TERMS_SECTIONS)[number]["key"];
 
 export function MyPageScreen() {
   const router = useRouter();
   const signOut = useAuthStore((state) => state.signOut);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
-  const [infoExpanded, setInfoExpanded] = useState(false);
-  const [name, setName] = useState("MCM 고객");
-  const [email, setEmail] = useState("mi***@gmail.com");
-  const [password, setPassword] = useState("");
+  const [openKey, setOpenKey] = useState<SectionKey | null>(null);
+  const [notificationValues, setNotificationValues] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(NOTIFICATION_SETTINGS.map((item) => [item.key, item.defaultValue])),
+  );
 
-  const toggleInfo = () => {
+  const toggleSection = (key: SectionKey) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setInfoExpanded((prev) => !prev);
+    setOpenKey((prev) => (prev === key ? null : key));
   };
 
-  const handleSaveInfo = () => {
-    toggleInfo();
+  const handleToggleNotification = (key: string, value: boolean) => {
+    setNotificationValues((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleLogout = async () => {
@@ -99,80 +148,139 @@ export function MyPageScreen() {
 
         <View className="mt-[20px] px-3">
           <Pressable
-            onPress={toggleInfo}
+            onPress={() => toggleSection("info")}
             className="flex-row items-center justify-between py-2"
           >
             <Text className="text-sm text-concierge-textSecondary">
-              내 정보 변경
+              내 정보 확인
             </Text>
             <View
-              style={{ transform: [{ rotate: infoExpanded ? "-90deg" : "90deg" }] }}
+              style={{
+                transform: [{ rotate: openKey === "info" ? "-90deg" : "90deg" }],
+              }}
             >
               <ChevronRightIcon size={6} color="#63635E" />
             </View>
           </Pressable>
 
-          {infoExpanded ? (
+          {openKey === "info" ? (
             <View className="mb-3 mt-1 gap-px overflow-hidden rounded-xl bg-concierge-chip">
               <View className="flex-row items-center justify-between px-4 py-3">
                 <Text className="text-sm text-concierge-textSecondary">
                   이름
                 </Text>
-                <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  className="ml-4 flex-1 text-right text-sm text-concierge-text"
-                />
+                <Text className="text-sm text-concierge-text">MCM 고객</Text>
               </View>
-              <View className="flex-row items-center justify-between px-4 py-3">
+              <View className="flex-row items-center justify-between border-t border-concierge-borderLight px-4 py-3">
                 <Text className="text-sm text-concierge-textSecondary">
                   이메일
                 </Text>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  className="ml-4 flex-1 text-right text-sm text-concierge-text"
-                />
+                <Text className="text-sm text-concierge-text">
+                  mi***@gmail.com
+                </Text>
               </View>
-              {!IS_SOCIAL_LOGIN ? (
-                <View className="flex-row items-center justify-between px-4 py-3">
-                  <Text className="text-sm text-concierge-textSecondary">
-                    비밀번호
-                  </Text>
-                  <TextInput
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                    placeholder="변경할 비밀번호 입력"
-                    placeholderTextColor="#B8B3AE"
-                    className="ml-4 flex-1 text-right text-sm text-concierge-text"
-                  />
-                </View>
-              ) : null}
             </View>
-          ) : null}
-
-          {infoExpanded ? (
-            <PrimaryButton
-              label="저장하기"
-              onPress={handleSaveInfo}
-              className="mb-3"
-            />
           ) : null}
 
           <View className="border-t border-concierge-borderLight" />
 
-          {OTHER_LINKS.map((label, index) => (
-            <View key={label}>
-              <Pressable className="flex-row items-center justify-between py-2">
+          <Pressable
+            onPress={() => toggleSection("notifications")}
+            className="flex-row items-center justify-between py-2"
+          >
+            <Text className="text-sm text-concierge-textSecondary">
+              알림 설정
+            </Text>
+            <View
+              style={{
+                transform: [
+                  { rotate: openKey === "notifications" ? "-90deg" : "90deg" },
+                ],
+              }}
+            >
+              <ChevronRightIcon size={6} color="#63635E" />
+            </View>
+          </Pressable>
+
+          {openKey === "notifications" ? (
+            <View className="mb-3 mt-1 gap-4 rounded-xl bg-concierge-chip px-4 py-4">
+              {NOTIFICATION_SETTINGS.map((item) => (
+                <View
+                  key={item.key}
+                  className="flex-row items-center justify-between"
+                >
+                  <Text className="text-sm text-concierge-text">
+                    {item.label}
+                  </Text>
+                  <Switch
+                    value={notificationValues[item.key]}
+                    onValueChange={(value) =>
+                      handleToggleNotification(item.key, value)
+                    }
+                    trackColor={{ false: "#898989", true: "#4EC576" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          <View className="border-t border-concierge-borderLight" />
+
+          {TERMS_SECTIONS.map((section, index) => (
+            <View key={section.key}>
+              <Pressable
+                onPress={() => toggleSection(section.key)}
+                className="flex-row items-center justify-between py-2"
+              >
                 <Text className="text-sm text-concierge-textSecondary">
-                  {label}
+                  {section.label}
                 </Text>
-                <ChevronRightIcon size={6} color="#63635E" />
+                <View
+                  style={{
+                    transform: [
+                      { rotate: openKey === section.key ? "-90deg" : "90deg" },
+                    ],
+                  }}
+                >
+                  <ChevronRightIcon size={6} color="#63635E" />
+                </View>
               </Pressable>
-              {index < OTHER_LINKS.length - 1 ? (
+
+              {openKey === section.key ? (
+                <View className="mb-3 mt-1 gap-3 rounded-xl bg-concierge-chip px-4 py-4">
+                  <Text className="text-xs text-concierge-textMuted">
+                    {section.meta}
+                  </Text>
+                  <Text className="text-sm text-concierge-text">
+                    {section.description}
+                  </Text>
+                  {section.groups.map((group) => (
+                    <View key={group.heading}>
+                      <Text className="text-sm font-semibold text-concierge-text">
+                        {group.heading}
+                      </Text>
+                      <Text className="mt-1 text-sm text-concierge-textSecondary">
+                        {group.content}
+                      </Text>
+                    </View>
+                  ))}
+                  {section.linkLabel ? (
+                    <Pressable>
+                      <Text className="text-sm font-semibold text-concierge-primary">
+                        {section.linkLabel} 〉
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  {section.note ? (
+                    <Text className="text-xs text-concierge-textMuted">
+                      {section.note}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {index < TERMS_SECTIONS.length - 1 ? (
                 <View className="border-t border-concierge-borderLight" />
               ) : null}
             </View>

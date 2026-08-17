@@ -36,7 +36,9 @@ function SummaryRow({
         </View>
         <Text className="text-sm font-bold text-concierge-text">{value}</Text>
       </View>
-      {divider ? <View className="border-t border-concierge-borderLight" /> : null}
+      {divider ? (
+        <View className="border-t border-concierge-borderLight" />
+      ) : null}
     </>
   );
 }
@@ -51,7 +53,9 @@ function DataTestToggle({
 }) {
   return (
     <View className="mt-4 flex-row items-center gap-2 rounded-xl border border-dashed border-concierge-border bg-white px-3 py-2.5">
-      <Text className="text-xs font-semibold text-concierge-textMuted">테스트</Text>
+      <Text className="text-xs font-semibold text-concierge-textMuted">
+        테스트
+      </Text>
       <View className="flex-1 flex-row justify-end gap-1.5">
         {[
           { key: true, label: "데이터 있음" },
@@ -61,12 +65,16 @@ function DataTestToggle({
             key={String(option.key)}
             onPress={() => onToggle(option.key)}
             className={`rounded-full px-2.5 py-1 ${
-              hasData === option.key ? "bg-concierge-primary" : "bg-concierge-chip"
+              hasData === option.key
+                ? "bg-concierge-primary"
+                : "bg-concierge-chip"
             }`}
           >
             <Text
               className={`text-xs ${
-                hasData === option.key ? "text-white" : "text-concierge-textSecondary"
+                hasData === option.key
+                  ? "text-white"
+                  : "text-concierge-textSecondary"
               }`}
             >
               {option.label}
@@ -103,41 +111,69 @@ export function ReportScreen() {
           </Text>
         </Card>
 
-        <Text className="mt-5 text-xl font-bold text-concierge-text">최근 환경 요약</Text>
+        <Text className="mt-5 text-xl font-bold text-concierge-text">
+          최근 환경 요약
+        </Text>
         <Card className="mt-3 bg-white px-3">
           <SummaryRow
-            icon={<Image source={temperatureIcon} className="size-[18px]" resizeMode="contain" />}
+            icon={
+              <Image
+                source={temperatureIcon}
+                className="size-[18px]"
+                resizeMode="contain"
+              />
+            }
             label="평균 온도"
             caption="데이터 수집 중"
-            value="22°C"
+            value={hasData ? "22°C" : "—"}
           />
           <SummaryRow
-            icon={<Image source={waterIcon} className="size-[18px]" resizeMode="contain" />}
+            icon={
+              <Image
+                source={waterIcon}
+                className="size-[18px]"
+                resizeMode="contain"
+              />
+            }
             label="평균 습도"
             caption="데이터 수집 중"
-            value="42%"
+            value={hasData ? "42%" : "—"}
           />
           <SummaryRow
-            icon={<Image source={popIcon} className="size-[18px]" resizeMode="contain" />}
+            icon={
+              <Image
+                source={popIcon}
+                className="size-[18px]"
+                resizeMode="contain"
+              />
+            }
             label="충격"
             caption="분석 전"
-            value="낮음"
+            value={hasData ? "낮음" : "—"}
           />
           <SummaryRow
-            icon={<Image source={outIcon} className="size-[18px]" resizeMode="contain" />}
+            icon={
+              <Image
+                source={outIcon}
+                className="size-[18px]"
+                resizeMode="contain"
+              />
+            }
             label="최근 사용 패턴"
             caption="분석 전"
-            value="18회"
+            value={hasData ? "18회" : "—"}
             divider={false}
           />
         </Card>
 
         <Card className="mt-4 flex-row items-center gap-3 bg-white px-4 py-3">
-          <View className="size-[58px] items-center justify-center rounded-full bg-concierge-surfaceMuted">
-            <ShieldCheckIcon size={26} />
+          <View className="size-[58px] items-center  justify-center rounded-full bg-concierge-accent">
+            <ShieldCheckIcon size={30} />
           </View>
           <View className="flex-1">
-            <Text className="text-sm font-bold text-concierge-text">제품 상태 해석</Text>
+            <Text className="text-sm font-bold text-concierge-text">
+              제품 상태 해석
+            </Text>
             <Text className="mt-1 text-[13px] text-concierge-textMuted">
               {hasData
                 ? "현재는 안정적으로 유지되고 있으나, 다음 계절 전 가벼운 점검을 권장합니다."
@@ -148,7 +184,9 @@ export function ReportScreen() {
 
         <Card className="mt-4 border-0 bg-concierge-surfaceMuted px-4 py-3">
           {hasData ? (
-            <Text className="text-xs text-concierge-textMuted">이번 계절이 지나기 전</Text>
+            <Text className="text-xs text-concierge-textMuted">
+              이번 계절이 지나기 전
+            </Text>
           ) : null}
           <Text className="mt-1 text-[15px] font-bold text-concierge-text">
             {hasData
@@ -162,7 +200,9 @@ export function ReportScreen() {
             onPress={() => router.push("/reservation/input")}
             className="mt-2 flex-row items-center justify-between"
           >
-            <Text className="text-sm text-concierge-text">케어 예약 바로가기</Text>
+            <Text className="text-sm text-concierge-text">
+              케어 예약 바로가기
+            </Text>
             <ChevronRightIcon size={5} />
           </Pressable>
         </Card>
