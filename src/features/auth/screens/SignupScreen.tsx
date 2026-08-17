@@ -12,7 +12,6 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import type { z } from "zod";
 
-import { AuthApiError, signup } from "@/features/auth/api/authApi";
 import { AuthTextField } from "@/features/auth/components/AuthTextField";
 import { signupSchema } from "@/features/auth/utils/validation";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
@@ -76,19 +75,9 @@ export function SignupScreen() {
     try {
       setIsSubmitting(true);
       setErrors({});
-      const { passwordConfirm: _passwordConfirm, ...request } = parsed.data;
-      await signup({
-        ...request,
-        phone: request.phone || undefined,
-      });
 
       router.replace("/auth/signup-complete");
     } catch (error) {
-      if (error instanceof AuthApiError && error.code === "EMAIL_ALREADY_EXISTS") {
-        setErrors({ email: "이미 가입된 이메일입니다." });
-        return;
-      }
-
       setErrors({
         form:
           error instanceof Error

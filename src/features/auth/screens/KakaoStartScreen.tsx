@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   Text,
   TextInput,
   View,
@@ -11,12 +13,21 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 
-import { AuthApiError } from "@/features/auth/api/authApi";
 import kakaoSymbol from "@/features/auth/assets/kakao-symbol.png";
 import { useKakaoAuthStore } from "@/features/auth/store/kakaoAuthStore";
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { getAuthenticatedEntryRoute } from "@/features/onboarding/storage";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
+
+const MOCK_KAKAO_PROFILE = {
+  accessToken: "mock-kakao-access-token",
+  name: "김민지",
+  email: "minji@kakao.com",
+  phone: "",
+};
+
+const MOCK_LINKED_MCM_EMAILS = ["linked@mcm.com"];
 
 type ReadonlyFieldProps = {
   label: string;
@@ -49,31 +60,46 @@ function KakaoReadonlyField({ label, value }: ReadonlyFieldProps) {
 export function KakaoStartScreen() {
   const router = useRouter();
   const draft = useKakaoAuthStore((state) => state.draft);
+  const setDraft = useKakaoAuthStore((state) => state.setDraft);
   const updatePhone = useKakaoAuthStore((state) => state.updatePhone);
+  const clearDraft = useKakaoAuthStore((state) => state.clearDraft);
   const signInWithKakao = useAuthStore((state) => state.signInWithKakao);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMissingAccountModalVisible, setIsMissingAccountModalVisible] =
+    useState(false);
+
+  const kakaoProfile = draft ?? MOCK_KAKAO_PROFILE;
+
+  useEffect(() => {
+    if (!draft) {
+      setDraft(MOCK_KAKAO_PROFILE);
+    }
+  }, [draft, setDraft]);
+
+  const hasLinkedMcmAccount = MOCK_LINKED_MCM_EMAILS.includes(
+    kakaoProfile.email.toLowerCase(),
+  );
+
+  const handleMissingAccountConfirm = () => {
+    setIsMissingAccountModalVisible(false);
+    clearDraft();
+    router.replace("/auth/login");
+  };
 
   const handleNext = async () => {
-    if (!draft) {
-      router.replace("/auth/login");
-      return;
-    }
-
     try {
       setIsSubmitting(true);
       setErrorMessage("");
-      await signInWithKakao(draft.accessToken);
-      router.replace("/(tabs)");
-    } catch (error) {
-      if (
-        error instanceof AuthApiError &&
-        error.code === "SOCIAL_ACCOUNT_CONFLICT"
-      ) {
-        router.push("/auth/kakao-conflict");
+
+      if (!hasLinkedMcmAccount) {
+        setIsMissingAccountModalVisible(true);
         return;
       }
 
+      await signInWithKakao(kakaoProfile.accessToken);
+      router.replace(await getAuthenticatedEntryRoute());
+    } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -83,24 +109,6 @@ export function KakaoStartScreen() {
       setIsSubmitting(false);
     }
   };
-
-  if (!draft) {
-    return (
-      <SafeAreaView className="flex-1 bg-concierge-bg px-6">
-        <StatusBar style="dark" backgroundColor="#FAF6F1" />
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-center text-[14px] font-medium text-[#C04737]">
-            카카오 계정 정보를 다시 불러와 주세요.
-          </Text>
-          <PrimaryButton
-            label="로그인으로 돌아가기"
-            onPress={() => router.replace("/auth/login")}
-            className="mt-6 w-full"
-          />
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-concierge-bg">
@@ -141,8 +149,8 @@ export function KakaoStartScreen() {
           </View>
 
           <View className="mt-6 gap-[14px]">
-            <KakaoReadonlyField label="이름" value={draft.name} />
-            <KakaoReadonlyField label="이메일" value={draft.email} />
+            <KakaoReadonlyField label="이름" value={kakaoProfile.name} />
+            <KakaoReadonlyField label="이메일" value={kakaoProfile.email} />
 
             <View>
               <Text className="mb-2 text-[14px] font-semibold text-concierge-text">
@@ -153,7 +161,7 @@ export function KakaoStartScreen() {
                 </Text>
               </Text>
               <TextInput
-                value={draft.phone}
+                value={kakaoProfile.phone}
                 onChangeText={updatePhone}
                 placeholder="010-0000-0000"
                 placeholderTextColor="#BABAB2"
@@ -196,6 +204,43 @@ export function KakaoStartScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={isMissingAccountModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleMissingAccountConfirm}
+      >
+        <View className="flex-1 items-center justify-center bg-[rgba(117,117,117,0.57)] px-6">
+          <View className="w-full rounded-[16px] bg-[#F2EBE5] px-5 pb-[18px] pt-[22px]">
+            <Text
+              className="text-[20px] font-semibold text-black"
+              style={{ letterSpacing: -0.5, lineHeight: 28 }}
+            >
+              카카오와 연결된{"\n"}MCM 계정을 찾을 수 없어요.
+            </Text>
+
+            <Text
+              className="mt-[14px] text-[14px] font-medium text-[#63635E]"
+              style={{ letterSpacing: -0.35, lineHeight: 20 }}
+            >
+              MCM 계정으로 로그인 해주세요.
+            </Text>
+
+            <Pressable
+              onPress={handleMissingAccountConfirm}
+              className="mt-[18px] h-[48px] items-center justify-center rounded-[10px] bg-[#814C27]"
+            >
+              <Text
+                className="text-[14px] font-semibold text-[#F2EBE5]"
+                style={{ letterSpacing: -0.35, lineHeight: 20 }}
+              >
+                확인
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

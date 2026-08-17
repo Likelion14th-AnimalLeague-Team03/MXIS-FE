@@ -1,446 +1,602 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import {
   Image,
-  LayoutAnimation,
+  type ImageSourcePropType,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
-  Switch,
   Text,
-  UIManager,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
 
-import deviceHeroBg from "@/features/device/assets/device-hero-bg.png";
-import {
-  CONNECTED_CHARM_ID,
-  DEVICE_CHARMS,
-  NOTIFICATION_SETTINGS,
-  PRODUCTS,
-} from "@/features/device/constants";
-import { useDeviceStore } from "@/features/device/store";
-import { Card } from "@/shared/components/Card";
+import heroBackground from "@/features/device/assets/final/device-hero-bg-final.png";
+import ellaMainTransparent from "@/features/device/assets/final/ella-main-transparent-crop.png";
+import charmBear from "@/features/device/assets/charm2.png";
+import charmRabbit from "@/features/device/assets/charm3.png";
+import ellaBostonThumbnail from "@/features/onboarding/assets/products/ella-boston-thumbnail.png";
+import himmelShopperThumbnail from "@/features/onboarding/assets/products/himmel-shopper-thumbnail.png";
+import starkBackpackThumbnail from "@/features/onboarding/assets/products/stark-backpack-thumbnail.png";
 import { BatteryIcon } from "@/shared/components/icons/BatteryIcon";
-import { BellIcon } from "@/shared/components/icons/BellIcon";
-import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
-import { DropletIcon } from "@/shared/components/icons/DropletIcon";
 import { InfoIcon } from "@/shared/components/icons/InfoIcon";
-import { PlusIcon } from "@/shared/components/icons/PlusIcon";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
-import { ThermometerIcon } from "@/shared/components/icons/ThermometerIcon";
-import { colors } from "@/shared/styles/colors";
+import { useDeviceStore } from "@/features/device/store";
 
-// Android에서 LayoutAnimation을 활성화하기 위한 설정
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
+type Product = {
+  id: string;
+  name: string;
+  material: string;
+  color: string;
+  outings: number;
+  thumb: ImageSourcePropType;
+  hero: ImageSourcePropType;
+};
+
+type Charm = {
+  id: string;
+  label: string;
+  image: ImageSourcePropType;
+  battery: number;
+};
+
+const PRODUCTS: Product[] = [
+  {
+    id: "stark",
+    name: "Stark 사이드 스터드 비세토스 백팩",
+    material: "Visetos Canvas",
+    color: "black",
+    outings: 18,
+    thumb: starkBackpackThumbnail,
+    hero: starkBackpackThumbnail,
+  },
+  {
+    id: "ella",
+    name: "Ella 비세토스 보스턴 백",
+    material: "Visetos Canvas",
+    color: "cognac",
+    outings: 50,
+    thumb: ellaBostonThumbnail,
+    hero: ellaMainTransparent,
+  },
+  {
+    id: "himmel",
+    name: "MCM Himmel Shopper",
+    material: "Lauretos Canvas",
+    color: "oatmeal",
+    outings: 12,
+    thumb: himmelShopperThumbnail,
+    hero: himmelShopperThumbnail,
+  },
+];
+
+const CHARMS_BY_ID: Record<string, Charm> = {
+  "sn-0001": { id: "sn-0001", label: "SN-0001", image: charmBear, battery: 65 },
+  "sn-0022": { id: "sn-0022", label: "SN-0022", image: charmRabbit, battery: 82 },
+  "sn-0033": { id: "sn-0033", label: "SN-0033", image: charmBear, battery: 73 },
+};
+
+function Pill({ label }: { label: string }) {
+  return (
+    <View className="rounded-full border border-[#814C27] px-[9px] py-[3px]">
+      <Text
+        className="text-[11px] font-medium text-[#814C27]"
+        style={{ letterSpacing: -0.11, lineHeight: 16 }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
 }
 
-function ListRow({
-  icon,
-  label,
-  value,
-  showChevron = true,
-  chevronRotated = false,
-  onPress,
+function Chevron({ expanded }: { expanded?: boolean }) {
+  return (
+    <View className="h-6 w-6 items-center justify-center">
+      <Svg
+        width={8.25}
+        height={15.0151}
+        viewBox="0 0 8.25 15.0151"
+        fill="none"
+        style={{ transform: [{ rotate: expanded ? "-90deg" : "90deg" }] }}
+      >
+        <Path
+          d="M0.75 15.015C0.651636 15.0162 0.55411 14.9968 0.463693 14.9581C0.373276 14.9193 0.291969 14.8621 0.225 14.79C-0.075 14.49 -0.075 14.025 0.225 13.725L6.45 7.5L0.225 1.29C-0.075 0.99 -0.075 0.525 0.225 0.225C0.525 -0.075 0.99 -0.075 1.29 0.225L8.025 6.99C8.325 7.29 8.325 7.755 8.025 8.055L1.275 14.79C1.125 14.94 0.93 15.015 0.75 15.015Z"
+          fill="#111111"
+        />
+      </Svg>
+    </View>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row items-center justify-between">
+      <Text
+        className="text-[14px] font-medium text-[#262626]"
+        style={{ letterSpacing: -0.35, lineHeight: 20 }}
+      >
+        {label}
+      </Text>
+      <Text
+        className="text-[14px] font-medium text-[#262626]"
+        style={{ letterSpacing: -0.35, lineHeight: 20 }}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function formatLastSyncedAt(value: string | null) {
+  if (!value) return "*월 *일";
+
+  const syncedAt = new Date(value).getTime();
+  const now = Date.now();
+  const diffMs = Math.max(0, now - syncedAt);
+  const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
+
+  if (diffHours < 1) return "방금 전";
+  if (diffHours < 24) return `${diffHours}시간 전`;
+
+  const date = new Date(value);
+  return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+}
+
+function ConfirmModal({
+  visible,
+  title,
+  body,
+  confirmLabel,
+  onConfirm,
+  onCancel,
 }: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  showChevron?: boolean;
-  chevronRotated?: boolean;
-  onPress?: () => void;
+  visible: boolean;
+  title: string;
+  body: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      className="flex-row items-center justify-between py-3"
-    >
-      <View className="flex-row items-center gap-3">
-        {icon}
-        <Text className="text-sm text-[#262626]">{label}</Text>
-      </View>
-      <View className="flex-row items-center gap-3">
-        <Text className="text-sm text-[#676767]">{value}</Text>
-        {showChevron ? (
-          <View
-            style={{
-              transform: [{ rotate: chevronRotated ? "-90deg" : "90deg" }],
-            }}
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
+      <View className="flex-1 items-center justify-center bg-black/35 px-6">
+        <View className="w-full max-w-[342px] rounded-[16px] bg-[#FAF6F1] px-5 pb-[18px] pt-[22px]">
+          <Text
+            className="text-[20px] font-semibold text-[#121212]"
+            style={{ letterSpacing: -0.5, lineHeight: 28 }}
           >
-            <ChevronRightIcon size={6} color="#999999" />
-          </View>
-        ) : null}
+            {title}
+          </Text>
+          <Text
+            className="mt-[14px] text-[14px] font-medium text-[#63635E]"
+            style={{ letterSpacing: -0.35, lineHeight: 20 }}
+          >
+            {body}
+          </Text>
+          <PrimaryButton
+            label={confirmLabel}
+            onPress={onConfirm}
+            className="mt-[18px] h-[48px] rounded-[8px]"
+          />
+          <SecondaryButton
+            label="취소"
+            onPress={onCancel}
+            className="mt-[10px] h-[48px] rounded-[8px]"
+          />
+          <Text
+            className="mt-[12px] text-center text-[12px] font-medium text-[#898989]"
+            style={{ letterSpacing: -0.12, lineHeight: 17 }}
+          >
+            기존 기록은 삭제되지 않습니다.
+          </Text>
+        </View>
       </View>
-    </Pressable>
+    </Modal>
   );
 }
 
 export function DeviceScreen() {
-  const selectedProduct = useDeviceStore((state) => state.selectedProductIndex);
-  const setSelectedProduct = useDeviceStore((state) => state.setSelectedProductIndex);
-  const [connected, setConnected] = useState(true);
-  const [charmListExpanded, setCharmListExpanded] = useState(false);
-  const [notificationsExpanded, setNotificationsExpanded] = useState(false);
+  const router = useRouter();
+  const [selectedProductId, setSelectedProductId] = useState("ella");
+  const [mainProductId, setMainProductId] = useState("ella");
+  const [charmExpanded, setCharmExpanded] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [disconnectModalVisible, setDisconnectModalVisible] = useState(false);
-  const [connectedCharmId, setConnectedCharmId] = useState(CONNECTED_CHARM_ID);
-  const [pendingCharmId, setPendingCharmId] = useState<string | null>(null);
-  const [notificationToggles, setNotificationToggles] = useState<
-    Record<string, boolean>
-  >(
-    Object.fromEntries(
-      NOTIFICATION_SETTINGS.map((item) => [item.key, item.defaultValue]),
-    ),
-  );
+  const ownedCharmIds = useDeviceStore((state) => state.ownedCharmIds);
+  const currentCharmId = useDeviceStore((state) => state.currentCharmId);
+  const pendingCharmId = useDeviceStore((state) => state.pendingCharmId);
+  const deleteOwnedCharm = useDeviceStore((state) => state.deleteOwnedCharm);
+  const setCurrentCharmId = useDeviceStore((state) => state.setCurrentCharmId);
+  const setPendingCharmId = useDeviceStore((state) => state.setPendingCharmId);
+  const lastSyncedAt = useDeviceStore((state) => state.lastSyncedAt);
 
-  // 부드러운 펼침/접힘 토글 함수
-  const toggleCharmList = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setCharmListExpanded((prev) => !prev);
+  const selectedIndex = PRODUCTS.findIndex((product) => product.id === selectedProductId);
+  const selectedProduct = PRODUCTS[selectedIndex] ?? PRODUCTS[1];
+  const isMainProduct = selectedProduct.id === mainProductId;
+  const ownedCharms = ownedCharmIds
+    .map((id) => CHARMS_BY_ID[id])
+    .filter((charm): charm is Charm => Boolean(charm));
+  const connectedCharm = ownedCharms.find((charm) => charm.id === currentCharmId) ?? null;
+  const pendingCharm = ownedCharms.find((charm) => charm.id === pendingCharmId) ?? null;
+  const hasConnectedCharm = Boolean(connectedCharm);
+  const isPendingCharmConnected = Boolean(pendingCharm && pendingCharm.id === currentCharmId);
+  const lastSyncedLabel = hasConnectedCharm ? "연결 중" : formatLastSyncedAt(lastSyncedAt);
+
+  const visibleProducts = useMemo(() => {
+    const previous = PRODUCTS[(selectedIndex - 1 + PRODUCTS.length) % PRODUCTS.length];
+    const next = PRODUCTS[(selectedIndex + 1) % PRODUCTS.length];
+
+    return [previous, selectedProduct, next];
+  }, [selectedIndex, selectedProduct]);
+
+  const moveProduct = (direction: "prev" | "next") => {
+    const offset = direction === "prev" ? -1 : 1;
+    const nextIndex = (selectedIndex + offset + PRODUCTS.length) % PRODUCTS.length;
+    setSelectedProductId(PRODUCTS[nextIndex].id);
+    setCharmExpanded(false);
   };
 
-  const toggleNotifications = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setNotificationsExpanded((prev) => !prev);
+  const confirmDeleteCharm = () => {
+    if (!pendingCharm) return;
+
+    deleteOwnedCharm(pendingCharm.id);
+    setDeleteModalVisible(false);
   };
 
-  const confirmDisconnect = () => {
-    setConnected(false);
+  const confirmDisconnectCharm = () => {
+    setCurrentCharmId(null);
     setDisconnectModalVisible(false);
+    setCharmExpanded(false);
   };
 
-  const handleChangeCharm = () => {
-    if (!pendingCharmId) return;
-    setConnectedCharmId(pendingCharmId);
-    setPendingCharmId(null);
+  const handleConnectCharm = () => {
+    if (!pendingCharm) return;
+
+    setCurrentCharmId(pendingCharm.id);
   };
 
-  const connectedCharm =
-    DEVICE_CHARMS.find((charm) => charm.id === connectedCharmId) ??
-    DEVICE_CHARMS[0];
+  const handleAddCharm = () => {
+    router.push({
+      pathname: "/onboarding/charm-scan",
+      params: { returnTo: "device" },
+    });
+  };
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
-      <ScrollView className="flex-1" contentContainerClassName="pb-8">
-        <View className="flex-row items-center justify-between px-6 pt-4">
-          <Text className="text-xl font-bold text-[#171717]">
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="mx-auto w-full max-w-[390px] pb-8"
+        showsVerticalScrollIndicator={false}
+      >
+        <View className="px-6 pt-4">
+          <Text
+            className="text-[20px] font-bold text-[#171717]"
+            style={{ letterSpacing: -0.5, lineHeight: 28 }}
+          >
             연동 및 기기관리
           </Text>
-          <Pressable hitSlop={8}>
-            <PlusIcon size={22} />
+        </View>
+
+        <View className="mt-[18px] flex-row items-center justify-between px-5">
+          <Pressable onPress={() => moveProduct("prev")} hitSlop={12}>
+            <Text className="text-[34px] font-light text-[#111111]">‹</Text>
+          </Pressable>
+
+          <View className="flex-1 items-center">
+            <View className="flex-row items-center justify-center gap-[15px]">
+              {visibleProducts.map((product) => {
+                const selected = product.id === selectedProduct.id;
+                return (
+                  <Pressable key={product.id} onPress={() => setSelectedProductId(product.id)}>
+                    <View
+                      className={`h-20 w-20 items-center justify-center rounded-full ${
+                        selected ? "border border-[#E4AB7C]" : ""
+                      }`}
+                    >
+                      <Image
+                        source={product.thumb}
+                        resizeMode="contain"
+                        style={{ height: selected ? 68 : 58, width: selected ? 68 : 58 }}
+                      />
+                    </View>
+                    <View
+                      className="mt-[2px] h-[3px] w-[22px] self-center rounded-full"
+                      style={{ backgroundColor: selected ? "#E4AB7C" : "transparent" }}
+                    />
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text
+              className="mt-1 text-[14px] font-medium text-[#6B6B6B]"
+              style={{ letterSpacing: -0.35, lineHeight: 20 }}
+            >
+              좌우로 넘겨  가방을 선택하세요
+            </Text>
+          </View>
+
+          <Pressable onPress={() => moveProduct("next")} hitSlop={12}>
+            <Text className="text-[34px] font-light text-[#111111]">›</Text>
           </Pressable>
         </View>
 
-        <View className="mt-4 flex-row gap-3 px-6">
-          {PRODUCTS.map((product, index) => (
-            <Pressable key={product.id} onPress={() => setSelectedProduct(index)}>
-              <View
-                className={`size-12 overflow-hidden rounded-full border-2 ${
-                  selectedProduct === index
-                    ? "border-concierge-primary"
-                    : "border-transparent"
-                }`}
-              >
-                <Image
-                  source={product.image}
-                  className="size-full"
-                  resizeMode="cover"
-                />
-              </View>
-              <View
-                className="mt-1.5 h-[3px] w-6 self-center rounded-full"
-                style={{
-                  backgroundColor:
-                    selectedProduct === index ? colors.primary : "transparent",
-                }}
-              />
-            </Pressable>
-          ))}
-        </View>
-
-        <View className="mt-4 h-[184px] w-full overflow-hidden">
-          <Image
-            source={deviceHeroBg}
-            className="size-full"
-            resizeMode="cover"
-          />
-          <View className="absolute inset-0 items-center justify-center p-8">
+        <View
+          className="mt-[10px] overflow-hidden self-center"
+          style={{ height: 220.43, width: 388 }}
+        >
+          <Image source={heroBackground} style={{ height: 220.43, width: 388 }} resizeMode="cover" />
+          <View className="absolute inset-0 items-center justify-center">
             <Image
-              source={PRODUCTS[selectedProduct].image}
-              className="size-full"
+              source={selectedProduct.hero}
               resizeMode="contain"
+              style={{ height: 178, width: 316 }}
             />
           </View>
         </View>
 
-        <View className="px-6">
-          <Text className="mt-3 text-sm font-semibold text-[#171717]">
-            {PRODUCTS[selectedProduct].name}
-          </Text>
-          <Text className="mt-1 text-xs text-[#6B6B6B]">
-            {PRODUCTS[selectedProduct].variant}
-          </Text>
-          <Text className="mt-1 text-xs text-[#232323]">함께한 외출 50회</Text>
+        <View className="px-6 pt-6">
+          <View className="flex-row items-start justify-between">
+            <View>
+              <Text
+                className="text-[14px] font-semibold text-[#171717]"
+                style={{ letterSpacing: -0.35, lineHeight: 20 }}
+              >
+                {selectedProduct.name}
+              </Text>
+              <Text
+                className="mt-[2px] text-[14px] font-medium text-[#6B6B6B]"
+                style={{ letterSpacing: -0.35, lineHeight: 20 }}
+              >
+                {selectedProduct.material} · {selectedProduct.color}
+              </Text>
+              <Text
+                className="mt-[2px] text-[14px] font-medium text-[#232323]"
+                style={{ letterSpacing: -0.35, lineHeight: 20 }}
+              >
+                함께한 외출 <Text className="text-[#814C27]">{selectedProduct.outings}회</Text>
+              </Text>
+            </View>
+            {isMainProduct ? <Pill label="현재 메인" /> : null}
+          </View>
 
-          {/* Smart Charm 메인 카드 */}
-          <View className="mt-4 overflow-hidden rounded-2xl border border-[#E0E0E0] bg-white">
-            <View className="px-4 py-3">
-              <View className="flex-row items-start gap-3">
-                <View className="size-[64px] overflow-hidden rounded-full border border-concierge-borderLight">
-                  <Image
-                    source={connectedCharm.image}
-                    className="size-full"
-                    resizeMode="cover"
+          <Pressable
+            onPress={() => setMainProductId(selectedProduct.id)}
+            disabled={isMainProduct}
+            className={`mt-[18px] h-[48px] items-center justify-center rounded-[10px] ${
+              isMainProduct ? "bg-[rgba(195,195,195,0.6)]" : "bg-[#814C27]"
+            }`}
+          >
+            <Text
+              className={`text-[14px] font-medium ${
+                isMainProduct ? "text-[#898989]" : "text-white"
+              }`}
+              style={{ letterSpacing: -0.35, lineHeight: 20 }}
+            >
+              {isMainProduct ? "현재 선택된 가방입니다." : "메인 가방으로 확정"}
+            </Text>
+          </Pressable>
+
+          <View className="mt-[26px] overflow-hidden rounded-[12px] bg-white">
+            <View className="min-h-[84px] flex-row items-center border border-[#E4E1DD] px-4 py-3">
+              <Image
+                source={connectedCharm?.image ?? charmBear}
+                resizeMode="contain"
+                style={{ height: 61, width: 61 }}
+              />
+              <View className="ml-3 flex-1">
+                <View className="flex-row items-center gap-[6px]">
+                  <View
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: hasConnectedCharm ? "#71EBA3" : "#898989" }}
                   />
-                </View>
-                <View className="flex-1">
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-1 flex-row items-center gap-2">
-                      <View
-                        className={`size-2 rounded-full ${connected ? "bg-[#71EBA3]" : "bg-[#B0AAA4]"}`}
-                      />
-                      <Text className="text-sm font-semibold text-[#171717]">
-                        Smart Charm {connected ? "연결됨" : "연결 안 됨"}
-                      </Text>
-                    </View>
-                    {connected ? (
-                      <Pressable
-                        onPress={() => setDisconnectModalVisible(true)}
-                        className="rounded-full bg-[#FFE8E8] px-3 py-1"
-                      >
-                        <Text className="text-xs ">연결 해제</Text>
-                      </Pressable>
-                    ) : (
-                      <Pressable
-                        onPress={() => setConnected(true)}
-                        className="rounded-full border border-concierge-primary px-3 py-1.5"
-                      >
-                        <Text className="text-xs text-concierge-primary">
-                          다시 연결
-                        </Text>
-                      </Pressable>
-                    )}
-                  </View>
-                  <Text className="mt-2 text-xs text-[#3E3E3E]">배터리</Text>
-                  <Text className="text-xs text-[#3E3E3E]">
-                    {connectedCharm.battery}%
+                  <Text
+                    className="text-[14px] font-semibold text-[#121212]"
+                    style={{ letterSpacing: -0.35, lineHeight: 20 }}
+                  >
+                    {connectedCharm?.label ?? "SN-0001"}
                   </Text>
                 </View>
+                {hasConnectedCharm ? (
+                  <Text className="mt-1 text-[12px] font-normal text-[#3E3E3E]">
+                    배터리: {connectedCharm?.battery}%
+                  </Text>
+                ) : null}
               </View>
-
-              <Pressable
-                onPress={toggleCharmList}
-                hitSlop={8}
-                className="mt-2 items-center"
-              >
-                <Text className="text-xs text-[#999999]">
-                  {charmListExpanded ? "︿" : "﹀"}
-                </Text>
-              </Pressable>
+              <Pill label={hasConnectedCharm ? "연결됨" : "연결 해제됨"} />
             </View>
 
-            {/* 참 리스트 (펼쳐지는 하단 컨테이너) */}
-            {charmListExpanded ? (
-              <View className="bg-[#E4DDD5] px-4 py-4">
-                <Text className="text-base font-semibold text-concierge-text">
+            <Pressable
+              onPress={() => setCharmExpanded((prev) => !prev)}
+              className="items-center pb-[6px]"
+            >
+              <Chevron expanded={charmExpanded} />
+            </Pressable>
+
+            {charmExpanded ? (
+              <View className="bg-[#E4DDD5] px-[18px] pb-5 pt-2">
+                <Text
+                  className="text-[16px] font-semibold text-[#121212]"
+                  style={{ letterSpacing: -0.4, lineHeight: 22 }}
+                >
                   보유중인 참
                 </Text>
 
-                <View className="mt-4 flex-row justify-between">
-                  {DEVICE_CHARMS.map((charm) => {
-                    const isDesignated = charm.id === connectedCharmId;
-                    const isConnected = connected && isDesignated;
-                    const isPending = charm.id === pendingCharmId;
+                <ScrollView
+                  horizontal
+                  className="mt-3"
+                  contentContainerStyle={{
+                    gap: 19,
+                    minWidth: "100%",
+                    paddingRight: 4,
+                  }}
+                  showsHorizontalScrollIndicator={false}
+                >
+                  {ownedCharms.map((charm) => {
+                    const selected = charm.id === pendingCharmId;
+                    const connected = charm.id === currentCharmId;
+
                     return (
                       <Pressable
                         key={charm.id}
-                        className="items-center"
-                        disabled={isDesignated}
                         onPress={() => setPendingCharmId(charm.id)}
+                        className="shrink-0 items-center"
                       >
-                        <View
-                          className={`size-[85px] overflow-hidden rounded-full bg-white ${
-                            isDesignated
-                              ? "border-2 border-concierge-primary"
-                              : "border border-concierge-borderLight"
-                          }`}
-                        >
+                        <View className="h-[85px] w-[85px] items-center justify-center overflow-hidden rounded-full border border-[#898989] bg-white">
                           <Image
                             source={charm.image}
-                            className="size-full"
-                            resizeMode="cover"
+                            resizeMode="contain"
+                            style={{ height: 82, width: 82 }}
                           />
-                          {isPending ? (
-                            <View className="absolute inset-0 items-center justify-center bg-black/50">
-                              <Text className="text-xs font-semibold text-white">
-                                선택
-                              </Text>
+                          {selected ? (
+                            <View className="absolute inset-0 items-center justify-center bg-black/35">
+                              <Text className="text-[12px] font-semibold text-white">선택</Text>
                             </View>
                           ) : null}
                         </View>
-                        <Text className="mt-2 text-sm font-semibold text-concierge-text">
+                        <Text
+                          className="mt-1 text-[14px] font-semibold text-[#121212]"
+                          style={{ letterSpacing: -0.35, lineHeight: 20 }}
+                        >
                           {charm.label}
                         </Text>
-                        <Text className="mt-0.5 text-xs text-concierge-text">
-                          배터리: {charm.battery}%
-                        </Text>
-                        {isConnected ? (
-                          <View className="mt-1 rounded-[10px] bg-[#E1F7E7] px-2 py-0.5">
-                            <Text className="text-xs text-[#269247]">
-                              연결중
-                            </Text>
+                        {connected ? (
+                          <View className="mt-1 rounded-[10px] bg-[#E1F7E7] px-2 py-[2px]">
+                            <Text className="text-[11px] font-medium text-[#269247]">연결중</Text>
                           </View>
                         ) : null}
                       </Pressable>
                     );
                   })}
-                </View>
 
-                <View className="mt-4 flex-row items-center justify-end gap-4">
-                  <Pressable>
-                    <Text className="text-sm text-concierge-text">
-                      + 새참 등록
-                    </Text>
-                  </Pressable>
                   <Pressable
-                    onPress={handleChangeCharm}
-                    disabled={!pendingCharmId}
+                    onPress={handleAddCharm}
+                    className="h-[85px] w-[85px] shrink-0 items-center justify-center rounded-full border border-[#898989] bg-[#C3C3C3]"
                   >
-                    <Text
-                      className={`border px-3 py-1 rounded-[5px] text-sm ${pendingCharmId ? "text-concierge-primary border-concierge-primary " : "text-concierge-textMuted border-concierge-textMuted"}`}
-                    >
-                      참 변경
-                    </Text>
+                    <Text className="text-[32px] font-light text-white">+</Text>
                   </Pressable>
+                </ScrollView>
+
+                <View className="mt-5 flex-row items-center justify-between">
+                  <Text
+                    className="text-[12px] font-medium text-[#898989]"
+                    style={{ letterSpacing: -0.12, lineHeight: 17 }}
+                  >
+                    선택한 참을 가방에 연결해주세요
+                  </Text>
+                  <View className="flex-row gap-2">
+                    <Pressable
+                      onPress={() => setDeleteModalVisible(true)}
+                      disabled={!pendingCharm}
+                      className="h-7 items-center justify-center rounded-[6px] bg-white px-3"
+                    >
+                      <Text className="text-[12px] font-medium text-[#A51F21]">참 삭제</Text>
+                    </Pressable>
+                    {isPendingCharmConnected ? (
+                      <Pressable
+                        onPress={() => setDisconnectModalVisible(true)}
+                        className="h-7 items-center justify-center rounded-[6px] bg-[#814C27] px-3"
+                      >
+                        <Text className="text-[12px] font-medium text-white">연결 해제</Text>
+                      </Pressable>
+                    ) : (
+                      <Pressable
+                        onPress={handleConnectCharm}
+                        disabled={!pendingCharm}
+                        className="h-7 items-center justify-center rounded-[6px] bg-[#814C27] px-3"
+                      >
+                        <Text className="text-[12px] font-medium text-white">참 연결</Text>
+                      </Pressable>
+                    )}
+                  </View>
                 </View>
               </View>
             ) : null}
           </View>
 
-          <Text className="mt-4 text-[18px] font-semibold ">세부 기기관리</Text>
+          <Text
+            className="mt-[26px] text-[18px] font-bold text-[#171717]"
+            style={{ lineHeight: 26 }}
+          >
+            세부 기기관리
+          </Text>
 
-          <Card className="mt-2 border-0 bg-white px-4 py-4">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-sm text-[#222222]">현재 보관 환경</Text>
-              <View className="rounded-full bg-[#E7F4EC] px-2 py-1">
-                <Text className="text-xs text-[#269247]">양호</Text>
-              </View>
-            </View>
-            <View className="mt-3 flex-row items-center justify-around">
-              <View className="items-center">
-                <View className="flex-row items-center gap-1">
-                  <ThermometerIcon size={16} />
-                  <Text className="text-[11px] text-[#686868]">온도</Text>
-                </View>
-                <Text className="mt-1 text-xl font-semibold text-[#171717]">
-                  23°C
-                </Text>
-              </View>
-              <View className="h-10 w-px bg-concierge-borderLight" />
-              <View className="items-center">
-                <View className="flex-row items-center gap-1">
-                  <DropletIcon size={16} />
-                  <Text className="text-[11px] text-[#686868]">습도</Text>
-                </View>
-                <Text className="mt-1 text-xl font-semibold text-[#171717]">
-                  48%
-                </Text>
-              </View>
-            </View>
-            <Text className="mt-3 text-center text-xs text-[#686868]">
-              권장 범위로 유지 중이에요
+          <View className="mt-2 rounded-[12px] border border-[#E4E1DD] bg-white px-4 py-3">
+            <Text
+              className="text-[14px] font-medium text-[#222222]"
+              style={{ letterSpacing: -0.35, lineHeight: 20 }}
+            >
+              현재 보관 환경
             </Text>
-          </Card>
 
-          <View className="mt-4 overflow-hidden rounded-xl border border-concierge-borderLight">
-            <View className="bg-white px-4 py-1">
-              <ListRow
-                icon={<BatteryIcon size={17} />}
-                label="배터리 상태"
-                value="65%"
-                showChevron={false}
-              />
-              <View className="border-t border-concierge-borderLight" />
-              <ListRow
-                icon={<InfoIcon size={14} />}
-                label="마지막 연동"
-                value="방금 전"
-                showChevron={false}
-              />
-              <View className="border-t border-concierge-borderLight" />
-              <ListRow
-                icon={<BellIcon size={14} />}
-                label="알림 설정"
-                value=""
-                chevronRotated={notificationsExpanded}
-                onPress={toggleNotifications}
-              />
+            <View className="mt-3 flex-row items-center">
+              <View className="flex-1 items-center">
+                <Text className="text-[20px] font-semibold text-[#171717]">
+                  {hasConnectedCharm ? "23°C" : "-°C"}
+                </Text>
+                <Text className="text-[11px] text-[#686868]">온도</Text>
+              </View>
+              <View className="h-10 w-px bg-[#E4E1DD]" />
+              <View className="flex-1 items-center">
+                <Text className="text-[20px] font-semibold text-[#171717]">
+                  {hasConnectedCharm ? "48%" : "-%"}
+                </Text>
+                <Text className="text-[11px] text-[#686868]">습도</Text>
+              </View>
             </View>
 
-            {notificationsExpanded ? (
-              <View className="gap-1 bg-[#E4DDD5] px-4 pb-3 pt-1">
-                {NOTIFICATION_SETTINGS.map((item) => (
-                  <View
-                    key={item.key}
-                    className="flex-row items-center justify-between py-1.5 pl-[29px]"
-                  >
-                    <Text className="text-sm text-[#262626]">{item.label}</Text>
-                    <Switch
-                      value={notificationToggles[item.key]}
-                      onValueChange={(value) =>
-                        setNotificationToggles((prev) => ({
-                          ...prev,
-                          [item.key]: value,
-                        }))
-                      }
-                      trackColor={{ false: "#898989", true: "#4EC576" }}
-                      thumbColor="#FFFFFF"
-                    />
-                  </View>
-                ))}
+            <View className="mt-3 h-px bg-[#E4E1DD]" />
+            <Text
+              className="mt-[5px] text-[12px] font-medium text-[#686868]"
+              style={{ letterSpacing: -0.12, lineHeight: 17 }}
+            >
+              {hasConnectedCharm ? "권장 범위로 유지 중이에요" : "데이터가 없어요"}
+            </Text>
+          </View>
+
+          <View className="mt-[18px] overflow-hidden rounded-[12px] border border-[#E4E1DD] bg-white px-4">
+            <View className="flex-row items-center justify-between py-[9px]">
+              <View className="flex-row items-center gap-3">
+                <BatteryIcon size={17} />
+                <Text className="text-[14px] font-medium text-[#262626]">배터리 상태</Text>
               </View>
-            ) : null}
+              <Text className="text-[14px] font-medium text-[#262626]">
+                {hasConnectedCharm ? `${connectedCharm?.battery}%` : "-%"}
+              </Text>
+            </View>
+            <View className="h-px bg-[#E4E1DD]" />
+            <View className="flex-row items-center justify-between py-[9px]">
+              <View className="flex-row items-center gap-3">
+                <InfoIcon size={15} />
+                <Text className="text-[14px] font-medium text-[#262626]">마지막 연동</Text>
+              </View>
+              <Text className="text-[14px] font-medium text-[#676767]">
+                {lastSyncedLabel}
+              </Text>
+            </View>
           </View>
         </View>
       </ScrollView>
 
-      <Modal
-        transparent
+      <ConfirmModal
+        visible={deleteModalVisible}
+        title={`${pendingCharm?.label ?? "SN-0001"}을 가방에서 삭제할까요?`}
+        body={"참을 삭제하면 현재 가방과의 연결이 해지되며\n보유 중인 참 목록에서도 삭제돼요.\n필요하면 나중에 다시 등록할 수 있어요."}
+        confirmLabel="삭제"
+        onConfirm={confirmDeleteCharm}
+        onCancel={() => setDeleteModalVisible(false)}
+      />
+
+      <ConfirmModal
         visible={disconnectModalVisible}
-        animationType="fade"
-        onRequestClose={() => setDisconnectModalVisible(false)}
-      >
-        <View className="flex-1 items-center justify-center bg-black/40 px-6">
-          <View className="w-full rounded-2xl bg-white p-5">
-            <Text className="text-lg font-bold text-concierge-text">
-              MXIS Charm 연결을 해제할까요?
-            </Text>
-            <Text className="mt-2 text-sm text-concierge-textSecondary">
-              연결을 해제하면 새로운 센서 기록이 제품에 반영되지 않습니다. 기존
-              기록은 안전하게 유지됩니다.
-            </Text>
-            <PrimaryButton
-              label="연결 해제"
-              onPress={confirmDisconnect}
-              className="mt-4"
-            />
-            <SecondaryButton
-              label="취소"
-              onPress={() => setDisconnectModalVisible(false)}
-              className="mt-2"
-            />
-            <Text className="mt-3 text-center text-xs text-concierge-textMuted">
-              기존 기록은 삭제되지 않습니다.
-            </Text>
-          </View>
-        </View>
-      </Modal>
+        title={`${connectedCharm?.label ?? "SN-0001"} 연결을 해제할까요?`}
+        body="연결을 해제하면 재연결 전까지 센서 기록이 제품에 반영되지 않습니다."
+        confirmLabel="연결 해제"
+        onConfirm={confirmDisconnectCharm}
+        onCancel={() => setDisconnectModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }

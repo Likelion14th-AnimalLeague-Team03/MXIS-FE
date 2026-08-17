@@ -17,6 +17,7 @@ import { AuthTextField } from "@/features/auth/components/AuthTextField";
 import { useKakaoAuthStore } from "@/features/auth/store/kakaoAuthStore";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { loginSchema } from "@/features/auth/utils/validation";
+import { getAuthenticatedEntryRoute } from "@/features/onboarding/storage";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 
 type LoginErrors = {
@@ -68,7 +69,7 @@ export function LoginScreen() {
       setIsSubmitting(true);
       setErrors({});
       await signIn(parsed.data);
-      router.replace("/(tabs)");
+      router.replace(await getAuthenticatedEntryRoute());
     } catch (error) {
       setErrors({
         password:
@@ -129,7 +130,7 @@ export function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
       >
-        <View className="flex-1 px-6 pb-8 pt-9">
+        <View className="flex-1 px-6 pb-7 pt-[92px]">
           <View className="flex-row items-center">
             <Text className="text-[20px] font-semibold text-concierge-text">
               MCM
@@ -140,22 +141,22 @@ export function LoginScreen() {
             </Text>
           </View>
 
-          <View className="mt-8">
+          <View className="mt-9">
             <Text
               className="text-[22px] font-bold text-concierge-text"
               style={{ letterSpacing: -0.55 }}
             >
-              다시 만나 반갑습니다.
+              MCM계정으로 로그인
             </Text>
             <Text
-              className="mt-2 text-[14px] font-medium text-concierge-textSecondary"
+              className="mt-3 text-[14px] font-medium text-concierge-textSecondary"
               style={{ letterSpacing: -0.35, lineHeight: 20 }}
             >
               MXIS Charm과 함께한 기록을 이어서 확인하세요.
             </Text>
           </View>
 
-          <View className="mt-7 gap-[18px]">
+          <View className="mt-8 gap-[21px]">
             <AuthTextField
               label="이메일"
               value={email}
@@ -174,25 +175,6 @@ export function LoginScreen() {
               textContentType="password"
               error={errors.password}
             />
-
-            <View className="flex-row items-center justify-between">
-              <Pressable
-                onPress={() => router.push("/auth/signup")}
-                hitSlop={10}
-              >
-                <Text className="text-[14px] font-medium text-concierge-text">
-                  회원가입
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => router.push("/auth/forgot-password")}
-                hitSlop={10}
-              >
-                <Text className="text-[14px] font-medium text-concierge-textSecondary">
-                  비밀번호 찾기
-                </Text>
-              </Pressable>
-            </View>
           </View>
 
           <View className="mt-auto">
@@ -200,20 +182,20 @@ export function LoginScreen() {
               label={isSubmitting ? "확인 중입니다" : "로그인"}
               onPress={handleLogin}
               disabled={isSubmitting}
-              className="h-[52px] rounded-[10px]"
+              className="h-[56px] rounded-[10px]"
             />
 
-            <View className="my-5 flex-row items-center justify-center gap-[10px]">
-              <View className="h-px flex-1 bg-concierge-border" />
+            <View className="my-5 flex-row items-center justify-center gap-[13px] px-5">
+              <View className="h-px flex-1 bg-[#DDD8D4]" />
               <Text className="text-[12px] font-medium text-[#94948C]">
                 또는
               </Text>
-              <View className="h-px flex-1 bg-concierge-border" />
+              <View className="h-px flex-1 bg-[#DDD8D4]" />
             </View>
 
             <Pressable
               onPress={handleKakaoLogin}
-              className="h-[52px] flex-row items-center justify-center gap-[10px] rounded-[10px] bg-[#FEE500] px-[18px]"
+              className="h-[56px] flex-row items-center justify-center gap-[10px] rounded-[10px] bg-[#FEE500] px-[18px]"
             >
               <Image
                 source={kakaoSymbol}

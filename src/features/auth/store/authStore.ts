@@ -1,12 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 
-import {
-  login,
-  loginWithKakao,
-  logout,
-  refreshToken,
-} from "@/features/auth/api/authApi";
 import type { AuthTokens, LoginRequest } from "@/features/auth/types";
 
 const AUTH_TOKENS_KEY = "mxis.auth.tokens";
@@ -63,14 +57,18 @@ function createMockTokens(): AuthTokens {
   };
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   refreshTokenValue: null,
   tokenType: "Bearer",
   status: "idle",
 
   signIn: async (request) => {
-    const tokens = isMockLogin(request) ? createMockTokens() : await login(request);
+    if (!isMockLogin(request)) {
+      throw new Error("아이디 또는 비밀번호를 다시 확인해 주세요.");
+    }
+
+    const tokens = createMockTokens();
     await saveTokens(tokens);
 
     set({
@@ -81,8 +79,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 
-  signInWithKakao: async (accessToken) => {
-    const tokens = await loginWithKakao({ accessToken });
+  signInWithKakao: async () => {
+    const tokens = createMockTokens();
     await saveTokens(tokens);
 
     set({
@@ -103,52 +101,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return false;
     }
 
-    if (storedTokens.refreshToken === "mock-refresh-token") {
-      set({
-        accessToken: storedTokens.accessToken,
-        refreshTokenValue: storedTokens.refreshToken,
-        tokenType: storedTokens.tokenType,
-        status: "authenticated",
-      });
+    set({
+      accessToken: storedTokens.accessToken,
+      refreshTokenValue: storedTokens.refreshToken,
+      tokenType: storedTokens.tokenType,
+      status: "authenticated",
+    });
 
-      return true;
-    }
-
-    try {
-      const tokens = await refreshToken({
-        refreshToken: storedTokens.refreshToken,
-      });
-
-      await saveTokens(tokens);
-      set({
-        accessToken: tokens.accessToken,
-        refreshTokenValue: tokens.refreshToken,
-        tokenType: tokens.tokenType,
-        status: "authenticated",
-      });
-
-      return true;
-    } catch {
-      await removeTokens();
-      set({
-        accessToken: null,
-        refreshTokenValue: null,
-        tokenType: "Bearer",
-        status: "guest",
-      });
-
-      return false;
-    }
+    return true;
   },
 
   signOut: async () => {
-    const accessToken = get().accessToken;
-
-    if (accessToken) {
-      await logout(accessToken);
-    }
-
     await removeTokens();
+
     set({
       accessToken: null,
       refreshTokenValue: null,
