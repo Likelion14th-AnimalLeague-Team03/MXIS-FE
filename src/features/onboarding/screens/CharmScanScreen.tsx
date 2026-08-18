@@ -4,7 +4,14 @@ import { StatusBar } from "expo-status-bar";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useAuthStore } from "@/features/auth/store/authStore";
 import { useDeviceStore } from "@/features/device/store";
+import {
+  getConnectionPolicy,
+  getDevices,
+  registerDevice,
+  type DeviceResponse,
+} from "@/features/onboarding/api/onboardingApi";
 import charmOnboardingDevice from "@/features/onboarding/assets/charm-onboarding-device.png";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
 
@@ -14,6 +21,8 @@ type ScanResultState = "found" | "empty";
 type MockCharmDevice = {
   id: string;
   name: string;
+  serialNumber: string;
+  macAddress: string;
   status: CharmConnectionStatus;
   willConnect: boolean;
 };
@@ -22,18 +31,24 @@ const MOCK_CHARM_DEVICES: MockCharmDevice[] = [
   {
     id: "sn-0001",
     name: "SN-0001",
+    serialNumber: "SN-0001",
+    macAddress: "AA:BB:CC:DD:EE:01",
     status: "idle",
     willConnect: false,
   },
   {
     id: "sn-0033",
     name: "SN-0033",
+    serialNumber: "SN-0033",
+    macAddress: "AA:BB:CC:DD:EE:33",
     status: "idle",
     willConnect: true,
   },
   {
     id: "mxis-charm-01",
-    name: "MXIS Charm 01",
+    name: "SN-005555",
+    serialNumber: "SN-005555",
+    macAddress: "AA:BB:CC:DD:EE:55",
     status: "failed",
     willConnect: false,
   },
@@ -137,14 +152,21 @@ function SearchBottomActions({ onSearchAgain }: { onSearchAgain: () => void }) {
 export function CharmScanScreen() {
   const router = useRouter();
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const tokenType = useAuthStore((state) => state.tokenType);
   const addOwnedCharm = useDeviceStore((state) => state.addOwnedCharm);
   const [scanResultState, setScanResultState] =
     useState<ScanResultState>("found");
   const [devices, setDevices] = useState<MockCharmDevice[]>(MOCK_CHARM_DEVICES);
+  const [errorMessage, setErrorMessage] = useState("");
   const [searchCount, setSearchCount] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    getConnectionPolicy().catch(() => {
+      // 실제 BLE 스캔 필터 적용 시 사용할 정책입니다. 조회 실패해도 mock 스캔 UI는 유지합니다.
+    });
+
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
@@ -168,6 +190,7 @@ export function CharmScanScreen() {
         status: "idle",
       })),
     );
+    setErrorMessage("");
 
     const nextSearchCount = searchCount + 1;
     setSearchCount(nextSearchCount);
@@ -180,6 +203,7 @@ export function CharmScanScreen() {
   const handleConnectDevice = (selectedDevice: MockCharmDevice) => {
     resetTimer();
     setScanResultState("found");
+    setErrorMessage("");
 
     setDevices((currentDevices) =>
       currentDevices.map((device) => ({
@@ -188,18 +212,78 @@ export function CharmScanScreen() {
       })),
     );
 
-    timerRef.current = setTimeout(() => {
-      if (selectedDevice.id === "sn-0033") {
-        if (returnTo === "device") {
-          addOwnedCharm("sn-0033");
-          router.replace({
-            pathname: "/onboarding/charm-connected",
-            params: { returnTo: "device" },
-          });
+    timerRef.current = setTimeout(async () => {
+      if (selectedDevice.willConnect) {
+        if (!accessToken) {
+          setErrorMessage("로그인 정보가 없어 MXIS Charm을 등록할 수 없습니다.");
+          setDevices((currentDevices) =>
+            currentDevices.map((device) => ({
+              ...device,
+              status: device.id === selectedDevice.id ? "failed" : "idle",
+            })),
+          );
           return;
         }
 
-        router.replace("/onboarding/charm-connected");
+        try {
+          let registeredDevice: DeviceResponse;
+
+          try {
+            registeredDevice = await registerDevice(
+              {
+                serialNumber: selectedDevice.serialNumber,
+                deviceName: selectedDevice.name,
+                macAddress: selectedDevice.macAddress,
+                firmwareVersion: "1.0.0",
+              },
+              accessToken,
+              tokenType,
+            );
+          } catch {
+            const ownedDevices = await getDevices(accessToken, tokenType);
+            const existingDevice = ownedDevices.find(
+              (device) => device.serialNumber === selectedDevice.serialNumber,
+            );
+
+            if (!existingDevice) {
+              throw new Error("MXIS Charm 등록에 실패했습니다.");
+            }
+
+            registeredDevice = existingDevice;
+          }
+
+          if (returnTo === "device") {
+            addOwnedCharm(selectedDevice.id);
+            router.replace({
+              pathname: "/onboarding/charm-connected",
+              params: {
+                returnTo: "device",
+                deviceId: String(registeredDevice.id),
+                deviceSerial: registeredDevice.serialNumber,
+              },
+            });
+            return;
+          }
+
+          router.replace({
+            pathname: "/onboarding/charm-connected",
+            params: {
+              deviceId: String(registeredDevice.id),
+              deviceSerial: registeredDevice.serialNumber,
+            },
+          });
+          return;
+        } catch (error) {
+          setErrorMessage(
+            error instanceof Error ? error.message : "MXIS Charm 등록에 실패했습니다.",
+          );
+          setDevices((currentDevices) =>
+            currentDevices.map((device) => ({
+              ...device,
+              status: device.id === selectedDevice.id ? "failed" : "idle",
+            })),
+          );
+        }
         return;
       }
 
@@ -251,13 +335,18 @@ export function CharmScanScreen() {
             </View>
           ) : (
             <View className="mt-4 gap-2">
-              {devices.map((device) => (
+            {devices.map((device) => (
                 <CharmDeviceCard
                   key={device.id}
                   device={device}
                   onPress={handleConnectDevice}
                 />
               ))}
+              {errorMessage ? (
+                <Text className="text-center text-xs font-medium text-[#C04737]">
+                  {errorMessage}
+                </Text>
+              ) : null}
             </View>
           )}
         </View>

@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { Image, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useAuthStore } from "@/features/auth/store/authStore";
+import { linkProductDevice } from "@/features/onboarding/api/onboardingApi";
 import { getOnboardingProductById } from "@/features/onboarding/data/mockProducts";
 import { savePrimaryCharmProductLink } from "@/features/onboarding/storage";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
@@ -27,14 +30,72 @@ function ProductInfoRow({ label, value }: { label: string; value: string }) {
 
 export function ProductConfirmScreen() {
   const router = useRouter();
-  const { productId } = useLocalSearchParams<{ productId?: string }>();
-  const product = getOnboardingProductById(productId);
+  const {
+    color,
+    deviceId,
+    deviceSerial,
+    material,
+    productCode,
+    productId,
+    productImageUrl,
+    productName,
+  } = useLocalSearchParams<{
+    color?: string;
+    deviceId?: string;
+    deviceSerial?: string;
+    material?: string;
+    productCode?: string;
+    productId?: string;
+    productImageUrl?: string;
+    productName?: string;
+  }>();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const tokenType = useAuthStore((state) => state.tokenType);
+  const fallbackProduct = getOnboardingProductById(productId);
+  const product = {
+    id: productId ?? fallbackProduct.id,
+    productId: Number(productId ?? fallbackProduct.productId),
+    name: productName ?? fallbackProduct.name.replace("\n", " "),
+    material: material ?? fallbackProduct.material,
+    color: color ?? fallbackProduct.color,
+    productCode: productCode ?? fallbackProduct.productCode,
+    productImage:
+      productImageUrl && productImageUrl.length > 0
+        ? { uri: productImageUrl }
+        : fallbackProduct.detailImage,
+  };
+  const numericDeviceId = Number(deviceId);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleConfirmProduct = async () => {
+    if (!accessToken) {
+      setErrorMessage("로그인 정보가 없어 제품과 Charm을 연결할 수 없습니다.");
+      return;
+    }
+
+    if (!Number.isFinite(product.productId) || !Number.isFinite(numericDeviceId)) {
+      setErrorMessage("제품 또는 Charm 정보를 확인할 수 없습니다. 다시 연결해 주세요.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setErrorMessage("");
+      await linkProductDevice(product.productId, numericDeviceId, accessToken, tokenType);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "제품과 MXIS Charm 연결에 실패했습니다.",
+      );
+      return;
+    } finally {
+      setIsSubmitting(false);
+    }
+
     await savePrimaryCharmProductLink({
-      charmName: "SN-0001",
-      productId: product.id,
-      productName: product.name.replace("\n", " "),
+      charmName: deviceSerial || "MXIS Charm",
+      productId: String(product.productId),
+      productName: product.name,
       material: product.material,
       color: product.color,
       productCode: product.productCode,
@@ -59,7 +120,7 @@ export function ProductConfirmScreen() {
 
           <View className="mt-6 h-[170px] items-center justify-center">
             <Image
-              source={product.detailImage}
+              source={product.productImage}
               resizeMode="contain"
               style={{ height: 170, width: 222 }}
             />
@@ -67,7 +128,7 @@ export function ProductConfirmScreen() {
 
           <View className="mt-6 rounded-xl border border-concierge-border bg-white px-4 py-3.5">
             <Text className="text-sm font-semibold text-concierge-text">
-              {product.name.replace("\n", " ")}
+              {product.name}
             </Text>
 
             <View className="mt-2 gap-2">
@@ -79,7 +140,16 @@ export function ProductConfirmScreen() {
         </View>
 
         <View className="gap-2">
-          <PrimaryButton label="네, 이 제품과 연결할게요" onPress={handleConfirmProduct} />
+          {errorMessage ? (
+            <Text className="text-center text-xs font-medium text-[#C04737]">
+              {errorMessage}
+            </Text>
+          ) : null}
+          <PrimaryButton
+            label={isSubmitting ? "연결 중입니다" : "네, 이 제품과 연결할게요"}
+            onPress={handleConfirmProduct}
+            disabled={isSubmitting}
+          />
           <SecondaryButton label="다른 제품 선택" onPress={() => router.back()} />
         </View>
       </View>
