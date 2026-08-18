@@ -77,11 +77,7 @@ function getApiErrorMessage(error: unknown, fallbackMessage: string) {
     const responseData = error.response?.data as ApiResponse<unknown> | undefined;
     const message = responseData?.error?.message;
 
-    if (message && !isBrokenMessage(message)) {
-      return message;
-    }
-
-    return fallbackMessage;
+    return message && !isBrokenMessage(message) ? message : fallbackMessage;
   }
 
   if (error instanceof Error) {
@@ -103,12 +99,14 @@ function unwrapApiData<T>(response: ApiResponse<T>, fallbackMessage: string) {
 export async function getConnectionPolicy() {
   try {
     const response = await apiClient.get<ApiResponse<ConnectionPolicyResponse>>(
-      "/api/v1/devices/connection-policy",
+      "/devices/connection-policy",
     );
 
     return unwrapApiData(response.data, "BLE 연결 정책을 불러오지 못했습니다.");
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, "BLE 연결 정책을 불러오지 못했습니다."));
+    throw new Error(
+      getApiErrorMessage(error, "BLE 연결 정책을 불러오지 못했습니다."),
+    );
   }
 }
 
@@ -119,7 +117,7 @@ export async function registerDevice(
 ) {
   try {
     const response = await apiClient.post<ApiResponse<DeviceResponse>>(
-      "/api/v1/devices",
+      "/devices",
       request,
       {
         headers: getAuthorizationHeader(accessToken, tokenType),
@@ -128,14 +126,16 @@ export async function registerDevice(
 
     return unwrapApiData(response.data, "MXIS Charm 등록에 실패했습니다.");
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, "MXIS Charm 등록에 실패했습니다."));
+    throw new Error(
+      getApiErrorMessage(error, "MXIS Charm 등록에 실패했습니다."),
+    );
   }
 }
 
 export async function getDevices(accessToken: string, tokenType?: string) {
   try {
     const response = await apiClient.get<ApiResponse<DeviceResponse[]>>(
-      "/api/v1/devices",
+      "/devices",
       {
         headers: getAuthorizationHeader(accessToken, tokenType),
       },
@@ -143,14 +143,19 @@ export async function getDevices(accessToken: string, tokenType?: string) {
 
     return unwrapApiData(response.data, "기기 목록을 불러오지 못했습니다.") ?? [];
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, "기기 목록을 불러오지 못했습니다."));
+    throw new Error(
+      getApiErrorMessage(error, "기기 목록을 불러오지 못했습니다."),
+    );
   }
 }
 
-export async function getOnboardingProducts(accessToken: string, tokenType?: string) {
+export async function getOnboardingProducts(
+  accessToken: string,
+  tokenType?: string,
+) {
   try {
     const response = await apiClient.get<ApiResponse<OnboardingProductResponse[]>>(
-      "/api/v1/onboarding/products",
+      "/onboarding/products",
       {
         headers: getAuthorizationHeader(accessToken, tokenType),
       },
@@ -158,7 +163,9 @@ export async function getOnboardingProducts(accessToken: string, tokenType?: str
 
     return unwrapApiData(response.data, "제품 목록을 불러오지 못했습니다.") ?? [];
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, "제품 목록을 불러오지 못했습니다."));
+    throw new Error(
+      getApiErrorMessage(error, "제품 목록을 불러오지 못했습니다."),
+    );
   }
 }
 
@@ -170,7 +177,7 @@ export async function linkProductDevice(
 ) {
   try {
     const response = await apiClient.post<ApiResponse<ProductDeviceLinkResponse>>(
-      `/api/v1/products/${productId}/devices`,
+      `/products/${productId}/devices`,
       {
         deviceId,
         role: "PRIMARY_SENSOR",
@@ -182,6 +189,8 @@ export async function linkProductDevice(
 
     return unwrapApiData(response.data, "제품과 MXIS Charm 연결에 실패했습니다.");
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, "제품과 MXIS Charm 연결에 실패했습니다."));
+    throw new Error(
+      getApiErrorMessage(error, "제품과 MXIS Charm 연결에 실패했습니다."),
+    );
   }
 }

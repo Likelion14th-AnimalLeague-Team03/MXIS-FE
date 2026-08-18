@@ -200,6 +200,36 @@ export function CharmScanScreen() {
     }, SEARCH_DELAY_MS);
   };
 
+  const moveToConnectedScreen = (
+    selectedDevice: MockCharmDevice,
+    registeredDevice?: DeviceResponse,
+  ) => {
+    const nextDeviceId = registeredDevice?.id ?? 33;
+    const nextDeviceSerial =
+      registeredDevice?.serialNumber ?? selectedDevice.serialNumber;
+
+    if (returnTo === "device") {
+      addOwnedCharm(selectedDevice.id);
+      router.replace({
+        pathname: "/onboarding/charm-connected",
+        params: {
+          returnTo: "device",
+          deviceId: String(nextDeviceId),
+          deviceSerial: nextDeviceSerial,
+        },
+      });
+      return;
+    }
+
+    router.replace({
+      pathname: "/onboarding/charm-connected",
+      params: {
+        deviceId: String(nextDeviceId),
+        deviceSerial: nextDeviceSerial,
+      },
+    });
+  };
+
   const handleConnectDevice = (selectedDevice: MockCharmDevice) => {
     resetTimer();
     setScanResultState("found");
@@ -213,6 +243,11 @@ export function CharmScanScreen() {
     );
 
     timerRef.current = setTimeout(async () => {
+      if (selectedDevice.willConnect) {
+        moveToConnectedScreen(selectedDevice);
+        return;
+      }
+
       if (selectedDevice.willConnect) {
         if (!accessToken) {
           setErrorMessage("로그인 정보가 없어 MXIS Charm을 등록할 수 없습니다.");

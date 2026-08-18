@@ -4,12 +4,13 @@ import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useAuthStore } from "@/features/auth/store/authStore";
-import { linkProductDevice } from "@/features/onboarding/api/onboardingApi";
 import { getOnboardingProductById } from "@/features/onboarding/data/mockProducts";
 import { savePrimaryCharmProductLink } from "@/features/onboarding/storage";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
+
+const MOCK_CONNECTED_DEVICE_ID = 33;
+const MOCK_CONNECTED_DEVICE_SERIAL = "SN-0033";
 
 function ProductInfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -49,8 +50,6 @@ export function ProductConfirmScreen() {
     productImageUrl?: string;
     productName?: string;
   }>();
-  const accessToken = useAuthStore((state) => state.accessToken);
-  const tokenType = useAuthStore((state) => state.tokenType);
   const fallbackProduct = getOnboardingProductById(productId);
   const product = {
     id: productId ?? fallbackProduct.id,
@@ -64,36 +63,22 @@ export function ProductConfirmScreen() {
         ? { uri: productImageUrl }
         : fallbackProduct.detailImage,
   };
-  const numericDeviceId = Number(deviceId);
+  const numericDeviceId = Number(deviceId ?? MOCK_CONNECTED_DEVICE_ID);
+  const linkedDeviceSerial = deviceSerial || MOCK_CONNECTED_DEVICE_SERIAL;
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleConfirmProduct = async () => {
-    if (!accessToken) {
-      setErrorMessage("로그인 정보가 없어 제품과 Charm을 연결할 수 없습니다.");
-      return;
-    }
-
     if (!Number.isFinite(product.productId) || !Number.isFinite(numericDeviceId)) {
       setErrorMessage("제품 또는 Charm 정보를 확인할 수 없습니다. 다시 연결해 주세요.");
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      setErrorMessage("");
-      await linkProductDevice(product.productId, numericDeviceId, accessToken, tokenType);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "제품과 MXIS Charm 연결에 실패했습니다.",
-      );
-      return;
-    } finally {
-      setIsSubmitting(false);
-    }
+    setIsSubmitting(true);
+    setErrorMessage("");
 
     await savePrimaryCharmProductLink({
-      charmName: deviceSerial || "MXIS Charm",
+      charmName: linkedDeviceSerial,
       productId: String(product.productId),
       productName: product.name,
       material: product.material,
@@ -104,8 +89,14 @@ export function ProductConfirmScreen() {
 
     router.push({
       pathname: "/onboarding/notification-permission",
-      params: { productId: product.id },
+      params: {
+        productId: product.id,
+        deviceId: String(numericDeviceId),
+        deviceSerial: linkedDeviceSerial,
+      },
     });
+
+    setIsSubmitting(false);
   };
 
   return (
