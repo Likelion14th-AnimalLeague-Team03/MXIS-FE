@@ -6,10 +6,13 @@ import himmelShopperThumbnail from "@/features/onboarding/assets/products/bag3.p
 
 export type OnboardingProduct = {
   id: string;
+  productId: number;
   name: string;
   material: string;
   color: string;
   productCode: string;
+  modelCode?: string;
+  productImageUrl?: string | null;
   thumbnail: ImageSourcePropType;
   detailImage: ImageSourcePropType;
 };
@@ -17,6 +20,7 @@ export type OnboardingProduct = {
 export const MOCK_ONBOARDING_PRODUCTS: OnboardingProduct[] = [
   {
     id: "ella-boston",
+    productId: 1,
     name: "Ella  바세토스 보스턴 백",
     material: "Visetos Canvas",
     color: "Cognac",
@@ -26,6 +30,7 @@ export const MOCK_ONBOARDING_PRODUCTS: OnboardingProduct[] = [
   },
   {
     id: "stark-backpack",
+    productId: 2,
     name: "Stark 사이드 스터드\n비세토스 백팩",
     material: "Visetos Canvas",
     color: "Black",
@@ -35,6 +40,7 @@ export const MOCK_ONBOARDING_PRODUCTS: OnboardingProduct[] = [
   },
   {
     id: "himmel-shopper",
+    productId: 3,
     name: "MCM Himmel Shopper",
     material: "Lauretos Canvas",
     color: "Oatmeal",

@@ -8,7 +8,11 @@ import { CheckmarkCircleIcon } from "@/shared/components/icons/CheckmarkCircleIc
 
 export function CharmConnectedScreen() {
   const router = useRouter();
-  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const { deviceId, deviceSerial, returnTo } = useLocalSearchParams<{
+    deviceId?: string;
+    deviceSerial?: string;
+    returnTo?: string;
+  }>();
 
   const handleNext = () => {
     if (returnTo === "device") {
@@ -16,7 +20,13 @@ export function CharmConnectedScreen() {
       return;
     }
 
-    router.push("/onboarding/product-select");
+    router.push({
+      pathname: "/onboarding/product-select",
+      params: {
+        deviceId: deviceId ?? "",
+        deviceSerial: deviceSerial ?? "",
+      },
+    });
   };
 
   return (
