@@ -43,7 +43,6 @@ type TermsGroup = { heading: string; content: string };
 
 type TermsSection = {
   key: string;
-  /** 서버 동의 상태(GET /users/me/consents)와 이어지는 항목이면 지정해요. */
   consentType?: ConsentType;
   label: string;
   meta: string;
@@ -51,9 +50,12 @@ type TermsSection = {
   groups: TermsGroup[];
   linkLabel?: string;
   note?: string;
-  /** 선택 동의 항목은 화면에서 켜고 끌 수 있어요. */
   togglable?: boolean;
 };
+
+type SectionKey = "info" | "notifications" | (typeof TERMS_SECTIONS)[number]["key"];
+
+const EXPANDED_SECTION_BACKGROUND = "#E7E7E7";
 
 const TERMS_SECTIONS: TermsSection[] = [
   {
@@ -61,7 +63,7 @@ const TERMS_SECTIONS: TermsSection[] = [
     consentType: "TERMS_OF_SERVICE",
     label: "서비스 이용약관",
     meta: "시행일 2026.08.01",
-    description: "MXIS 서비스 이용 조건과 권리·의무를 안내합니다.",
+    description: "MXIS 서비스 이용 조건과 권리, 의무를 안내합니다.",
     groups: [
       {
         heading: "주요 내용",
@@ -80,7 +82,7 @@ const TERMS_SECTIONS: TermsSection[] = [
       {
         heading: "수집 항목",
         content:
-          "이름, 이메일, 제품 정보, Smart Charm 연동 정보, 센서 기록 데이터",
+          "이름, 이메일, 전화번호, 제품 정보, Smart Charm 연동 정보, 센서 기록 데이터",
       },
       {
         heading: "이용 목적",
@@ -90,15 +92,27 @@ const TERMS_SECTIONS: TermsSection[] = [
     linkLabel: "개인정보 처리방침 전문 보기",
   },
   {
+    key: "sensor",
+    consentType: "SENSOR_DATA",
+    label: "센서 데이터 수집 약관",
+    meta: "시행일 2026.08.01",
+    description: "제품 케어 제안을 위해 Smart Charm의 기록 데이터를 활용합니다.",
+    groups: [
+      { heading: "수집 항목", content: "온습도, 움직임, 충격, 동기화 기록" },
+      { heading: "이용 목적", content: "제품 보관 환경 확인 및 케어 시점 제안" },
+    ],
+    linkLabel: "센서 데이터 수집 약관 전문 보기",
+  },
+  {
     key: "marketing",
     consentType: "MARKETING",
     label: "브랜드 소식 및 마케팅 알림 약관",
     meta: "선택 동의",
-    description: "MCM의 새로운 제품과 브랜드 소식을 받아볼 수 있어요.",
+    description: "MCM의 새로운 제품과 브랜드 소식을 받아볼 수 있습니다.",
     groups: [
       {
         heading: "안내 내용",
-        content: "신제품 · 컬렉션 · 브랜드 이벤트 · MXIS 혜택",
+        content: "시즌 컬렉션 · 브랜드 이벤트 · MXIS 혜택",
       },
       { heading: "수신 방법", content: "앱 푸시 알림" },
     ],
@@ -107,18 +121,13 @@ const TERMS_SECTIONS: TermsSection[] = [
   },
 ];
 
-// "내 정보 확인"/"알림 설정"도 약관 항목들과 같은 아코디언 그룹에 속해요 — 키 하나로 통일해서 관리합니다.
-type SectionKey =
-  | "info"
-  | "notifications"
-  | (typeof TERMS_SECTIONS)[number]["key"];
-
 export function MyPageScreen() {
   const router = useRouter();
   const signOut = useAuthStore((state) => state.signOut);
   const storedUser = useAuthStore((state) => state.user);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [openKey, setOpenKey] = useState<SectionKey | null>(null);
+  const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
 
   const {
     data: fetchedProfile,
@@ -139,30 +148,42 @@ export function MyPageScreen() {
     setOpenKey((prev) => (prev === key ? null : key));
   };
 
-  const handleToggleNotification = (
+  const ensureNotificationPermission = async () => {
+    if (Platform.OS !== "android") return true;
+
+    const currentPermission = await Notifications.getPermissionsAsync();
+    if (currentPermission.granted) return true;
+
+    const requestedPermission = await Notifications.requestPermissionsAsync();
+    return requestedPermission.granted;
+  };
+
+  const handleToggleNotification = async (
     key: (typeof NOTIFICATION_ITEMS)[number]["key"],
     value: boolean,
   ) => {
-    updateNotificationSettings.mutate({ [key]: value });
-  };
+    setPermissionMessage(null);
 
-  // 안드로이드는 13(API 33) 이상부터 알림 표시에 런타임 권한이 필요해서,
-  // 알림 설정 화면을 열 때 시스템 권한 안내창을 띄우고 결과를 서버에도 알려줘요.
-  const handlePressNotificationSection = () => {
-    if (Platform.OS === "android") {
-      Notifications.requestPermissionsAsync()
-        .then((result) => {
-          if (result.granted !== notificationSettings?.pushPermissionGranted) {
-            updateNotificationSettings.mutate({
-              pushPermissionGranted: result.granted,
-            });
-          }
-        })
-        .catch(() => {
-          // 권한 요청이 실패해도 아코디언은 그대로 열어줘요.
-        });
+    if (!value) {
+      updateNotificationSettings.mutate({ [key]: false });
+      return;
     }
-    toggleSection("notifications");
+
+    try {
+      const granted = await ensureNotificationPermission();
+      if (!granted) {
+        updateNotificationSettings.mutate({ pushPermissionGranted: false });
+        setPermissionMessage("알림 권한을 허용하면 해당 알림을 받을 수 있습니다.");
+        return;
+      }
+
+      updateNotificationSettings.mutate({
+        [key]: true,
+        pushPermissionGranted: true,
+      });
+    } catch {
+      setPermissionMessage("알림 권한 상태를 확인하지 못했습니다.");
+    }
   };
 
   const findConsent = (consentType?: ConsentType) =>
@@ -188,7 +209,7 @@ export function MyPageScreen() {
     router.replace("/auth/login");
   };
 
-  const displayName = profile?.name ?? "내 정보";
+  const displayName = profile?.name ?? "회원 정보";
   const displayEmail = profile?.email ?? "-";
   const displayPhone = profile?.phone ?? "-";
   const profileInitial = (displayName.trim().charAt(0) || "M").toUpperCase();
@@ -205,9 +226,9 @@ export function MyPageScreen() {
           style={{
             shadowColor: "#000000",
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.25,
+            shadowOpacity: 0.18,
             shadowRadius: 4,
-            elevation: 4,
+            elevation: 3,
           }}
         >
           <View className="size-11 items-center justify-center rounded-full bg-concierge-primary">
@@ -217,9 +238,7 @@ export function MyPageScreen() {
           </View>
           <View className="flex-1 gap-0.5">
             <Text className="text-sm font-bold text-concierge-text">
-              {isProfileLoading && !profile
-                ? "내 정보를 불러오는 중"
-                : displayName}
+              {isProfileLoading && !profile ? "회원 정보를 불러오는 중" : displayName}
             </Text>
             <Text className="text-sm text-concierge-textSecondary">
               {displayEmail}
@@ -236,7 +255,7 @@ export function MyPageScreen() {
 
         <View className="-mx-6 mt-4 border-t border-concierge-borderLight" />
 
-        <View className="mt-[20px] px-3">
+        <View className="mt-5 px-3">
           <Pressable
             onPress={() => toggleSection("info")}
             className="flex-row items-center justify-between py-2"
@@ -256,33 +275,15 @@ export function MyPageScreen() {
           </Pressable>
 
           {openKey === "info" ? (
-            <View className="mb-3 mt-1 gap-px overflow-hidden rounded-xl bg-concierge-chip">
-              <View className="flex-row items-center justify-between px-4 py-3">
-                <Text className="text-sm text-concierge-textSecondary">
-                  이름
-                </Text>
-                <Text className="text-sm text-concierge-text">
-                  {profile?.name ?? "-"}
-                </Text>
-              </View>
-              <View className="flex-row items-center justify-between border-t border-concierge-borderLight px-4 py-3">
-                <Text className="text-sm text-concierge-textSecondary">
-                  이메일
-                </Text>
-                <Text className="text-sm text-concierge-text">
-                  {displayEmail}
-                </Text>
-              </View>
-              <View className="flex-row items-center justify-between border-t border-concierge-borderLight px-4 py-3">
-                <Text className="text-sm text-concierge-textSecondary">
-                  연락처
-                </Text>
-                <Text className="text-sm text-concierge-text">
-                  {displayPhone}
-                </Text>
-              </View>
+            <View
+              className="mb-3 mt-1 gap-px overflow-hidden rounded-xl"
+              style={{ backgroundColor: EXPANDED_SECTION_BACKGROUND }}
+            >
+              <InfoRow label="이름" value={profile?.name ?? "-"} />
+              <InfoRow label="이메일" value={displayEmail} bordered />
+              <InfoRow label="전화번호" value={displayPhone} bordered />
               {profileError ? (
-                <View className="border-t border-concierge-borderLight px-4 py-3">
+                <View className="border-t border-white/60 px-4 py-3">
                   <Text className="text-xs text-[#C04737]">{profileError}</Text>
                 </View>
               ) : null}
@@ -292,7 +293,7 @@ export function MyPageScreen() {
           <View className="border-t border-concierge-borderLight" />
 
           <Pressable
-            onPress={handlePressNotificationSection}
+            onPress={() => toggleSection("notifications")}
             className="flex-row items-center justify-between py-2"
           >
             <Text className="text-sm text-concierge-textSecondary">
@@ -310,26 +311,36 @@ export function MyPageScreen() {
           </Pressable>
 
           {openKey === "notifications" ? (
-            <View className="mb-3 mt-1 gap-4 rounded-xl bg-concierge-chip px-4 py-4">
+            <View
+              className="mb-3 mt-1 gap-4 rounded-xl px-4 py-4"
+              style={{ backgroundColor: EXPANDED_SECTION_BACKGROUND }}
+            >
               {NOTIFICATION_ITEMS.map((item) => (
                 <View
                   key={item.key}
                   className="flex-row items-center justify-between"
                 >
-                  <Text className="text-sm text-concierge-text">
+                  <Text className="flex-1 pr-3 text-sm text-concierge-text">
                     {item.label}
                   </Text>
                   <Switch
                     value={notificationSettings?.[item.key] ?? false}
-                    disabled={!notificationSettings}
-                    onValueChange={(value) =>
-                      handleToggleNotification(item.key, value)
+                    disabled={
+                      !notificationSettings || updateNotificationSettings.isPending
+                    }
+                    onValueChange={(nextValue) =>
+                      void handleToggleNotification(item.key, nextValue)
                     }
                     trackColor={{ false: "#898989", true: "#4EC576" }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
               ))}
+              {permissionMessage ? (
+                <Text className="text-xs text-[#C04737]">
+                  {permissionMessage}
+                </Text>
+              ) : null}
               {notificationError ? (
                 <Text className="text-xs text-[#C04737]">
                   {notificationError.message}
@@ -357,24 +368,24 @@ export function MyPageScreen() {
                   <Text className="text-sm text-concierge-textSecondary">
                     {section.label}
                   </Text>
-                  <View className="flex-row items-center gap-2">
-                    <View
-                      style={{
-                        transform: [
-                          {
-                            rotate:
-                              openKey === section.key ? "-90deg" : "90deg",
-                          },
-                        ],
-                      }}
-                    >
-                      <ChevronRightIcon size={6} color="#63635E" />
-                    </View>
+                  <View
+                    style={{
+                      transform: [
+                        {
+                          rotate: openKey === section.key ? "-90deg" : "90deg",
+                        },
+                      ],
+                    }}
+                  >
+                    <ChevronRightIcon size={6} color="#63635E" />
                   </View>
                 </Pressable>
 
                 {openKey === section.key ? (
-                  <View className="mb-3 mt-1 gap-3 rounded-xl bg-concierge-chip px-4 py-4">
+                  <View
+                    className="mb-3 mt-1 gap-3 rounded-xl px-4 py-4"
+                    style={{ backgroundColor: EXPANDED_SECTION_BACKGROUND }}
+                  >
                     <Text className="text-xs text-concierge-textMuted">
                       {section.meta}
                     </Text>
@@ -399,8 +410,8 @@ export function MyPageScreen() {
                         <Switch
                           value={consent?.agreed ?? false}
                           disabled={updateConsents.isPending}
-                          onValueChange={(value) =>
-                            handleToggleConsent(section.consentType!, value)
+                          onValueChange={(nextValue) =>
+                            handleToggleConsent(section.consentType!, nextValue)
                           }
                           trackColor={{ false: "#898989", true: "#4EC576" }}
                           thumbColor="#FFFFFF"
@@ -410,7 +421,7 @@ export function MyPageScreen() {
                     {section.linkLabel ? (
                       <Pressable>
                         <Text className="text-sm font-semibold text-concierge-primary">
-                          {section.linkLabel} 〉
+                          {section.linkLabel}
                         </Text>
                       </Pressable>
                     ) : null}
@@ -464,5 +475,26 @@ export function MyPageScreen() {
         </View>
       </Modal>
     </SafeAreaView>
+  );
+}
+
+function InfoRow({
+  label,
+  value,
+  bordered,
+}: {
+  label: string;
+  value: string;
+  bordered?: boolean;
+}) {
+  return (
+    <View
+      className={`flex-row items-center justify-between px-4 py-3 ${
+        bordered ? "border-t border-white/60" : ""
+      }`}
+    >
+      <Text className="text-sm text-concierge-textSecondary">{label}</Text>
+      <Text className="text-sm text-concierge-text">{value}</Text>
+    </View>
   );
 }
