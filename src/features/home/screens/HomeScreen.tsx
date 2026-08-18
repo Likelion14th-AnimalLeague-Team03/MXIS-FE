@@ -7,6 +7,7 @@ import clockIcon from "@/features/home/assets/time.png";
 import updateIcon from "@/features/home/assets/update.png";
 import homeProduct from "@/features/home/assets/home-back.png";
 import { useHomeSummary } from "@/features/home/hooks/useHome";
+import { useHomePromptStore } from "@/features/home/store";
 import type { HomeSummary } from "@/features/home/types";
 import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
 import { formatDateShort } from "@/features/reservation/format";
@@ -16,7 +17,6 @@ import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { ProgressRing } from "@/shared/components/ProgressRing";
 
-const RECONNECT_PROMPT_INTERVAL_MS = 10 * 60 * 1000;
 const ACCENT_TEXT = "#814C27";
 
 type Grade = "EXCELLENT" | "STANDARD" | "NEEDS_ATTENTION";
@@ -101,6 +101,15 @@ export function HomeScreen() {
   const { productId } = usePrimaryProductId();
   const { data: home, isPending } = useHomeSummary(productId);
   const [reconnectModalVisible, setReconnectModalVisible] = useState(false);
+  const reconnectPromptShown = useHomePromptStore(
+    (state) => state.reconnectPromptShown,
+  );
+  const markReconnectPromptShown = useHomePromptStore(
+    (state) => state.markReconnectPromptShown,
+  );
+  const resetReconnectPrompt = useHomePromptStore(
+    (state) => state.resetReconnectPrompt,
+  );
 
   const productState = home?.productState ?? "COLLECTING";
   const score = home?.score ?? 0;
@@ -109,24 +118,36 @@ export function HomeScreen() {
   const upcomingReservation = home?.upcomingReservation ?? null;
   const needsReconnect = home?.charmNeedsReconnect ?? false;
 
-  // 참(Charm)이 끊긴 상태면 재연결 안내 모달을 바로 띄우고, 10분 주기로 다시 띄워요.
+  // 참(Charm)이 끊기면 안내 모달을 한 번만 띄워요. 다시 연결되면 플래그를 초기화해서
+  // 다음에 또 끊겼을 때 안내할 수 있게 합니다.
   useEffect(() => {
     if (!needsReconnect) {
       setReconnectModalVisible(false);
+
+      if (reconnectPromptShown) {
+        resetReconnectPrompt();
+      }
+
+      return;
+    }
+
+    if (reconnectPromptShown) {
       return;
     }
 
     setReconnectModalVisible(true);
-    const interval = setInterval(() => {
-      setReconnectModalVisible(true);
-    }, RECONNECT_PROMPT_INTERVAL_MS);
-
-    return () => clearInterval(interval);
-  }, [needsReconnect]);
+    markReconnectPromptShown();
+  }, [
+    needsReconnect,
+    reconnectPromptShown,
+    markReconnectPromptShown,
+    resetReconnectPrompt,
+  ]);
 
   const handleReconnect = () => {
-    // TODO: 블루투스 연동(참 페어링) 화면이 만들어지면 그쪽으로 이동시켜 주세요. 아직은 화면이 없어서 모달만 닫아요.
     setReconnectModalVisible(false);
+    // 기기 연동 메인 화면(연동 탭)에서 Charm을 다시 연결할 수 있어요.
+    router.navigate("/(tabs)/device");
   };
 
   const headline =

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useCurrentProduct, useProducts } from "@/features/product/hooks/useProduct";
 import productThumb from "@/features/reservation/assets/product-thumb-small.png";
 import { RESERVATION_STATUS_LABEL } from "@/features/reservation/constants";
 import { formatDateShort, toReservationDateTime } from "@/features/reservation/format";
@@ -30,11 +31,18 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 export function DetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  // 홈·완료 화면에서는 id를 넘겨주고, 예약 탭에서 바로 들어오면 진행 중인 예약을 찾아서 보여줘요.
-  const { activeReservation } = useActiveReservation();
+  // 홈·완료 화면에서는 id를 넘겨주고, 예약 탭에서 바로 들어오면
+  // 메인으로 선택한 가방의 진행 중인 예약을 찾아서 보여줘요.
+  const { productId } = useCurrentProduct();
+  const { activeReservation } = useActiveReservation(productId);
   const reservationId = id ? Number(id) : (activeReservation?.id ?? null);
   const { data: reservation, isPending, error } = useReservation(reservationId);
   const cancelReservation = useCancelReservation();
+  // 예약 응답에는 제품 이미지가 없어서, 예약에 달린 productId로 제품 정보를 찾아 씁니다.
+  const { data: products } = useProducts();
+  const reservationProduct = reservation
+    ? products?.find((item) => item.id === reservation.productId)
+    : undefined;
 
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [doneVisible, setDoneVisible] = useState(false);
@@ -83,14 +91,30 @@ export function DetailScreen() {
             <Card className="mt-4 gap-3 bg-white px-4 py-3.5">
               <View className="flex-row items-center gap-3">
                 <Image
-                  source={productThumb}
+                  source={
+                    reservationProduct?.productImageUrl
+                      ? { uri: reservationProduct.productImageUrl }
+                      : productThumb
+                  }
                   className="size-[58px] rounded-2xl"
                   resizeMode="cover"
                 />
-                <View>
+                <View className="flex-1">
                   <Text className="text-sm font-semibold text-concierge-text">
-                    {reservation.productName ?? "-"}
+                    {reservation.productName ??
+                      reservationProduct?.productName ??
+                      "-"}
                   </Text>
+                  {reservationProduct ? (
+                    <Text className="mt-0.5 text-xs text-concierge-textMuted">
+                      {[
+                        reservationProduct.materialDisplayName,
+                        reservationProduct.color,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Text>
+                  ) : null}
                   <Text className="mt-0.5 text-xs text-concierge-textMuted">
                     {reservation.serviceType ?? "제품 컨디션 점검"}
                   </Text>

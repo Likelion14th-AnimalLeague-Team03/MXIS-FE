@@ -3,5 +3,5 @@ export const TAB_ROUTES = {
   DEVICE: "/(tabs)/device",
   HOME: "/(tabs)",
   CARE: "/(tabs)/care",
-  MYPAGE: "/(tabs)/mypage"
+  MYPAGE: "/(tabs)/mypage",
 } as const;

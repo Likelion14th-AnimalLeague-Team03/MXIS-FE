@@ -24,7 +24,10 @@ export async function getStores(params?: { lat?: number; lng?: number }) {
     });
 
     return (
-      unwrapNullableApiData(response.data, "매장 목록을 불러오지 못했습니다.") ?? []
+      unwrapNullableApiData(
+        response.data,
+        "매장 목록을 불러오지 못했습니다.",
+      ) ?? []
     );
   }, "매장 목록을 불러오는 데 실패했습니다.");
 }
@@ -37,7 +40,10 @@ export async function getAvailableTimes(storeId: number, date: string) {
       { params: { date } },
     );
 
-    return unwrapApiData(response.data, "예약 가능 시간을 불러오지 못했습니다.");
+    return unwrapApiData(
+      response.data,
+      "예약 가능 시간을 불러오지 못했습니다.",
+    );
   }, "예약 가능 시간을 불러오는 데 실패했습니다.");
 }
 
@@ -50,7 +56,10 @@ export async function getReservations(status?: ReservationStatus) {
     );
 
     return (
-      unwrapNullableApiData(response.data, "예약 내역을 불러오지 못했습니다.") ?? []
+      unwrapNullableApiData(
+        response.data,
+        "예약 내역을 불러오지 못했습니다.",
+      ) ?? []
     );
   }, "예약 내역을 불러오는 데 실패했습니다.");
 }
@@ -73,7 +82,6 @@ export async function createReservation(request: ReservationCreateRequest) {
       "/reservations",
       request,
     );
-
     return unwrapApiData(response.data, "예약 요청에 실패했습니다.");
   }, "예약을 요청하는 데 실패했습니다.");
 }
@@ -96,9 +104,9 @@ export async function updateReservation(
 /** DELETE /reservations/{id} */
 export async function cancelReservation(id: number) {
   return withApiError(async () => {
-    const response = await apiClient.delete<ApiResponse<ReservationCancelResult>>(
-      `/reservations/${id}`,
-    );
+    const response = await apiClient.delete<
+      ApiResponse<ReservationCancelResult>
+    >(`/reservations/${id}`);
 
     return unwrapApiData(response.data, "예약 취소에 실패했습니다.");
   }, "예약을 취소하는 데 실패했습니다.");

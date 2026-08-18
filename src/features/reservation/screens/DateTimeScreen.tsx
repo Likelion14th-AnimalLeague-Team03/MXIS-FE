@@ -15,7 +15,7 @@ import {
   useUpdateReservation,
 } from "@/features/reservation/hooks/useReservation";
 import { useReservationStore } from "@/features/reservation/store";
-import { formatLocalDate, toLocalTime } from "@/shared/api/localTime";
+import { formatLocalDate, toLocalTimeString } from "@/shared/api/localTime";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 
@@ -106,7 +106,7 @@ export function DateTimeScreen() {
           id: reservationId,
           request: {
             reservedDate: formatLocalDate(selectedDate),
-            reservedTime: toLocalTime(selectedTime),
+            reservedTime: toLocalTimeString(selectedTime),
           },
         },
         { onSuccess: () => router.back() },

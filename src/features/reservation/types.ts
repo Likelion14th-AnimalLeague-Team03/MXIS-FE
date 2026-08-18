@@ -1,4 +1,4 @@
-import type { LocalTime } from "@/shared/api/localTime";
+import type { LocalTimeLike } from "@/shared/api/localTime";
 
 /** OpenAPI: StoreResponse */
 export type Store = {
@@ -47,7 +47,7 @@ export type Reservation = {
   serviceType?: string | null;
   reservationType: ReservationType;
   reservedDate: string;
-  reservedTime: LocalTime;
+  reservedTime: LocalTimeLike;
   customerNote?: string | null;
   status: ReservationStatus;
   cancelledAt?: string | null;
@@ -65,7 +65,7 @@ export type ReservationSummary = {
   storeName?: string | null;
   reservationType: ReservationType;
   reservedDate: string;
-  reservedTime: LocalTime;
+  reservedTime: LocalTimeLike;
   status: ReservationStatus;
 };
 
@@ -77,14 +77,16 @@ export type ReservationCreateRequest = {
   serviceType?: string;
   reservationType: ReservationType;
   reservedDate: string;
-  reservedTime: LocalTime;
+  /** "14:00:00" — 서버 Jackson이 LocalTime을 문자열로 받습니다. */
+  reservedTime: string;
   customerNote?: string;
 };
 
 /** OpenAPI: ReservationUpdateRequest */
 export type ReservationUpdateRequest = {
   reservedDate?: string;
-  reservedTime?: LocalTime;
+  /** "14:00:00" */
+  reservedTime?: string;
   customerNote?: string;
 };
 
