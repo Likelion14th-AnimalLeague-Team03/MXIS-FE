@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Image,
   type ImageSourcePropType,
@@ -8,87 +8,192 @@ import {
   Text,
   View,
 } from "react-native";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
+import {
+  connectProductDevice,
+  deleteDevice,
+  disconnectProductDevice,
+  getDeviceManagementSummary,
+  getDevices,
+  getProductDevices,
+  getProductDeviceManagementSummary,
+  getProducts,
+  promoteProductDevice,
+  setPrimaryProduct,
+  type Device,
+  type DeviceManagementSummary,
+  type ProductDeviceManagementSummary,
+  type ProductDeviceLink,
+} from "@/features/device/api/deviceApi";
 import heroBackground from "@/features/device/assets/final/device-hero-bg-final.png";
-import charmBear from "@/features/device/assets/charm2.png";
-import charmRabbit from "@/features/device/assets/charm3.png";
-import ellaBostonThumbnail from "@/features/device/assets/bag1.png";
-import himmelShopperThumbnail from "@/features/device/assets/bag2.png";
-import starkBackpackThumbnail from "@/features/device/assets/bag3.png";
+import type { Product } from "@/features/product/types";
+import { useAuthStore } from "@/features/auth/store/authStore";
 import { BatteryIcon } from "@/shared/components/icons/BatteryIcon";
 import { InfoIcon } from "@/shared/components/icons/InfoIcon";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
-import { useDeviceStore } from "@/features/device/store";
 
-type Product = {
-  id: string;
-  name: string;
-  material: string;
-  color: string;
-  outings: number;
-  thumb: ImageSourcePropType;
-  hero: ImageSourcePropType;
+const deviceQueryKeys = {
+  summary: ["device", "summary"] as const,
+  products: ["device", "products"] as const,
+  devices: ["device", "devices"] as const,
+  productDevices: (productId: number | null) =>
+    ["device", "product-devices", productId] as const,
+  productSummary: (productId: number | null) =>
+    ["device", "product-summary", productId] as const,
 };
 
-type Charm = {
-  id: string;
-  label: string;
-  image: ImageSourcePropType;
-  battery: number;
+type DeviceProduct = Product & {
+  image: ImageSourcePropType | null;
 };
 
-const PRODUCTS: Product[] = [
-  {
-    id: "stark",
-    name: "Stark 사이드 스터드 비세토스 백팩",
-    material: "Visetos Canvas",
-    color: "black",
-    outings: 18,
-    thumb: starkBackpackThumbnail,
-    hero: starkBackpackThumbnail,
-  },
-  {
-    id: "ella",
-    name: "Ella 비세토스 보스턴 백",
-    material: "Visetos Canvas",
-    color: "cognac",
-    outings: 50,
-    thumb: ellaBostonThumbnail,
-    hero: ellaBostonThumbnail,
-  },
-  {
-    id: "himmel",
-    name: "MCM Himmel Shopper",
-    material: "Lauretos Canvas",
-    color: "oatmeal",
-    outings: 12,
-    thumb: himmelShopperThumbnail,
-    hero: himmelShopperThumbnail,
-  },
-];
-
-const CHARMS_BY_ID: Record<string, Charm> = {
-  "sn-0001": { id: "sn-0001", label: "SN-0001", image: charmBear, battery: 65 },
-  "sn-0022": {
-    id: "sn-0022",
-    label: "SN-0022",
-    image: charmRabbit,
-    battery: 82,
-  },
-  "sn-0033": { id: "sn-0033", label: "SN-0033", image: charmBear, battery: 73 },
+type DisplayCharm = Device & {
+  image: ImageSourcePropType | null;
+  link?: ProductDeviceLink;
 };
+
+function getProductImage(product: Product): ImageSourcePropType | null {
+  if (product.productImageUrl) {
+    return { uri: product.productImageUrl };
+  }
+
+  return null;
+}
+
+function getCharmImage(device: Device): ImageSourcePropType | null {
+  if (device.deviceImageUrl) {
+    return { uri: device.deviceImageUrl };
+  }
+
+  return null;
+}
+
+function isSameProduct(product: Product | null, summary?: DeviceManagementSummary | null) {
+  return Boolean(
+    product &&
+      summary?.primaryProduct &&
+      product.id === summary.primaryProduct.productId,
+  );
+}
+
+function getProductSummaryProductId(summary?: ProductDeviceManagementSummary | null) {
+  return summary?.product?.productId ?? summary?.product?.id ?? null;
+}
+
+function isSameProductSummary(
+  product: Product | null,
+  summary?: ProductDeviceManagementSummary | null,
+) {
+  return Boolean(product && product.id === getProductSummaryProductId(summary));
+}
+
+function formatMaterialColor(product: Product) {
+  const material = product.materialDisplayName ?? "-";
+  const color = product.color ?? "-";
+  return `${material} · ${color}`;
+}
+
+function normalizeCount(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function getTotalOutingCount(
+  product: Product | null,
+  productSummary?: ProductDeviceManagementSummary | null,
+  primarySummary?: DeviceManagementSummary | null,
+) {
+  if (isSameProductSummary(product, productSummary)) {
+    const count =
+      normalizeCount(productSummary?.totalOutingCount) ??
+      normalizeCount(productSummary?.outingCount) ??
+      normalizeCount(productSummary?.totalOutings) ??
+      normalizeCount(productSummary?.totalOutingSessions);
+
+    if (count !== null) {
+      return count;
+    }
+  }
+
+  if (isSameProduct(product, primarySummary)) {
+    return normalizeCount(primarySummary?.totalOutingCount);
+  }
+
+  return null;
+}
+
+function formatOutingCount(
+  product: Product | null,
+  summary?: ProductDeviceManagementSummary | null,
+  primarySummary?: DeviceManagementSummary | null,
+) {
+  const count = getTotalOutingCount(product, summary, primarySummary);
+
+  if (count === null) {
+    return "-";
+  }
+
+  return `${count}회`;
+}
+
+function formatTemperature(
+  product: Product | null,
+  summary?: ProductDeviceManagementSummary | null,
+) {
+  if (!isSameProductSummary(product, summary) || summary?.currentEnvironment == null) {
+    return "-°C";
+  }
+
+  const value = summary.currentEnvironment.temperature;
+  return typeof value === "number" ? `${Math.round(value)}°C` : "-°C";
+}
+
+function formatHumidity(
+  product: Product | null,
+  summary?: ProductDeviceManagementSummary | null,
+) {
+  if (!isSameProductSummary(product, summary) || summary?.currentEnvironment == null) {
+    return "-%";
+  }
+
+  const value = summary.currentEnvironment.humidity;
+  return typeof value === "number" ? `${Math.round(value)}%` : "-%";
+}
+
+function formatLastSyncedAt(device: DisplayCharm | null) {
+  if (!device) return "*월 *일";
+  if (device.connectionStatus === "CONNECTED") return "방금 전";
+  if (!device.lastSyncedAt) return "*월 *일";
+
+  const syncedAt = new Date(device.lastSyncedAt).getTime();
+  if (Number.isNaN(syncedAt)) return "*월 *일";
+
+  const diffMs = Math.max(0, Date.now() - syncedAt);
+  const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
+
+  if (diffHours < 1) return "방금 전";
+  if (diffHours < 24) return `${diffHours}시간 전`;
+
+  const date = new Date(device.lastSyncedAt);
+  return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+}
 
 function Pill({ label }: { label: string }) {
   return (
     <View className="rounded-full border border-[#814C27] px-[9px] py-[3px]">
-      <Text
-        className="text-[11px] font-medium text-[#814C27]"
-        style={{ letterSpacing: -0.11, lineHeight: 16 }}
-      >
+      <Text className="text-[11px] font-medium text-[#814C27]">
         {label}
       </Text>
     </View>
@@ -99,53 +204,22 @@ function Chevron({ expanded }: { expanded?: boolean }) {
   return (
     <View className="h-6 w-6 items-center justify-center">
       <Svg
-        width={8.25}
-        height={15.0151}
-        viewBox="0 0 8.25 15.0151"
+        width={15}
+        height={9}
+        viewBox="0 0 15 9"
         fill="none"
-        style={{ transform: [{ rotate: expanded ? "-90deg" : "90deg" }] }}
+        style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}
       >
         <Path
-          d="M0.75 15.015C0.651636 15.0162 0.55411 14.9968 0.463693 14.9581C0.373276 14.9193 0.291969 14.8621 0.225 14.79C-0.075 14.49 -0.075 14.025 0.225 13.725L6.45 7.5L0.225 1.29C-0.075 0.99 -0.075 0.525 0.225 0.225C0.525 -0.075 0.99 -0.075 1.29 0.225L8.025 6.99C8.325 7.29 8.325 7.755 8.025 8.055L1.275 14.79C1.125 14.94 0.93 15.015 0.75 15.015Z"
-          fill="#111111"
+          d="M1.25 1.5L7.5 7.25L13.75 1.5"
+          stroke="#111111"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
       </Svg>
     </View>
   );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row items-center justify-between">
-      <Text
-        className="text-[14px] font-medium text-[#262626]"
-        style={{ letterSpacing: -0.35, lineHeight: 20 }}
-      >
-        {label}
-      </Text>
-      <Text
-        className="text-[14px] font-medium text-[#262626]"
-        style={{ letterSpacing: -0.35, lineHeight: 20 }}
-      >
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-function formatLastSyncedAt(value: string | null) {
-  if (!value) return "*월 *일";
-
-  const syncedAt = new Date(value).getTime();
-  const now = Date.now();
-  const diffMs = Math.max(0, now - syncedAt);
-  const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
-
-  if (diffHours < 1) return "방금전";
-  if (diffHours < 24) return `${diffHours}시간 전`;
-
-  const date = new Date(value);
-  return `${date.getMonth() + 1}월 ${date.getDate()}일`;
 }
 
 function ConfirmModal({
@@ -155,6 +229,7 @@ function ConfirmModal({
   confirmLabel,
   onConfirm,
   onCancel,
+  isPending,
 }: {
   visible: boolean;
   title: string;
@@ -162,6 +237,7 @@ function ConfirmModal({
   confirmLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  isPending?: boolean;
 }) {
   return (
     <Modal
@@ -172,21 +248,16 @@ function ConfirmModal({
     >
       <View className="flex-1 items-center justify-center bg-black/35 px-6">
         <View className="w-full max-w-[342px] rounded-[16px] bg-[#FAF6F1] px-5 pb-[18px] pt-[22px]">
-          <Text
-            className="text-[20px] font-semibold text-[#121212]"
-            style={{ letterSpacing: -0.5, lineHeight: 28 }}
-          >
+          <Text className="text-[20px] font-semibold text-[#121212]">
             {title}
           </Text>
-          <Text
-            className="mt-[14px] text-[14px] font-medium text-[#63635E]"
-            style={{ letterSpacing: -0.35, lineHeight: 20 }}
-          >
+          <Text className="mt-[14px] text-[14px] font-medium leading-5 text-[#63635E]">
             {body}
           </Text>
           <PrimaryButton
-            label={confirmLabel}
+            label={isPending ? "처리 중입니다" : confirmLabel}
             onPress={onConfirm}
+            disabled={isPending}
             className="mt-[18px] h-[48px] rounded-[8px]"
           />
           <SecondaryButton
@@ -194,10 +265,7 @@ function ConfirmModal({
             onPress={onCancel}
             className="mt-[10px] h-[48px] rounded-[8px]"
           />
-          <Text
-            className="mt-[12px] text-center text-[12px] font-medium text-[#898989]"
-            style={{ letterSpacing: -0.12, lineHeight: 17 }}
-          >
+          <Text className="mt-[12px] text-center text-[12px] font-medium text-[#898989]">
             기존 기록은 삭제되지 않습니다.
           </Text>
         </View>
@@ -208,70 +276,289 @@ function ConfirmModal({
 
 export function DeviceScreen() {
   const router = useRouter();
-  const [selectedProductId, setSelectedProductId] = useState("ella");
-  const [mainProductId, setMainProductId] = useState("ella");
+  const queryClient = useQueryClient();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [pendingDeviceId, setPendingDeviceId] = useState<number | null>(null);
   const [charmExpanded, setCharmExpanded] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [disconnectModalVisible, setDisconnectModalVisible] = useState(false);
-  const ownedCharmIds = useDeviceStore((state) => state.ownedCharmIds);
-  const currentCharmId = useDeviceStore((state) => state.currentCharmId);
-  const pendingCharmId = useDeviceStore((state) => state.pendingCharmId);
-  const deleteOwnedCharm = useDeviceStore((state) => state.deleteOwnedCharm);
-  const setCurrentCharmId = useDeviceStore((state) => state.setCurrentCharmId);
-  const setPendingCharmId = useDeviceStore((state) => state.setPendingCharmId);
-  const lastSyncedAt = useDeviceStore((state) => state.lastSyncedAt);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [lastCharmByProductId, setLastCharmByProductId] = useState<
+    Record<number, DisplayCharm>
+  >({});
+  const enabled = Boolean(accessToken);
 
-  const selectedIndex = PRODUCTS.findIndex(
+  const summaryQuery = useQuery({
+    queryKey: deviceQueryKeys.summary,
+    queryFn: getDeviceManagementSummary,
+    enabled,
+  });
+  const productsQuery = useQuery({
+    queryKey: deviceQueryKeys.products,
+    queryFn: getProducts,
+    enabled,
+  });
+  const devicesQuery = useQuery({
+    queryKey: deviceQueryKeys.devices,
+    queryFn: getDevices,
+    enabled,
+  });
+
+  const products = useMemo<DeviceProduct[]>(() => {
+    return (productsQuery.data ?? []).map((product) => {
+      const image = getProductImage(product);
+      return { ...product, image };
+    });
+  }, [productsQuery.data]);
+
+  useEffect(() => {
+    if (selectedProductId !== null || products.length === 0) return;
+
+    const primaryProduct =
+      products.find((product) => product.isPrimary) ??
+      products.find(
+        (product) => product.id === summaryQuery.data?.primaryProduct?.productId,
+      ) ??
+      products[0];
+
+    setSelectedProductId(primaryProduct.id);
+  }, [products, selectedProductId, summaryQuery.data?.primaryProduct?.productId]);
+
+  const selectedIndex = products.findIndex(
     (product) => product.id === selectedProductId,
   );
-  const selectedProduct = PRODUCTS[selectedIndex] ?? PRODUCTS[1];
-  const isMainProduct = selectedProduct.id === mainProductId;
-  const ownedCharms = ownedCharmIds
-    .map((id) => CHARMS_BY_ID[id])
-    .filter((charm): charm is Charm => Boolean(charm));
-  const connectedCharm =
-    ownedCharms.find((charm) => charm.id === currentCharmId) ?? null;
-  const pendingCharm =
-    ownedCharms.find((charm) => charm.id === pendingCharmId) ?? null;
-  const hasConnectedCharm = Boolean(connectedCharm);
-  const isPendingCharmConnected = Boolean(
-    pendingCharm && pendingCharm.id === currentCharmId,
+  const selectedProduct = selectedIndex >= 0 ? products[selectedIndex] : null;
+  const isMainProduct = Boolean(
+    selectedProduct &&
+      (selectedProduct.isPrimary ||
+        selectedProduct.id === summaryQuery.data?.primaryProduct?.productId),
   );
-  const lastSyncedLabel = formatLastSyncedAt(lastSyncedAt);
+
+  const productDevicesQuery = useQuery({
+    queryKey: deviceQueryKeys.productDevices(selectedProduct?.id ?? null),
+    queryFn: () => getProductDevices(selectedProduct?.id as number),
+    enabled: enabled && Boolean(selectedProduct?.id),
+  });
+  const productSummaryQuery = useQuery({
+    queryKey: deviceQueryKeys.productSummary(selectedProduct?.id ?? null),
+    queryFn: () => getProductDeviceManagementSummary(selectedProduct?.id as number),
+    enabled: enabled && Boolean(selectedProduct?.id),
+  });
+
+  const productDeviceLinks = productDevicesQuery.data ?? [];
+  const selectedProductSummary = productSummaryQuery.data ?? null;
+  const allDevices = devicesQuery.data ?? [];
+  const displayCharms = allDevices.map<DisplayCharm>((device) => ({
+    ...device,
+    image: getCharmImage(device),
+    link: productDeviceLinks.find((link) => link.deviceId === device.id),
+  }));
+  const primaryDeviceLink =
+    productDeviceLinks.find((link) => link.role === "PRIMARY_SENSOR") ??
+    productDeviceLinks[0] ??
+    null;
+  const connectedCharm =
+    displayCharms.find((device) => device.id === primaryDeviceLink?.deviceId) ??
+    null;
+  const summaryPrimaryDevice = selectedProductSummary?.primaryDevice ?? null;
+  const displayConnectedCharm =
+    connectedCharm ??
+    (summaryPrimaryDevice
+      ? ({
+          id: summaryPrimaryDevice.deviceId,
+          serialNumber: summaryPrimaryDevice.serialNumber,
+          deviceName: summaryPrimaryDevice.deviceName ?? summaryPrimaryDevice.serialNumber,
+          deviceImageUrl: summaryPrimaryDevice.deviceImageUrl ?? null,
+          batteryLevel: summaryPrimaryDevice.batteryLevel ?? null,
+          connectionStatus: summaryPrimaryDevice.connectionStatus ?? "DISCONNECTED",
+          lastSyncedAt: summaryPrimaryDevice.lastSyncedAt ?? null,
+          registeredAt: "",
+          image: summaryPrimaryDevice.deviceImageUrl
+            ? { uri: summaryPrimaryDevice.deviceImageUrl }
+            : null,
+        } satisfies DisplayCharm)
+      : null);
+  const lastKnownCharm =
+    selectedProduct?.id != null ? lastCharmByProductId[selectedProduct.id] : null;
+  const cardCharm = displayConnectedCharm ?? lastKnownCharm ?? null;
+  const connectedDeviceId = displayConnectedCharm?.id ?? null;
+  const pendingCharm =
+    displayCharms.find((device) => device.id === pendingDeviceId) ??
+    displayConnectedCharm ??
+    lastKnownCharm ??
+    displayCharms[0] ??
+    null;
+  const hasConnectedCharm = Boolean(displayConnectedCharm);
+  const isPendingCharmLinked = Boolean(
+    pendingCharm && pendingCharm.id === connectedDeviceId,
+  );
+  const lastSyncedLabel = formatLastSyncedAt({
+    lastSyncedAt:
+      cardCharm?.lastSyncedAt ??
+      selectedProductSummary?.currentEnvironment?.measuredAt ??
+      null,
+    connectionStatus: displayConnectedCharm?.connectionStatus ?? "DISCONNECTED",
+  } as DisplayCharm);
+
+  useEffect(() => {
+    if (pendingDeviceId !== null) return;
+    setPendingDeviceId(cardCharm?.id ?? displayCharms[0]?.id ?? null);
+  }, [cardCharm?.id, displayCharms, pendingDeviceId]);
+
+  useEffect(() => {
+    if (!selectedProduct || !displayConnectedCharm) return;
+
+    setLastCharmByProductId((current) => ({
+      ...current,
+      [selectedProduct.id]: displayConnectedCharm,
+    }));
+  }, [displayConnectedCharm, selectedProduct]);
 
   const visibleProducts = useMemo(() => {
-    const previous =
-      PRODUCTS[(selectedIndex - 1 + PRODUCTS.length) % PRODUCTS.length];
-    const next = PRODUCTS[(selectedIndex + 1) % PRODUCTS.length];
+    if (!selectedProduct || products.length === 0) return [];
 
-    return [previous, selectedProduct, next];
-  }, [selectedIndex, selectedProduct]);
+    const previous = products[(selectedIndex - 1 + products.length) % products.length];
+    const next = products[(selectedIndex + 1) % products.length];
+
+    return products.length === 1 ? [selectedProduct] : [previous, selectedProduct, next];
+  }, [products, selectedIndex, selectedProduct]);
+
+  const invalidateDeviceQueries = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: deviceQueryKeys.summary }),
+      queryClient.invalidateQueries({ queryKey: deviceQueryKeys.products }),
+      queryClient.invalidateQueries({ queryKey: deviceQueryKeys.devices }),
+      queryClient.invalidateQueries({
+        queryKey: deviceQueryKeys.productDevices(selectedProduct?.id ?? null),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: deviceQueryKeys.productSummary(selectedProduct?.id ?? null),
+      }),
+    ]);
+  };
+
+  const primaryProductMutation = useMutation({
+    mutationFn: setPrimaryProduct,
+    onSuccess: invalidateDeviceQueries,
+    onError: (error) =>
+      setErrorMessage(
+        error instanceof Error ? error.message : "메인 가방 지정에 실패했습니다.",
+      ),
+  });
+
+  const connectMutation = useMutation({
+    mutationFn: async ({
+      productId,
+      deviceId,
+    }: {
+      productId: number;
+      deviceId: number;
+    }) => {
+      const selectedExistingLink = productDeviceLinks.find(
+        (link) => link.deviceId === deviceId,
+      );
+      const linksToDisconnect = productDeviceLinks.filter(
+        (link) => link.deviceId !== deviceId,
+      );
+
+      await Promise.all(
+        linksToDisconnect.map((link) =>
+          disconnectProductDevice({ productId, deviceId: link.deviceId }),
+        ),
+      );
+
+      if (selectedExistingLink) {
+        return promoteProductDevice({ productId, deviceId });
+      }
+
+      return connectProductDevice({
+        productId,
+        deviceId,
+        role: "PRIMARY_SENSOR",
+      });
+    },
+    onSuccess: async () => {
+      setErrorMessage("");
+      await invalidateDeviceQueries();
+    },
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "참 연결에 실패했습니다."),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: disconnectProductDevice,
+    onSuccess: async () => {
+      setDisconnectModalVisible(false);
+      setCharmExpanded(false);
+      setErrorMessage("");
+      await invalidateDeviceQueries();
+    },
+    onError: (error) =>
+      setErrorMessage(
+        error instanceof Error ? error.message : "참 연결 해제에 실패했습니다.",
+      ),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteDevice,
+    onSuccess: async () => {
+      setDeleteModalVisible(false);
+      setPendingDeviceId(null);
+      setErrorMessage("");
+      await invalidateDeviceQueries();
+    },
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "참 삭제에 실패했습니다."),
+  });
 
   const moveProduct = (direction: "prev" | "next") => {
+    if (products.length === 0 || selectedIndex < 0) return;
+
     const offset = direction === "prev" ? -1 : 1;
-    const nextIndex =
-      (selectedIndex + offset + PRODUCTS.length) % PRODUCTS.length;
-    setSelectedProductId(PRODUCTS[nextIndex].id);
+    const nextIndex = (selectedIndex + offset + products.length) % products.length;
+    setSelectedProductId(products[nextIndex].id);
+    setPendingDeviceId(null);
     setCharmExpanded(false);
+  };
+
+  const handleSelectProduct = (productId: number) => {
+    setSelectedProductId(productId);
+    setPendingDeviceId(null);
+    setCharmExpanded(false);
+  };
+
+  const handleSetPrimaryProduct = () => {
+    if (!selectedProduct || isMainProduct) return;
+    primaryProductMutation.mutate(selectedProduct.id);
+  };
+
+  const handleConnectCharm = () => {
+    if (!selectedProduct || !pendingCharm) return;
+
+    connectMutation.mutate({
+      productId: selectedProduct.id,
+      deviceId: pendingCharm.id,
+    });
   };
 
   const confirmDeleteCharm = () => {
     if (!pendingCharm) return;
-
-    deleteOwnedCharm(pendingCharm.id);
-    setDeleteModalVisible(false);
+    deleteMutation.mutate(pendingCharm.id);
   };
 
   const confirmDisconnectCharm = () => {
-    setCurrentCharmId(null);
-    setDisconnectModalVisible(false);
-    setCharmExpanded(false);
-  };
+    if (!selectedProduct || !pendingCharm) return;
 
-  const handleConnectCharm = () => {
-    if (!pendingCharm) return;
+    setLastCharmByProductId((current) => ({
+      ...current,
+      [selectedProduct.id]: pendingCharm,
+    }));
 
-    setCurrentCharmId(pendingCharm.id);
+    disconnectMutation.mutate({
+      productId: selectedProduct.id,
+      deviceId: pendingCharm.id,
+    });
   };
 
   const handleAddCharm = () => {
@@ -280,6 +567,22 @@ export function DeviceScreen() {
       params: { returnTo: "device" },
     });
   };
+
+  const isLoading =
+    productsQuery.isPending ||
+    devicesQuery.isPending ||
+    summaryQuery.isPending ||
+    productSummaryQuery.isPending;
+  const queryError =
+    productsQuery.error ??
+    devicesQuery.error ??
+    summaryQuery.error ??
+    productDevicesQuery.error ??
+    productSummaryQuery.error;
+  const visibleError =
+    errorMessage ||
+    (queryError instanceof Error ? queryError.message : "") ||
+    "";
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -302,11 +605,11 @@ export function DeviceScreen() {
           <View className="flex-1 items-center">
             <View className="flex-row items-center justify-center gap-[20px]">
               {visibleProducts.map((product) => {
-                const selected = product.id === selectedProduct.id;
+                const selected = product.id === selectedProduct?.id;
                 return (
                   <Pressable
                     key={product.id}
-                    onPress={() => setSelectedProductId(product.id)}
+                    onPress={() => handleSelectProduct(product.id)}
                   >
                     <View
                       className="h-20 w-20 items-center justify-center"
@@ -316,11 +619,17 @@ export function DeviceScreen() {
                         borderColor: selected ? "#E4AB7C" : "transparent",
                       }}
                     >
-                      <Image
-                        source={product.thumb}
-                        resizeMode="cover"
-                        style={{ height: 55, width: 55 }}
-                      />
+                      {product.image ? (
+                        <Image
+                          source={product.image}
+                          resizeMode="contain"
+                          style={{ height: 55, width: 55 }}
+                        />
+                      ) : (
+                        <Text className="text-[11px] font-medium text-[#898989]">
+                          이미지 없음
+                        </Text>
+                      )}
                     </View>
                     <View
                       className="mt-[2px] h-[3px] w-[22px] self-center rounded-full"
@@ -332,11 +641,8 @@ export function DeviceScreen() {
                 );
               })}
             </View>
-            <Text
-              className="mt-1 text-[14px] font-medium text-[#6B6B6B]"
-              style={{ letterSpacing: -0.35, lineHeight: 20 }}
-            >
-              좌우로 넘겨 가방을 선택하세요
+            <Text className="mt-1 text-[14px] font-medium text-[#6B6B6B]">
+              좌우로 넘겨 가방을 선택하세요.
             </Text>
           </View>
 
@@ -354,37 +660,46 @@ export function DeviceScreen() {
             style={{ height: 220.43, width: 388 }}
             resizeMode="cover"
           />
-          <View className="absolute inset-0 items-center mt-12">
-            <Image
-              source={selectedProduct.hero}
-              resizeMode="contain"
-              style={{ height: 178, width: 316 }}
-            />
+          <View className="absolute inset-0 mt-12 items-center">
+            {selectedProduct?.image ? (
+              <Image
+                source={selectedProduct.image}
+                resizeMode="contain"
+                style={{ height: 178, width: 316 }}
+              />
+            ) : (
+              <View className="h-[178px] w-[316px] items-center justify-center">
+                <Text className="text-[13px] font-medium text-[#898989]">
+                  제품 이미지가 없습니다.
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
         <View className="px-6 pt-6">
+          {isLoading ? (
+            <Text className="py-4 text-center text-[14px] text-[#6B6B6B]">
+              기기 정보를 불러오고 있습니다.
+            </Text>
+          ) : null}
+
           <View className="flex-row items-start justify-between">
-            <View>
-              <Text
-                className="text-[14px] font-semibold text-[#171717]"
-                style={{ letterSpacing: -0.35, lineHeight: 20 }}
-              >
-                {selectedProduct.name}
+            <View className="flex-1 pr-4">
+              <Text className="text-[14px] font-semibold text-[#171717]">
+                {selectedProduct?.productName ?? "등록된 제품이 없습니다."}
               </Text>
-              <Text
-                className="mt-[2px] text-[14px] font-medium text-[#6B6B6B]"
-                style={{ letterSpacing: -0.35, lineHeight: 20 }}
-              >
-                {selectedProduct.material} · {selectedProduct.color}
+              <Text className="mt-[2px] text-[14px] font-medium text-[#6B6B6B]">
+                {selectedProduct ? formatMaterialColor(selectedProduct) : "-"}
               </Text>
-              <Text
-                className="mt-[2px] text-[14px] font-medium text-[#232323]"
-                style={{ letterSpacing: -0.35, lineHeight: 20 }}
-              >
+              <Text className="mt-[2px] text-[14px] font-medium text-[#232323]">
                 함께한 외출{" "}
                 <Text className="text-[#814C27]">
-                  {selectedProduct.outings}회
+                  {formatOutingCount(
+                    selectedProduct,
+                    selectedProductSummary,
+                    summaryQuery.data,
+                  )}
                 </Text>
               </Text>
             </View>
@@ -392,8 +707,8 @@ export function DeviceScreen() {
           </View>
 
           <Pressable
-            onPress={() => setMainProductId(selectedProduct.id)}
-            disabled={isMainProduct}
+            onPress={handleSetPrimaryProduct}
+            disabled={isMainProduct || !selectedProduct || primaryProductMutation.isPending}
             className={`mt-[18px] h-[48px] items-center justify-center rounded-[10px] ${
               isMainProduct ? "bg-[rgba(195,195,195,0.6)]" : "bg-[#814C27]"
             }`}
@@ -402,7 +717,6 @@ export function DeviceScreen() {
               className={`text-[14px] font-medium ${
                 isMainProduct ? "text-[#898989]" : "text-white"
               }`}
-              style={{ letterSpacing: -0.35, lineHeight: 20 }}
             >
               {isMainProduct ? "현재 선택된 가방입니다." : "메인 가방으로 확정"}
             </Text>
@@ -414,32 +728,33 @@ export function DeviceScreen() {
                 className="h-[61px] w-[61px] items-center justify-center overflow-hidden rounded-full border bg-white"
                 style={{ borderColor: "#E4E1DD" }}
               >
-                <Image
-                  source={connectedCharm?.image ?? charmBear}
-                  resizeMode="contain"
-                  style={{ height: 52, width: 52 }}
-                />
+                {cardCharm?.image ? (
+                  <Image
+                    source={cardCharm.image}
+                    resizeMode="contain"
+                    style={{ height: 52, width: 52 }}
+                  />
+                ) : (
+                  <Text className="text-[10px] font-medium text-[#898989]">
+                    참
+                  </Text>
+                )}
               </View>
               <View className="ml-3 flex-1">
                 <View className="flex-row items-center gap-[6px]">
                   <View
                     className="h-2 w-2 rounded-full"
                     style={{
-                      backgroundColor: hasConnectedCharm
-                        ? "#71EBA3"
-                        : "#898989",
+                      backgroundColor: hasConnectedCharm ? "#71EBA3" : "#898989",
                     }}
                   />
-                  <Text
-                    className="text-[14px] font-semibold text-[#121212]"
-                    style={{ letterSpacing: -0.35, lineHeight: 20 }}
-                  >
-                    {connectedCharm?.label ?? "SN-0001"}
+                  <Text className="text-[14px] font-semibold text-[#121212]">
+                    {cardCharm?.serialNumber ?? "연결된 참 없음"}
                   </Text>
                 </View>
-                {hasConnectedCharm ? (
+                {cardCharm ? (
                   <Text className="mt-1 text-[12px] font-normal text-[#3E3E3E]">
-                    배터리: {connectedCharm?.battery}%
+                    배터리: {cardCharm.batteryLevel ?? "-"}%
                   </Text>
                 ) : null}
               </View>
@@ -455,10 +770,7 @@ export function DeviceScreen() {
 
             {charmExpanded ? (
               <View className="bg-[#E4DDD5] px-[18px] pb-5 pt-2">
-                <Text
-                  className="text-[16px] font-semibold text-[#121212]"
-                  style={{ letterSpacing: -0.4, lineHeight: 22 }}
-                >
+                <Text className="text-[16px] font-semibold text-[#121212]">
                   보유중인 참
                 </Text>
 
@@ -472,22 +784,28 @@ export function DeviceScreen() {
                   }}
                   showsHorizontalScrollIndicator={false}
                 >
-                  {ownedCharms.map((charm) => {
-                    const selected = charm.id === pendingCharmId;
-                    const connected = charm.id === currentCharmId;
+                  {displayCharms.map((charm) => {
+                    const selected = charm.id === pendingCharm?.id;
+                    const linked = charm.id === connectedDeviceId;
 
                     return (
                       <Pressable
                         key={charm.id}
-                        onPress={() => setPendingCharmId(charm.id)}
+                        onPress={() => setPendingDeviceId(charm.id)}
                         className="shrink-0 items-center"
                       >
                         <View className="h-[85px] w-[85px] items-center justify-center overflow-hidden rounded-full border border-[#898989] bg-white">
-                          <Image
-                            source={charm.image}
-                            resizeMode="contain"
-                            style={{ height: 82, width: 82 }}
-                          />
+                          {charm.image ? (
+                            <Image
+                              source={charm.image}
+                              resizeMode="contain"
+                              style={{ height: 82, width: 82 }}
+                            />
+                          ) : (
+                            <Text className="text-[12px] font-medium text-[#898989]">
+                              이미지 없음
+                            </Text>
+                          )}
                           {selected ? (
                             <View className="absolute inset-0 items-center justify-center bg-black/35">
                               <Text className="text-[12px] font-semibold text-white">
@@ -496,13 +814,10 @@ export function DeviceScreen() {
                             </View>
                           ) : null}
                         </View>
-                        <Text
-                          className="mt-1 text-[14px] font-semibold text-[#121212]"
-                          style={{ letterSpacing: -0.35, lineHeight: 20 }}
-                        >
-                          {charm.label}
+                        <Text className="mt-1 text-[14px] font-semibold text-[#121212]">
+                          {charm.serialNumber}
                         </Text>
-                        {connected ? (
+                        {linked ? (
                           <View className="mt-1 rounded-[10px] bg-[#E1F7E7] px-2 py-[2px]">
                             <Text className="text-[11px] font-medium text-[#269247]">
                               연결중
@@ -522,25 +837,23 @@ export function DeviceScreen() {
                 </ScrollView>
 
                 <View className="mt-5 flex-row items-center justify-between">
-                  <Text
-                    className="text-[12px] font-medium text-[#898989]"
-                    style={{ letterSpacing: -0.12, lineHeight: 17 }}
-                  >
+                  <Text className="text-[12px] font-medium text-[#898989]">
                     선택한 참을 가방에 연결해주세요
                   </Text>
                   <View className="flex-row gap-2">
                     <Pressable
                       onPress={() => setDeleteModalVisible(true)}
-                      disabled={!pendingCharm}
+                      disabled={!pendingCharm || deleteMutation.isPending}
                       className="h-7 items-center justify-center rounded-[6px] bg-white px-3"
                     >
                       <Text className="text-[12px] font-medium text-[#A51F21]">
                         참 삭제
                       </Text>
                     </Pressable>
-                    {isPendingCharmConnected ? (
+                    {isPendingCharmLinked ? (
                       <Pressable
                         onPress={() => setDisconnectModalVisible(true)}
+                        disabled={disconnectMutation.isPending}
                         className="h-7 items-center justify-center rounded-[6px] bg-[#814C27] px-3"
                       >
                         <Text className="text-[12px] font-medium text-white">
@@ -550,7 +863,7 @@ export function DeviceScreen() {
                     ) : (
                       <Pressable
                         onPress={handleConnectCharm}
-                        disabled={!pendingCharm}
+                        disabled={!pendingCharm || !selectedProduct || connectMutation.isPending}
                         className="h-7 items-center justify-center rounded-[6px] bg-[#814C27] px-3"
                       >
                         <Text className="text-[12px] font-medium text-white">
@@ -564,43 +877,35 @@ export function DeviceScreen() {
             ) : null}
           </View>
 
-          <Text
-            className="mt-[26px] text-[18px] font-bold text-[#171717]"
-            style={{ lineHeight: 26 }}
-          >
+          <Text className="mt-[26px] text-[18px] font-bold text-[#171717]">
             세부 기기관리
           </Text>
 
           <View className="mt-2 rounded-[12px] border border-[#E4E1DD] bg-white px-4 py-3">
-            <Text
-              className="text-[14px] font-medium text-[#222222]"
-              style={{ letterSpacing: -0.35, lineHeight: 20 }}
-            >
+            <Text className="text-[14px] font-medium text-[#222222]">
               현재 보관 환경
             </Text>
 
             <View className="mt-3 flex-row items-center">
               <View className="flex-1 items-center">
                 <Text className="text-[20px] font-semibold text-[#171717]">
-                  {hasConnectedCharm ? "23°C" : "-°C"}
+                  {formatTemperature(selectedProduct, selectedProductSummary)}
                 </Text>
                 <Text className="text-[11px] text-[#686868]">온도</Text>
               </View>
               <View className="h-10 w-px bg-[#E4E1DD]" />
               <View className="flex-1 items-center">
                 <Text className="text-[20px] font-semibold text-[#171717]">
-                  {hasConnectedCharm ? "48%" : "-%"}
+                  {formatHumidity(selectedProduct, selectedProductSummary)}
                 </Text>
                 <Text className="text-[11px] text-[#686868]">습도</Text>
               </View>
             </View>
 
             <View className="mt-3 h-px bg-[#E4E1DD]" />
-            <Text
-              className="mt-[5px] text-[12px] font-medium text-[#686868]"
-              style={{ letterSpacing: -0.12, lineHeight: 17 }}
-            >
-              {hasConnectedCharm
+            <Text className="mt-[5px] text-[12px] font-medium text-[#686868]">
+              {isSameProductSummary(selectedProduct, selectedProductSummary) &&
+              hasConnectedCharm
                 ? "권장 범위로 유지 중이에요"
                 : "데이터가 없어요"}
             </Text>
@@ -615,7 +920,9 @@ export function DeviceScreen() {
                 </Text>
               </View>
               <Text className="text-[14px] font-medium text-[#262626]">
-                {hasConnectedCharm ? `${connectedCharm?.battery}%` : "-%"}
+                {hasConnectedCharm
+                  ? `${displayConnectedCharm?.batteryLevel ?? "-"}%`
+                  : "-%"}
               </Text>
             </View>
             <View className="h-px bg-[#E4E1DD]" />
@@ -631,27 +938,35 @@ export function DeviceScreen() {
               </Text>
             </View>
           </View>
+
+          {visibleError ? (
+            <Text className="mt-4 text-center text-[12px] font-medium text-[#C04737]">
+              {visibleError}
+            </Text>
+          ) : null}
         </View>
       </ScrollView>
 
       <ConfirmModal
         visible={deleteModalVisible}
-        title={`${pendingCharm?.label ?? "SN-0001"}을 가방에서 삭제할까요?`}
+        title={`${pendingCharm?.serialNumber ?? "SN-0001"}을 가방에서 삭제할까요?`}
         body={
-          "참을 삭제하면 현재 가방과의 연결이 해지되며\n보유 중인 참 목록에서도 삭제돼요.\n필요하면 나중에 다시 등록할 수 있어요."
+          "참을 삭제하면 현재 가방과의 연결이 해제되며\n보유 중인 참 목록에서도 삭제돼요.\n필요하면 나중에 다시 등록할 수 있어요."
         }
         confirmLabel="삭제"
         onConfirm={confirmDeleteCharm}
         onCancel={() => setDeleteModalVisible(false)}
+        isPending={deleteMutation.isPending}
       />
 
       <ConfirmModal
         visible={disconnectModalVisible}
-        title={`${connectedCharm?.label ?? "SN-0001"} 연결을 해제할까요?`}
+        title={`${pendingCharm?.serialNumber ?? "SN-0001"} 연결을 해제할까요?`}
         body="연결을 해제하면 재연결 전까지 센서 기록이 제품에 반영되지 않습니다."
         confirmLabel="연결 해제"
         onConfirm={confirmDisconnectCharm}
         onCancel={() => setDisconnectModalVisible(false)}
+        isPending={disconnectMutation.isPending}
       />
     </SafeAreaView>
   );
