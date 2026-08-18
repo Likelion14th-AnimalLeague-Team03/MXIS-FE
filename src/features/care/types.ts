@@ -43,7 +43,7 @@ export type CareReportScreen = {
 /** OpenAPI: MetricPoint */
 export type MetricPoint = {
   label?: string | null;
-  value: number;
+  value?: number | null;
 };
 
 /** OpenAPI: PeriodEnvironment */

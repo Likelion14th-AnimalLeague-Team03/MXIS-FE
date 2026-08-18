@@ -1,5 +1,9 @@
 import type { HomeSummary } from "@/features/home/types";
-import { type ApiResponse, unwrapApiData, withApiError } from "@/shared/api/apiResponse";
+import {
+  type ApiResponse,
+  unwrapApiData,
+  withApiError,
+} from "@/shared/api/apiResponse";
 import { apiClient } from "@/shared/api/client";
 
 /** GET /products/{id}/home */
