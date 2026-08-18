@@ -50,13 +50,14 @@ export async function updateNotificationSettings(
 /** GET /users/me/consents */
 export async function getConsents() {
   return withApiError(async () => {
-    const response = await apiClient.get<ApiResponse<ConsentStatus[]>>(
-      "/users/me/consents",
-    );
+    const response =
+      await apiClient.get<ApiResponse<ConsentStatus[]>>("/users/me/consents");
 
     return (
-      unwrapNullableApiData(response.data, "약관 동의 내역을 불러오지 못했습니다.") ??
-      []
+      unwrapNullableApiData(
+        response.data,
+        "약관 동의 내역을 불러오지 못했습니다.",
+      ) ?? []
     );
   }, "약관 동의 내역을 불러오는 데 실패했습니다.");
 }
