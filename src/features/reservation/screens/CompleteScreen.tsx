@@ -1,9 +1,9 @@
-import { useRouter } from "expo-router";
-import { Text, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ActivityIndicator, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { formatDateDot } from "@/features/reservation/format";
-import { useReservationStore } from "@/features/reservation/store";
+import { formatDateDot, toReservationDateTime } from "@/features/reservation/format";
+import { useReservation } from "@/features/reservation/hooks/useReservation";
 import { CheckmarkCircleIcon } from "@/shared/components/icons/CheckmarkCircleIcon";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
@@ -21,8 +21,14 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 export function CompleteScreen() {
   const router = useRouter();
-  const confirmed = useReservationStore((state) => state.confirmed);
-  const isFree = confirmed?.careType === "FREE";
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const reservationId = id ? Number(id) : null;
+  const { data: reservation, isPending, error } = useReservation(reservationId);
+
+  const isFree = reservation?.reservationType === "FREE";
+  const dateTime = reservation
+    ? toReservationDateTime(reservation.reservedDate, reservation.reservedTime)
+    : null;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -30,7 +36,7 @@ export function CompleteScreen() {
         <ScreenHeader title="" onBack={() => router.back()} />
       </View>
 
-      {confirmed ? (
+      {reservation && dateTime ? (
         <View className="flex-1 px-6 pt-4">
           <View className="items-center mt-10">
             <CheckmarkCircleIcon />
@@ -47,10 +53,10 @@ export function CompleteScreen() {
           </View>
 
           <View className="mt-6 gap-1 rounded-xl px-4 py-3.5">
-            <InfoRow label="제품" value={confirmed.productName} />
-            <InfoRow label="매장" value={confirmed.storeName} />
-            <InfoRow label="날짜" value={formatDateDot(confirmed.date)} />
-            <InfoRow label="시간" value={confirmed.time} />
+            <InfoRow label="제품" value={reservation.productName ?? "-"} />
+            <InfoRow label="매장" value={reservation.storeName ?? "-"} />
+            <InfoRow label="날짜" value={formatDateDot(dateTime.date)} />
+            <InfoRow label="시간" value={dateTime.time} />
           </View>
 
           <View className="mt-4 gap-1.5 rounded-xl bg-concierge-surfaceMuted px-4 py-3">
@@ -69,15 +75,24 @@ export function CompleteScreen() {
           <View className="pb-10">
             <PrimaryButton
               label="예약 상세 보기"
-              onPress={() => router.replace("/reservation/detail")}
+              onPress={() =>
+                router.replace({
+                  pathname: "/reservation/detail",
+                  params: { id: String(reservation.id) },
+                })
+              }
             />
           </View>
         </View>
       ) : (
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-sm text-concierge-textMuted">
-            확인된 예약 정보가 없어요.
-          </Text>
+          {isPending && reservationId !== null ? (
+            <ActivityIndicator />
+          ) : (
+            <Text className="text-sm text-concierge-textMuted">
+              {error?.message ?? "확인된 예약 정보가 없어요."}
+            </Text>
+          )}
         </View>
       )}
     </SafeAreaView>

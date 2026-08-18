@@ -10,9 +10,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useCareDiagnosisHome } from "@/features/care/hooks/useCare";
+import { useCurrentProduct } from "@/features/product/hooks/useProduct";
 import productPhoto from "@/features/reservation/assets/product-mcm-aren-shopper.png";
+import { DEFAULT_SERVICE_TYPE } from "@/features/reservation/constants";
 import { formatDateShort } from "@/features/reservation/format";
+import { useCreateReservation } from "@/features/reservation/hooks/useReservation";
 import { useReservationStore } from "@/features/reservation/store";
+import { formatLocalDate, toLocalTime } from "@/shared/api/localTime";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { WarningIcon } from "@/shared/components/icons/WarningIcon";
@@ -59,18 +64,82 @@ export function InputScreen() {
   const router = useRouter();
   const draft = useReservationStore((state) => state.draft);
   const setDraftNote = useReservationStore((state) => state.setDraftNote);
-  const confirmDraft = useReservationStore((state) => state.confirmDraft);
+  const resetDraft = useReservationStore((state) => state.resetDraft);
+  const careType = useReservationStore((state) => state.pendingCareType);
 
-  const canSubmit = Boolean(draft.storeName && draft.date && draft.time);
-  const [noticeVisible, setNoticeVisible] = useState(false);
+  const {
+    product,
+    productId,
+    isAuthenticated,
+    isPending: isProductPending,
+    hasNoProduct,
+  } = useCurrentProduct();
+  const { data: diagnosis } = useCareDiagnosisHome(productId);
+  const createReservation = useCreateReservation();
+
+  const [notice, setNotice] = useState<{ title: string; description: string } | null>(
+    null,
+  );
 
   const handleSubmit = () => {
-    if (!canSubmit) {
-      setNoticeVisible(true);
+    // 매장·일정 미입력과 "제품을 못 찾음"은 원인이 달라서 안내도 따로 띄워요.
+    if (!draft.storeId || !draft.date || !draft.time) {
+      setNotice({
+        title: "예약 정보를 모두 입력해 주세요.",
+        description:
+          "예약을 요청하려면 방문 매장과 방문 일정을 모두 선택해 주세요.",
+      });
       return;
     }
-    confirmDraft();
-    router.replace("/reservation/complete");
+
+    if (!isAuthenticated) {
+      setNotice({
+        title: "로그인이 필요해요.",
+        description: "예약을 요청하려면 다시 로그인해 주세요.",
+      });
+      return;
+    }
+
+    if (isProductPending) {
+      setNotice({
+        title: "제품 정보를 불러오는 중이에요.",
+        description: "잠시 후 다시 시도해 주세요.",
+      });
+      return;
+    }
+
+    if (productId === null) {
+      setNotice({
+        title: hasNoProduct
+          ? "등록된 제품이 없어요."
+          : "제품 정보를 불러오지 못했어요.",
+        description: hasNoProduct
+          ? "케어 예약은 등록된 제품에만 가능해요. 제품을 먼저 등록해 주세요."
+          : "네트워크 상태를 확인한 뒤 다시 시도해 주세요.",
+      });
+      return;
+    }
+
+    createReservation.mutate(
+      {
+        productId,
+        storeId: draft.storeId,
+        reservationType: careType,
+        serviceType: DEFAULT_SERVICE_TYPE,
+        reservedDate: formatLocalDate(draft.date),
+        reservedTime: toLocalTime(draft.time),
+        customerNote: draft.note.trim() || undefined,
+      },
+      {
+        onSuccess: (reservation) => {
+          resetDraft();
+          router.replace({
+            pathname: "/reservation/complete",
+            params: { id: String(reservation.id) },
+          });
+        },
+      },
+    );
   };
 
   return (
@@ -86,19 +155,26 @@ export function InputScreen() {
       >
         <Card className="mt-4 flex-row items-center gap-3 border-0 bg-concierge-surfaceMuted px-4 py-4">
           <Image
-            source={productPhoto}
+            source={
+              product?.productImageUrl ? { uri: product.productImageUrl } : productPhoto
+            }
             className="size-[78px] rounded-2xl"
             resizeMode="cover"
           />
-          <View>
+          <View className="flex-1">
             <Text className="text-base font-semibold text-[#121212]">
-              Ella 바세토스 보스턴 백
+              {product?.productName ?? "등록된 제품이 없어요"}
             </Text>
             <Text className="mt-1 text-[13px] text-[#63635E]">
-              Visetos Canvas · Cognac
+              {[product?.materialDisplayName, product?.color]
+                .filter(Boolean)
+                .join(" · ") || "-"}
             </Text>
             <Text className="mt-1 text-[13px] font-medium text-[#121212]">
-              함께한 외출 50회
+              함께한 외출{" "}
+              {diagnosis?.totalOutingCount != null
+                ? `${diagnosis.totalOutingCount}회`
+                : "-회"}
             </Text>
           </View>
         </Card>
@@ -126,7 +202,7 @@ export function InputScreen() {
                 : "매장을 먼저 선택해 주세요"
             }
             onPress={() => router.push("/reservation/datetime")}
-            disabled={!draft.storeName}
+            disabled={!draft.storeId}
           />
         </Card>
 
@@ -162,17 +238,27 @@ export function InputScreen() {
             선택한 매장과 시간의 가능 여부를 확인한 뒤 예약이 확정됩니다.
           </Text>
         </View>
+
+        {createReservation.error ? (
+          <Text className="mt-3 text-xs text-[#C04737]">
+            {createReservation.error.message}
+          </Text>
+        ) : null}
       </ScrollView>
 
       <View className="px-6 pb-6 pt-2">
-        <PrimaryButton label="예약 요청하기" onPress={handleSubmit} />
+        <PrimaryButton
+          label={createReservation.isPending ? "요청 중..." : "예약 요청하기"}
+          onPress={handleSubmit}
+          disabled={createReservation.isPending}
+        />
       </View>
 
       <NoticeModal
-        visible={noticeVisible}
-        title="예약 정보를 모두 입력해 주세요."
-        description="예약을 요청하려면 방문 매장과 방문 일정을 모두 선택해 주세요."
-        onConfirm={() => setNoticeVisible(false)}
+        visible={notice !== null}
+        title={notice?.title ?? ""}
+        description={notice?.description ?? ""}
+        onConfirm={() => setNotice(null)}
       />
     </SafeAreaView>
   );
