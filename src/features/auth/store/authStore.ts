@@ -1,11 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 
-import type { AuthTokens, LoginRequest } from "@/features/auth/types";
+import { login, logout, refreshToken } from "@/features/auth/api/authApi";
+import type { AuthTokens, LoginRequest, UserProfile } from "@/features/auth/types";
 
 const AUTH_TOKENS_KEY = "mxis.auth.tokens";
-const MOCK_LOGIN_ID = "1234";
-const MOCK_LOGIN_PASSWORD = "1234";
 
 type AuthStatus = "idle" | "checking" | "authenticated" | "guest";
 
@@ -13,6 +12,7 @@ type AuthState = {
   accessToken: string | null;
   refreshTokenValue: string | null;
   tokenType: string;
+  user: UserProfile | null;
   status: AuthStatus;
   signIn: (request: LoginRequest) => Promise<void>;
   signInWithKakao: (accessToken: string) => Promise<void>;
@@ -43,52 +43,33 @@ async function removeTokens() {
   await AsyncStorage.removeItem(AUTH_TOKENS_KEY);
 }
 
-function isMockLogin(request: LoginRequest) {
-  return (
-    request.email === MOCK_LOGIN_ID && request.password === MOCK_LOGIN_PASSWORD
-  );
-}
-
-function createMockTokens(): AuthTokens {
-  return {
-    accessToken: "mock-access-token",
-    refreshToken: "mock-refresh-token",
-    tokenType: "Bearer",
-  };
-}
-
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   refreshTokenValue: null,
   tokenType: "Bearer",
+  user: null,
   status: "idle",
 
   signIn: async (request) => {
-    if (!isMockLogin(request)) {
-      throw new Error("아이디 또는 비밀번호를 다시 확인해 주세요.");
-    }
-
-    const tokens = createMockTokens();
+    const response = await login(request);
+    const tokens: AuthTokens = {
+      accessToken: response.accessToken,
+      refreshToken: response.refreshToken,
+      tokenType: response.tokenType,
+    };
     await saveTokens(tokens);
 
     set({
       accessToken: tokens.accessToken,
       refreshTokenValue: tokens.refreshToken,
       tokenType: tokens.tokenType,
+      user: response.user,
       status: "authenticated",
     });
   },
 
   signInWithKakao: async () => {
-    const tokens = createMockTokens();
-    await saveTokens(tokens);
-
-    set({
-      accessToken: tokens.accessToken,
-      refreshTokenValue: tokens.refreshToken,
-      tokenType: tokens.tokenType,
-      status: "authenticated",
-    });
+    throw new Error("카카오 로그인은 현재 비활성화되어 있습니다.");
   },
 
   restoreSession: async () => {
@@ -101,23 +82,52 @@ export const useAuthStore = create<AuthState>((set) => ({
       return false;
     }
 
-    set({
-      accessToken: storedTokens.accessToken,
-      refreshTokenValue: storedTokens.refreshToken,
-      tokenType: storedTokens.tokenType,
-      status: "authenticated",
-    });
+    try {
+      const response = await refreshToken(storedTokens.refreshToken);
+      const tokens: AuthTokens = {
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+        tokenType: response.tokenType,
+      };
+      await saveTokens(tokens);
 
-    return true;
+      set({
+        accessToken: tokens.accessToken,
+        refreshTokenValue: tokens.refreshToken,
+        tokenType: tokens.tokenType,
+        user: response.user,
+        status: "authenticated",
+      });
+
+      return true;
+    } catch {
+      await removeTokens();
+      set({
+        accessToken: null,
+        refreshTokenValue: null,
+        tokenType: "Bearer",
+        user: null,
+        status: "guest",
+      });
+
+      return false;
+    }
   },
 
   signOut: async () => {
+    const { accessToken, tokenType } = get();
+
+    if (accessToken) {
+      await logout(accessToken, tokenType);
+    }
+
     await removeTokens();
 
     set({
       accessToken: null,
       refreshTokenValue: null,
       tokenType: "Bearer",
+      user: null,
       status: "guest",
     });
   },

@@ -4,6 +4,15 @@ export type AuthTokens = {
   tokenType: "Bearer" | string;
 };
 
+export type UserProfile = {
+  id: number;
+  email: string;
+  name: string;
+  phone?: string | null;
+  provider: "LOCAL" | string;
+  createdAt: string;
+};
+
 export type LoginRequest = {
   email: string;
   password: string;
