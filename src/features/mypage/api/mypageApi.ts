@@ -34,7 +34,9 @@ export async function getNotificationSettings() {
 }
 
 /** PATCH /users/me/notification-settings */
-export async function updateNotificationSettings(request: NotificationSettingUpdate) {
+export async function updateNotificationSettings(
+  request: NotificationSettingUpdate,
+) {
   return withApiError(async () => {
     const response = await apiClient.patch<ApiResponse<NotificationSetting>>(
       "/users/me/notification-settings",

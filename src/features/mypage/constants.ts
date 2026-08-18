@@ -1,6 +1,5 @@
 import type { ConsentType, NotificationSetting } from "@/features/mypage/types";
 
-/** 알림 설정 스위치 — key는 NotificationSettingResponse 필드명과 1:1로 맞췄어요. */
 export const NOTIFICATION_ITEMS: {
   key: keyof Pick<
     NotificationSetting,
@@ -19,7 +18,6 @@ export const NOTIFICATION_ITEMS: {
   { key: "marketingEnabled", label: "브랜드 소식·마케팅 알림" },
 ];
 
-/** 약관 동의 항목이 없을 때 POST /users/me/consents에 보낼 기본 버전 */
 export const DEFAULT_TERMS_VERSION = "1.0";
 
 export const CONSENT_LABELS: Record<ConsentType, string> = {
