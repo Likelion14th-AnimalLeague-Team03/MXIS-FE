@@ -79,22 +79,15 @@ const TERMS_SECTIONS: TermsSection[] = [
     groups: [
       {
         heading: "수집 항목",
-        content: "이름, 이메일, 제품 정보, Smart Charm 연동 정보, 센서 기록 데이터",
+        content:
+          "이름, 이메일, 제품 정보, Smart Charm 연동 정보, 센서 기록 데이터",
       },
-      { heading: "이용 목적", content: "회원 관리 · 제품 케어 · 예약 및 알림 제공" },
+      {
+        heading: "이용 목적",
+        content: "회원 관리 · 제품 케어 · 예약 및 알림 제공",
+      },
     ],
     linkLabel: "개인정보 처리방침 전문 보기",
-  },
-  {
-    key: "sensor",
-    consentType: "SENSOR_DATA",
-    label: "센서 데이터 수집 약관",
-    meta: "시행일 2026.08.01",
-    description: "MXIS Charm이 측정한 환경·사용 기록을 케어 진단에 활용합니다.",
-    groups: [
-      { heading: "수집 항목", content: "온도 · 습도 · 충격 · 이동 기록" },
-      { heading: "이용 목적", content: "케어 진단 · 환경 리포트 · 케어 시점 안내" },
-    ],
   },
   {
     key: "marketing",
@@ -103,7 +96,10 @@ const TERMS_SECTIONS: TermsSection[] = [
     meta: "선택 동의",
     description: "MCM의 새로운 제품과 브랜드 소식을 받아볼 수 있어요.",
     groups: [
-      { heading: "안내 내용", content: "신제품 · 컬렉션 · 브랜드 이벤트 · MXIS 혜택" },
+      {
+        heading: "안내 내용",
+        content: "신제품 · 컬렉션 · 브랜드 이벤트 · MXIS 혜택",
+      },
       { heading: "수신 방법", content: "앱 푸시 알림" },
     ],
     note: "동의하지 않아도 기본 서비스 이용에는 제한이 없습니다.",
@@ -112,7 +108,10 @@ const TERMS_SECTIONS: TermsSection[] = [
 ];
 
 // "내 정보 확인"/"알림 설정"도 약관 항목들과 같은 아코디언 그룹에 속해요 — 키 하나로 통일해서 관리합니다.
-type SectionKey = "info" | "notifications" | (typeof TERMS_SECTIONS)[number]["key"];
+type SectionKey =
+  | "info"
+  | "notifications"
+  | (typeof TERMS_SECTIONS)[number]["key"];
 
 export function MyPageScreen() {
   const router = useRouter();
@@ -167,7 +166,9 @@ export function MyPageScreen() {
   };
 
   const findConsent = (consentType?: ConsentType) =>
-    consentType ? consents?.find((item) => item.consentType === consentType) : undefined;
+    consentType
+      ? consents?.find((item) => item.consentType === consentType)
+      : undefined;
 
   const handleToggleConsent = (consentType: ConsentType, agreed: boolean) => {
     const current = findConsent(consentType);
@@ -216,7 +217,9 @@ export function MyPageScreen() {
           </View>
           <View className="flex-1 gap-0.5">
             <Text className="text-sm font-bold text-concierge-text">
-              {isProfileLoading && !profile ? "내 정보를 불러오는 중" : displayName}
+              {isProfileLoading && !profile
+                ? "내 정보를 불러오는 중"
+                : displayName}
             </Text>
             <Text className="text-sm text-concierge-textSecondary">
               {displayEmail}
@@ -243,7 +246,9 @@ export function MyPageScreen() {
             </Text>
             <View
               style={{
-                transform: [{ rotate: openKey === "info" ? "-90deg" : "90deg" }],
+                transform: [
+                  { rotate: openKey === "info" ? "-90deg" : "90deg" },
+                ],
               }}
             >
               <ChevronRightIcon size={6} color="#63635E" />
@@ -264,7 +269,9 @@ export function MyPageScreen() {
                 <Text className="text-sm text-concierge-textSecondary">
                   이메일
                 </Text>
-                <Text className="text-sm text-concierge-text">{displayEmail}</Text>
+                <Text className="text-sm text-concierge-text">
+                  {displayEmail}
+                </Text>
               </View>
               <View className="flex-row items-center justify-between border-t border-concierge-borderLight px-4 py-3">
                 <Text className="text-sm text-concierge-textSecondary">
@@ -276,9 +283,7 @@ export function MyPageScreen() {
               </View>
               {profileError ? (
                 <View className="border-t border-concierge-borderLight px-4 py-3">
-                  <Text className="text-xs text-[#C04737]">
-                    {profileError}
-                  </Text>
+                  <Text className="text-xs text-[#C04737]">{profileError}</Text>
                 </View>
               ) : null}
             </View>
@@ -353,15 +358,13 @@ export function MyPageScreen() {
                     {section.label}
                   </Text>
                   <View className="flex-row items-center gap-2">
-                    {consent ? (
-                      <Text className="text-[11px] text-concierge-textMuted">
-                        {consent.agreed ? "동의" : "미동의"}
-                      </Text>
-                    ) : null}
                     <View
                       style={{
                         transform: [
-                          { rotate: openKey === section.key ? "-90deg" : "90deg" },
+                          {
+                            rotate:
+                              openKey === section.key ? "-90deg" : "90deg",
+                          },
                         ],
                       }}
                     >
