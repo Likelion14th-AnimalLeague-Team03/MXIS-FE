@@ -72,15 +72,20 @@ function getCharmImage(device: Device): ImageSourcePropType | null {
   return null;
 }
 
-function isSameProduct(product: Product | null, summary?: DeviceManagementSummary | null) {
+function isSameProduct(
+  product: Product | null,
+  summary?: DeviceManagementSummary | null,
+) {
   return Boolean(
     product &&
-      summary?.primaryProduct &&
-      product.id === summary.primaryProduct.productId,
+    summary?.primaryProduct &&
+    product.id === summary.primaryProduct.productId,
   );
 }
 
-function getProductSummaryProductId(summary?: ProductDeviceManagementSummary | null) {
+function getProductSummaryProductId(
+  summary?: ProductDeviceManagementSummary | null,
+) {
   return summary?.product?.productId ?? summary?.product?.id ?? null;
 }
 
@@ -152,7 +157,10 @@ function formatTemperature(
   product: Product | null,
   summary?: ProductDeviceManagementSummary | null,
 ) {
-  if (!isSameProductSummary(product, summary) || summary?.currentEnvironment == null) {
+  if (
+    !isSameProductSummary(product, summary) ||
+    summary?.currentEnvironment == null
+  ) {
     return "-°C";
   }
 
@@ -164,7 +172,10 @@ function formatHumidity(
   product: Product | null,
   summary?: ProductDeviceManagementSummary | null,
 ) {
-  if (!isSameProductSummary(product, summary) || summary?.currentEnvironment == null) {
+  if (
+    !isSameProductSummary(product, summary) ||
+    summary?.currentEnvironment == null
+  ) {
     return "-%";
   }
 
@@ -193,9 +204,7 @@ function formatLastSyncedAt(device: DisplayCharm | null) {
 function Pill({ label }: { label: string }) {
   return (
     <View className="rounded-full border border-[#814C27] px-[9px] py-[3px]">
-      <Text className="text-[11px] font-medium text-[#814C27]">
-        {label}
-      </Text>
+      <Text className="text-[11px] font-medium text-[#814C27]">{label}</Text>
     </View>
   );
 }
@@ -278,7 +287,9 @@ export function DeviceScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const accessToken = useAuthStore((state) => state.accessToken);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(
+    null,
+  );
   const [pendingDeviceId, setPendingDeviceId] = useState<number | null>(null);
   const [charmExpanded, setCharmExpanded] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -318,12 +329,17 @@ export function DeviceScreen() {
     const primaryProduct =
       products.find((product) => product.isPrimary) ??
       products.find(
-        (product) => product.id === summaryQuery.data?.primaryProduct?.productId,
+        (product) =>
+          product.id === summaryQuery.data?.primaryProduct?.productId,
       ) ??
       products[0];
 
     setSelectedProductId(primaryProduct.id);
-  }, [products, selectedProductId, summaryQuery.data?.primaryProduct?.productId]);
+  }, [
+    products,
+    selectedProductId,
+    summaryQuery.data?.primaryProduct?.productId,
+  ]);
 
   const selectedIndex = products.findIndex(
     (product) => product.id === selectedProductId,
@@ -331,8 +347,8 @@ export function DeviceScreen() {
   const selectedProduct = selectedIndex >= 0 ? products[selectedIndex] : null;
   const isMainProduct = Boolean(
     selectedProduct &&
-      (selectedProduct.isPrimary ||
-        selectedProduct.id === summaryQuery.data?.primaryProduct?.productId),
+    (selectedProduct.isPrimary ||
+      selectedProduct.id === summaryQuery.data?.primaryProduct?.productId),
   );
 
   const productDevicesQuery = useQuery({
@@ -342,7 +358,8 @@ export function DeviceScreen() {
   });
   const productSummaryQuery = useQuery({
     queryKey: deviceQueryKeys.productSummary(selectedProduct?.id ?? null),
-    queryFn: () => getProductDeviceManagementSummary(selectedProduct?.id as number),
+    queryFn: () =>
+      getProductDeviceManagementSummary(selectedProduct?.id as number),
     enabled: enabled && Boolean(selectedProduct?.id),
   });
 
@@ -362,25 +379,34 @@ export function DeviceScreen() {
     displayCharms.find((device) => device.id === primaryDeviceLink?.deviceId) ??
     null;
   const summaryPrimaryDevice = selectedProductSummary?.primaryDevice ?? null;
-  const displayConnectedCharm =
-    connectedCharm ??
-    (summaryPrimaryDevice
-      ? ({
-          id: summaryPrimaryDevice.deviceId,
-          serialNumber: summaryPrimaryDevice.serialNumber,
-          deviceName: summaryPrimaryDevice.deviceName ?? summaryPrimaryDevice.serialNumber,
-          deviceImageUrl: summaryPrimaryDevice.deviceImageUrl ?? null,
-          batteryLevel: summaryPrimaryDevice.batteryLevel ?? null,
-          connectionStatus: summaryPrimaryDevice.connectionStatus ?? "DISCONNECTED",
-          lastSyncedAt: summaryPrimaryDevice.lastSyncedAt ?? null,
-          registeredAt: "",
-          image: summaryPrimaryDevice.deviceImageUrl
-            ? { uri: summaryPrimaryDevice.deviceImageUrl }
-            : null,
-        } satisfies DisplayCharm)
-      : null);
+  const displayConnectedCharm = useMemo(() => {
+    if (connectedCharm) {
+      return connectedCharm;
+    }
+
+    if (!summaryPrimaryDevice) {
+      return null;
+    }
+
+    return {
+      id: summaryPrimaryDevice.deviceId,
+      serialNumber: summaryPrimaryDevice.serialNumber,
+      deviceName:
+        summaryPrimaryDevice.deviceName ?? summaryPrimaryDevice.serialNumber,
+      deviceImageUrl: summaryPrimaryDevice.deviceImageUrl ?? null,
+      batteryLevel: summaryPrimaryDevice.batteryLevel ?? null,
+      connectionStatus: summaryPrimaryDevice.connectionStatus ?? "DISCONNECTED",
+      lastSyncedAt: summaryPrimaryDevice.lastSyncedAt ?? null,
+      registeredAt: "",
+      image: summaryPrimaryDevice.deviceImageUrl
+        ? { uri: summaryPrimaryDevice.deviceImageUrl }
+        : null,
+    } satisfies DisplayCharm;
+  }, [connectedCharm, summaryPrimaryDevice]);
   const lastKnownCharm =
-    selectedProduct?.id != null ? lastCharmByProductId[selectedProduct.id] : null;
+    selectedProduct?.id != null
+      ? lastCharmByProductId[selectedProduct.id]
+      : null;
   const cardCharm = displayConnectedCharm ?? lastKnownCharm ?? null;
   const connectedDeviceId = displayConnectedCharm?.id ?? null;
   const pendingCharm =
@@ -409,19 +435,36 @@ export function DeviceScreen() {
   useEffect(() => {
     if (!selectedProduct || !displayConnectedCharm) return;
 
-    setLastCharmByProductId((current) => ({
-      ...current,
-      [selectedProduct.id]: displayConnectedCharm,
-    }));
-  }, [displayConnectedCharm, selectedProduct]);
+    setLastCharmByProductId((current) => {
+      const previous = current[selectedProduct.id];
+
+      if (
+        previous?.id === displayConnectedCharm.id &&
+        previous?.serialNumber === displayConnectedCharm.serialNumber &&
+        previous?.batteryLevel === displayConnectedCharm.batteryLevel &&
+        previous?.connectionStatus === displayConnectedCharm.connectionStatus &&
+        previous?.lastSyncedAt === displayConnectedCharm.lastSyncedAt
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [selectedProduct.id]: displayConnectedCharm,
+      };
+    });
+  }, [displayConnectedCharm, selectedProduct?.id]);
 
   const visibleProducts = useMemo(() => {
     if (!selectedProduct || products.length === 0) return [];
 
-    const previous = products[(selectedIndex - 1 + products.length) % products.length];
+    const previous =
+      products[(selectedIndex - 1 + products.length) % products.length];
     const next = products[(selectedIndex + 1) % products.length];
 
-    return products.length === 1 ? [selectedProduct] : [previous, selectedProduct, next];
+    return products.length === 1
+      ? [selectedProduct]
+      : [previous, selectedProduct, next];
   }, [products, selectedIndex, selectedProduct]);
 
   const invalidateDeviceQueries = async () => {
@@ -443,7 +486,9 @@ export function DeviceScreen() {
     onSuccess: invalidateDeviceQueries,
     onError: (error) =>
       setErrorMessage(
-        error instanceof Error ? error.message : "메인 가방 지정에 실패했습니다.",
+        error instanceof Error
+          ? error.message
+          : "메인 가방 지정에 실패했습니다.",
       ),
   });
 
@@ -483,7 +528,9 @@ export function DeviceScreen() {
       await invalidateDeviceQueries();
     },
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "참 연결에 실패했습니다."),
+      setErrorMessage(
+        error instanceof Error ? error.message : "참 연결에 실패했습니다.",
+      ),
   });
 
   const disconnectMutation = useMutation({
@@ -509,14 +556,17 @@ export function DeviceScreen() {
       await invalidateDeviceQueries();
     },
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "참 삭제에 실패했습니다."),
+      setErrorMessage(
+        error instanceof Error ? error.message : "참 삭제에 실패했습니다.",
+      ),
   });
 
   const moveProduct = (direction: "prev" | "next") => {
     if (products.length === 0 || selectedIndex < 0) return;
 
     const offset = direction === "prev" ? -1 : 1;
-    const nextIndex = (selectedIndex + offset + products.length) % products.length;
+    const nextIndex =
+      (selectedIndex + offset + products.length) % products.length;
     setSelectedProductId(products[nextIndex].id);
     setPendingDeviceId(null);
     setCharmExpanded(false);
@@ -708,7 +758,11 @@ export function DeviceScreen() {
 
           <Pressable
             onPress={handleSetPrimaryProduct}
-            disabled={isMainProduct || !selectedProduct || primaryProductMutation.isPending}
+            disabled={
+              isMainProduct ||
+              !selectedProduct ||
+              primaryProductMutation.isPending
+            }
             className={`mt-[18px] h-[48px] items-center justify-center rounded-[10px] ${
               isMainProduct ? "bg-[rgba(195,195,195,0.6)]" : "bg-[#814C27]"
             }`}
@@ -745,7 +799,9 @@ export function DeviceScreen() {
                   <View
                     className="h-2 w-2 rounded-full"
                     style={{
-                      backgroundColor: hasConnectedCharm ? "#71EBA3" : "#898989",
+                      backgroundColor: hasConnectedCharm
+                        ? "#71EBA3"
+                        : "#898989",
                     }}
                   />
                   <Text className="text-[14px] font-semibold text-[#121212]">
@@ -863,7 +919,11 @@ export function DeviceScreen() {
                     ) : (
                       <Pressable
                         onPress={handleConnectCharm}
-                        disabled={!pendingCharm || !selectedProduct || connectMutation.isPending}
+                        disabled={
+                          !pendingCharm ||
+                          !selectedProduct ||
+                          connectMutation.isPending
+                        }
                         className="h-7 items-center justify-center rounded-[6px] bg-[#814C27] px-3"
                       >
                         <Text className="text-[12px] font-medium text-white">

@@ -4,7 +4,11 @@ import type {
   CareGuide,
   CareReportScreen,
 } from "@/features/care/types";
-import { type ApiResponse, unwrapApiData, withApiError } from "@/shared/api/apiResponse";
+import {
+  type ApiResponse,
+  unwrapApiData,
+  withApiError,
+} from "@/shared/api/apiResponse";
 import { apiClient } from "@/shared/api/client";
 
 /** GET /care/products/{productId}/diagnosis-home */
@@ -14,7 +18,10 @@ export async function getCareDiagnosisHome(productId: number) {
       `/care/products/${productId}/diagnosis-home`,
     );
 
-    return unwrapApiData(response.data, "케어 진단 정보를 불러오지 못했습니다.");
+    return unwrapApiData(
+      response.data,
+      "케어 진단 정보를 불러오지 못했습니다.",
+    );
   }, "케어 진단 정보를 불러오는 데 실패했습니다.");
 }
 

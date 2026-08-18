@@ -21,7 +21,10 @@ const ACCENT_TEXT = "#814C27";
 
 type Grade = "EXCELLENT" | "STANDARD" | "NEEDS_ATTENTION";
 
-const GRADE_CONTENT: Record<Grade, { label: string; description: string; color: string }> = {
+const GRADE_CONTENT: Record<
+  Grade,
+  { label: string; description: string; color: string }
+> = {
   EXCELLENT: {
     label: "Excellent",
     description: "가벼운 케어와 함께 컨디션을 유지해 주세요.",
@@ -71,7 +74,9 @@ function UpcomingReservationCard({
             D-{Math.max(reservation.dDay, 0)}
           </Text>
         </View>
-        <Text className="flex-1 text-sm text-concierge-text">다가오는 예약</Text>
+        <Text className="flex-1 text-sm text-concierge-text">
+          다가오는 예약
+        </Text>
       </View>
       <Text className="mt-3 text-sm font-semibold text-concierge-text">
         {formatDateShort(date)}
@@ -139,12 +144,16 @@ export function HomeScreen() {
           <Text className="text-[15px] font-semibold text-[#747270]">
             안녕하세요, {home?.userName ?? "고객"}님!
           </Text>
-          <Text className="mt-1 text-2xl font-bold text-concierge-text">{headline}</Text>
+          <Text className="mt-1 text-2xl font-bold text-concierge-text">
+            {headline}
+          </Text>
         </View>
 
         <Image
-          source={home?.productImageUrl ? { uri: home.productImageUrl } : homeProduct}
-          className="mx-auto mt-4 h-[208px] w-[356px] rounded-2xl"
+          source={
+            home?.productImageUrl ? { uri: home.productImageUrl } : homeProduct
+          }
+          className="mx-auto mt-4 h-[230px] w-[356px] rounded-2xl"
           resizeMode="cover"
         />
 
@@ -177,18 +186,33 @@ export function HomeScreen() {
               </Text>
             </View>
             {grade ? (
-              <ProgressRing percent={score} color={GRADE_CONTENT[grade].color} size={60} />
+              <ProgressRing
+                percent={score}
+                color={GRADE_CONTENT[grade].color}
+                size={60}
+              />
             ) : productState === "COLLECTING" ? (
-              <Image source={clockIcon} className="size-13" resizeMode="contain" />
+              <Image
+                source={clockIcon}
+                className="size-13"
+                resizeMode="contain"
+              />
             ) : (
-              <Image source={updateIcon} className="size-13" resizeMode="contain" />
+              <Image
+                source={updateIcon}
+                className="size-13"
+                resizeMode="contain"
+              />
             )}
           </Card>
 
           <View className="mt-4 flex-row gap-3">
             <Card className="flex-1 border-0 bg-white px-4 py-5">
               <Text className="text-sm text-concierge-text">함께한 날짜</Text>
-              <Text className="mt-5 text-xl font-bold" style={{ color: ACCENT_TEXT }}>
+              <Text
+                className="mt-5 text-xl font-bold"
+                style={{ color: ACCENT_TEXT }}
+              >
                 {home?.daysTogether != null ? `${home.daysTogether}일` : "-일"}
               </Text>
             </Card>
@@ -206,7 +230,9 @@ export function HomeScreen() {
                 />
               ) : (
                 <>
-                  <Text className="text-sm text-concierge-text">다가오는 예약</Text>
+                  <Text className="text-sm text-concierge-text">
+                    다가오는 예약
+                  </Text>
 
                   <Text
                     className="mt-5 text-sm font-semibold"
@@ -225,7 +251,9 @@ export function HomeScreen() {
                     onPress={() => router.push("/reservation/input")}
                     className="mt-2 flex-row items-center justify-between"
                   >
-                    <Text className="text-sm text-concierge-text">케어 예약하기</Text>
+                    <Text className="text-sm text-concierge-text">
+                      케어 예약하기
+                    </Text>
                     <ChevronRightIcon size={7} />
                   </Pressable>
                 </>

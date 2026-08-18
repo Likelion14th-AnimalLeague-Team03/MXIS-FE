@@ -10,7 +10,7 @@ import temperatureIcon from "@/features/care/assets/temperature.png";
 import waterIcon from "@/features/care/assets/water.png";
 import { useCareDiagnosisHome } from "@/features/care/hooks/useCare";
 import { PRODUCTS } from "@/features/device/constants";
-import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
+import { useCurrentProduct } from "@/features/product/hooks/useProduct";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 
@@ -55,16 +55,40 @@ function StatCard({
   );
 }
 
+function getTextValue(value: string | null | undefined, fallback: string) {
+  return value?.trim() || fallback;
+}
+
 export function CareHomeScreen() {
   const router = useRouter();
-  const { productId } = usePrimaryProductId();
-  const { data: diagnosis, isPending, error } = useCareDiagnosisHome(productId);
+  const {
+    productId,
+    isAuthenticated,
+    isPending: isProductPending,
+    hasNoProduct,
+    error: productError,
+  } = useCurrentProduct();
+  const {
+    data: diagnosis,
+    isPending: isDiagnosisPending,
+    error,
+  } = useCareDiagnosisHome(productId);
 
+  const isPending =
+    isProductPending || (productId !== null && isDiagnosisPending);
   const product = diagnosis?.product;
   const environment = diagnosis?.environment30d;
   // 환경 30일 요약이 비어 있으면 아직 데이터가 모이는 중으로 봐요.
-  const hasData = environment?.avgTemperature != null || environment?.avgHumidity != null;
+  const hasData =
+    environment?.avgTemperature != null || environment?.avgHumidity != null;
   const fallbackImage = PRODUCTS[0].image;
+
+  // 제품을 못 구하면 케어 진단 요청 자체가 나가지 않으니, 그 이유를 화면에 그대로 보여줘요.
+  const blockedReason = !isAuthenticated
+    ? "로그인이 필요해요. 다시 로그인해 주세요."
+    : hasNoProduct
+      ? "등록된 제품이 없어요. 제품을 먼저 등록해 주세요."
+      : (productError?.message ?? error?.message ?? null);
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -87,17 +111,20 @@ export function CareHomeScreen() {
                     ? { uri: product.productImageUrl }
                     : fallbackImage
                 }
-                className="size-[250px] "
+                className="size-[180px] mt-5 "
                 resizeMode="contain"
               />
             </View>
           </View>
           <View className="flex-1 pr-3">
             <Text className="text-base font-bold text-concierge-text">
-              {product?.productName ?? (isPending ? "불러오는 중" : "등록된 제품 없음")}
+              {getTextValue(
+                product?.productName,
+                isPending ? "불러오는 중" : "등록된 제품 없음",
+              )}
             </Text>
             <Text className="mt-1 text-[11px] text-concierge-textMuted">
-              {[product?.materialDisplayName, product?.color]
+              {[product?.materialDisplayName?.trim(), product?.color?.trim()]
                 .filter(Boolean)
                 .join(" · ") || "-"}
             </Text>
@@ -145,8 +172,8 @@ export function CareHomeScreen() {
           </Pressable>
         </Card>
 
-        {error ? (
-          <Text className="mt-3 text-xs text-[#C04737]">{error.message}</Text>
+        {blockedReason ? (
+          <Text className="mt-3 text-xs text-[#C04737]">{blockedReason}</Text>
         ) : null}
 
         <Pressable
