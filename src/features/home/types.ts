@@ -1,11 +1,11 @@
-import type { LocalTime } from "@/shared/api/localTime";
+import type { LocalTimeLike } from "@/shared/api/localTime";
 
 /** OpenAPI: UpcomingReservation */
 export type UpcomingReservation = {
   reservationId: number;
   dDay: number;
   reservedDate: string;
-  reservedTime: LocalTime;
+  reservedTime: LocalTimeLike;
   storeName?: string | null;
 };
 

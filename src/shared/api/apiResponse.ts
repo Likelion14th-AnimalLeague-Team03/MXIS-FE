@@ -14,8 +14,27 @@ export type ApiResponse<T> = {
 
 export function getApiErrorMessage(error: unknown, fallbackMessage: string) {
   if (error instanceof AxiosError) {
-    const responseData = error.response?.data as ApiResponse<unknown> | undefined;
-    return responseData?.error?.message ?? fallbackMessage;
+    if (!error.response) {
+      // 응답 자체가 없으면 네트워크·타임아웃 문제예요.
+      return error.code === "ECONNABORTED"
+        ? "서버 응답이 지연되고 있어요. 잠시 후 다시 시도해 주세요."
+        : "네트워크 연결을 확인해 주세요.";
+    }
+
+    const responseData = error.response.data as
+      | (ApiResponse<unknown> & { message?: unknown })
+      | undefined;
+
+    // 우리 서버 규약(error.message) → Spring 기본 에러 본문(message) 순으로 찾아요.
+    if (responseData?.error?.message) {
+      return responseData.error.message;
+    }
+
+    if (typeof responseData?.message === "string" && responseData.message) {
+      return responseData.message;
+    }
+
+    return fallbackMessage;
   }
 
   if (error instanceof Error) {

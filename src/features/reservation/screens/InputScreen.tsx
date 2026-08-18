@@ -11,13 +11,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useCareDiagnosisHome } from "@/features/care/hooks/useCare";
-import { useCurrentProduct } from "@/features/product/hooks/useProduct";
+import { useManagedPrimaryProduct } from "@/features/device/hooks/useDevice";
 import productPhoto from "@/features/reservation/assets/product-mcm-aren-shopper.png";
 import { DEFAULT_SERVICE_TYPE } from "@/features/reservation/constants";
 import { formatDateShort } from "@/features/reservation/format";
 import { useCreateReservation } from "@/features/reservation/hooks/useReservation";
 import { useReservationStore } from "@/features/reservation/store";
-import { formatLocalDate, toLocalTime } from "@/shared/api/localTime";
+import { formatLocalDate, toLocalTimeString } from "@/shared/api/localTime";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { WarningIcon } from "@/shared/components/icons/WarningIcon";
@@ -72,14 +72,14 @@ export function InputScreen() {
     productId,
     isAuthenticated,
     isPending: isProductPending,
-    hasNoProduct,
-  } = useCurrentProduct();
+  } = useManagedPrimaryProduct();
   const { data: diagnosis } = useCareDiagnosisHome(productId);
   const createReservation = useCreateReservation();
 
-  const [notice, setNotice] = useState<{ title: string; description: string } | null>(
-    null,
-  );
+  const [notice, setNotice] = useState<{
+    title: string;
+    description: string;
+  } | null>(null);
 
   const handleSubmit = () => {
     // 매장·일정 미입력과 "제품을 못 찾음"은 원인이 달라서 안내도 따로 띄워요.
@@ -110,12 +110,9 @@ export function InputScreen() {
 
     if (productId === null) {
       setNotice({
-        title: hasNoProduct
-          ? "등록된 제품이 없어요."
-          : "제품 정보를 불러오지 못했어요.",
-        description: hasNoProduct
-          ? "케어 예약은 등록된 제품에만 가능해요. 제품을 먼저 등록해 주세요."
-          : "네트워크 상태를 확인한 뒤 다시 시도해 주세요.",
+        title: "메인 가방 정보를 불러오지 못했어요.",
+        description:
+          "기기 연동에서 지정한 메인 가방이 있어야 예약할 수 있어요. 잠시 후 다시 시도해 주세요.",
       });
       return;
     }
@@ -127,7 +124,7 @@ export function InputScreen() {
         reservationType: careType,
         serviceType: DEFAULT_SERVICE_TYPE,
         reservedDate: formatLocalDate(draft.date),
-        reservedTime: toLocalTime(draft.time),
+        reservedTime: toLocalTimeString(draft.time),
         customerNote: draft.note.trim() || undefined,
       },
       {
@@ -156,7 +153,9 @@ export function InputScreen() {
         <Card className="mt-4 flex-row items-center gap-3 border-0 bg-concierge-surfaceMuted px-4 py-4">
           <Image
             source={
-              product?.productImageUrl ? { uri: product.productImageUrl } : productPhoto
+              product?.productImageUrl
+                ? { uri: product.productImageUrl }
+                : productPhoto
             }
             className="size-[78px] rounded-2xl"
             resizeMode="cover"

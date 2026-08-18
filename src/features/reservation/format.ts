@@ -1,5 +1,5 @@
 import { formatLocalTime, parseLocalDate } from "@/shared/api/localTime";
-import type { LocalTime } from "@/shared/api/localTime";
+import type { LocalTimeLike } from "@/shared/api/localTime";
 
 const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -35,7 +35,10 @@ export function normalizeSlotTime(time: string) {
 }
 
 /** 서버 예약(reservedDate + reservedTime)을 화면용 Date/문자열로 바꿔줘요. */
-export function toReservationDateTime(reservedDate: string, reservedTime: LocalTime) {
+export function toReservationDateTime(
+  reservedDate: string,
+  reservedTime: LocalTimeLike,
+) {
   return {
     date: parseLocalDate(reservedDate),
     time: formatLocalTime(reservedTime) ?? "",

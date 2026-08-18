@@ -57,12 +57,16 @@ export function useReservations(status?: ReservationStatus) {
   });
 }
 
-/** 예약 현황 카드에 쓸 "가장 가까운 진행 중 예약" */
-export function useActiveReservation() {
+/**
+ * 예약 현황 카드에 쓸 "가장 가까운 진행 중 예약".
+ * productId를 주면 그 제품(메인으로 선택한 가방)의 예약만 봅니다.
+ */
+export function useActiveReservation(productId?: number | null) {
   const query = useReservations();
 
   const active = (query.data ?? [])
     .filter((item) => ACTIVE_STATUSES.includes(item.status))
+    .filter((item) => (productId == null ? true : item.productId === productId))
     .sort((a, b) => a.reservedDate.localeCompare(b.reservedDate))
     .at(0) as ReservationSummary | undefined;
 
