@@ -1,15 +1,21 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { RESERVATION_WEEKDAY_LABELS } from "@/features/reservation/constants";
 import {
-  RESERVATION_TIME_SLOTS,
-  RESERVATION_UNAVAILABLE_TIMES,
-  RESERVATION_WEEKDAY_LABELS,
-} from "@/features/reservation/constants";
-import { formatDateKoreanFull } from "@/features/reservation/format";
+  formatDateKoreanFull,
+  normalizeSlotTime,
+  toReservationDateTime,
+} from "@/features/reservation/format";
+import {
+  useAvailableTimes,
+  useReservation,
+  useUpdateReservation,
+} from "@/features/reservation/hooks/useReservation";
 import { useReservationStore } from "@/features/reservation/store";
+import { formatLocalDate, toLocalTime } from "@/shared/api/localTime";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 
@@ -42,26 +48,26 @@ function getCalendarWeeks(monthDate: Date): (Date | null)[][] {
 
 export function DateTimeScreen() {
   const router = useRouter();
-  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const { mode, id } = useLocalSearchParams<{ mode?: string; id?: string }>();
   const isEditMode = mode === "edit";
+  const reservationId = id ? Number(id) : null;
 
   const draft = useReservationStore((state) => state.draft);
-  const confirmed = useReservationStore((state) => state.confirmed);
-  const setDraftDateTime = useReservationStore(
-    (state) => state.setDraftDateTime,
-  );
-  const updateConfirmedDateTime = useReservationStore(
-    (state) => state.updateConfirmedDateTime,
-  );
+  const setDraftDateTime = useReservationStore((state) => state.setDraftDateTime);
+  const { data: reservation } = useReservation(isEditMode ? reservationId : null);
+  const updateReservation = useUpdateReservation();
 
-  const storeName = isEditMode
-    ? (confirmed?.storeName ?? null)
-    : draft.storeName;
+  const reservationDateTime = reservation
+    ? toReservationDateTime(reservation.reservedDate, reservation.reservedTime)
+    : null;
+
+  const storeId = isEditMode ? (reservation?.storeId ?? null) : draft.storeId;
+  const storeName = isEditMode ? (reservation?.storeName ?? null) : draft.storeName;
   const storeAddress = isEditMode
-    ? (confirmed?.storeAddress ?? null)
+    ? (reservation?.storeAddress ?? null)
     : draft.storeAddress;
-  const initialDate = isEditMode ? (confirmed?.date ?? null) : draft.date;
-  const initialTime = isEditMode ? (confirmed?.time ?? null) : draft.time;
+  const initialDate = isEditMode ? (reservationDateTime?.date ?? null) : draft.date;
+  const initialTime = isEditMode ? (reservationDateTime?.time ?? null) : draft.time;
 
   const today = useMemo(() => startOfDay(new Date()), []);
   const [visibleMonth, setVisibleMonth] = useState(() => initialDate ?? today);
@@ -69,8 +75,19 @@ export function DateTimeScreen() {
   const [selectedTime, setSelectedTime] = useState<string | null>(initialTime);
   const [showTimeWarning, setShowTimeWarning] = useState(false);
 
+  const {
+    data: availableTimes,
+    isPending: isSlotsPending,
+    error: slotsError,
+  } = useAvailableTimes(storeId, selectedDate ? formatLocalDate(selectedDate) : null);
+
+  const slots = (availableTimes?.slots ?? []).map((slot) => ({
+    ...slot,
+    time: normalizeSlotTime(slot.time),
+  }));
+
   const weeks = useMemo(() => getCalendarWeeks(visibleMonth), [visibleMonth]);
-  const canSubmit = Boolean(selectedDate && selectedTime);
+  const canSubmit = Boolean(selectedDate && selectedTime) && !updateReservation.isPending;
 
   const goToMonth = (offset: number) => {
     setVisibleMonth(
@@ -80,11 +97,24 @@ export function DateTimeScreen() {
 
   const handleConfirm = () => {
     if (!selectedDate || !selectedTime) return;
+
     if (isEditMode) {
-      updateConfirmedDateTime(selectedDate, selectedTime);
-    } else {
-      setDraftDateTime(selectedDate, selectedTime);
+      if (reservationId === null) return;
+
+      updateReservation.mutate(
+        {
+          id: reservationId,
+          request: {
+            reservedDate: formatLocalDate(selectedDate),
+            reservedTime: toLocalTime(selectedTime),
+          },
+        },
+        { onSuccess: () => router.back() },
+      );
+      return;
     }
+
+    setDraftDateTime(selectedDate, selectedTime);
     router.back();
   };
 
@@ -155,7 +185,12 @@ export function DateTimeScreen() {
                   >
                     <Pressable
                       disabled={disabled}
-                      onPress={() => setSelectedDate(date)}
+                      onPress={() => {
+                        setSelectedDate(date);
+                        // 날짜가 바뀌면 예약 가능 시간도 다시 받아오니 선택을 초기화해요.
+                        setSelectedTime(null);
+                        setShowTimeWarning(false);
+                      }}
                       className={`size-[34px] items-center justify-center rounded-full ${
                         selected ? "bg-concierge-primary" : ""
                       }`}
@@ -189,45 +224,62 @@ export function DateTimeScreen() {
             </Text>
           </View>
         ) : null}
-        <View className="mt-3 flex-row flex-wrap gap-x-[9px] gap-y-2.5">
-          {RESERVATION_TIME_SLOTS.map((slot) => {
-            const selected = selectedTime === slot;
-            const unavailable = RESERVATION_UNAVAILABLE_TIMES.includes(slot);
 
-            return (
-              <Pressable
-                key={slot}
-                onPress={() => {
-                  if (unavailable) {
-                    setShowTimeWarning(true);
-                    return;
-                  }
-                  setShowTimeWarning(false);
-                  setSelectedTime(slot);
-                }}
-                className={`w-[23%] items-center rounded-[9px] py-2 ${
-                  selected
-                    ? "bg-concierge-primary"
-                    : unavailable
-                      ? "bg-[#E2DDD7]"
-                      : "bg-concierge-surfaceMuted"
-                }`}
-              >
-                <Text
-                  className={`text-[13px] ${
+        {!selectedDate ? (
+          <Text className="mt-3 text-xs text-concierge-textMuted">
+            날짜를 먼저 선택해 주세요.
+          </Text>
+        ) : isSlotsPending ? (
+          <View className="mt-4 items-start">
+            <ActivityIndicator />
+          </View>
+        ) : slotsError ? (
+          <Text className="mt-3 text-xs text-[#C04737]">{slotsError.message}</Text>
+        ) : slots.length === 0 ? (
+          <Text className="mt-3 text-xs text-concierge-textMuted">
+            선택한 날짜에 예약 가능한 시간이 없어요.
+          </Text>
+        ) : (
+          <View className="mt-3 flex-row flex-wrap gap-x-[9px] gap-y-2.5">
+            {slots.map((slot) => {
+              const selected = selectedTime === slot.time;
+              const unavailable = !slot.available;
+
+              return (
+                <Pressable
+                  key={slot.time}
+                  onPress={() => {
+                    if (unavailable) {
+                      setShowTimeWarning(true);
+                      return;
+                    }
+                    setShowTimeWarning(false);
+                    setSelectedTime(slot.time);
+                  }}
+                  className={`w-[23%] items-center rounded-[9px] py-2 ${
                     selected
-                      ? "font-semibold text-white"
+                      ? "bg-concierge-primary"
                       : unavailable
-                        ? "text-[#A8A19A]"
-                        : "text-concierge-text"
+                        ? "bg-[#E2DDD7]"
+                        : "bg-concierge-surfaceMuted"
                   }`}
                 >
-                  {slot}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text
+                    className={`text-[13px] ${
+                      selected
+                        ? "font-semibold text-white"
+                        : unavailable
+                          ? "text-[#A8A19A]"
+                          : "text-concierge-text"
+                    }`}
+                  >
+                    {slot.time}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
 
         <View className="mt-4 rounded-xl bg-concierge-surfaceMuted px-4 py-3">
           <Text className="text-xs text-concierge-textSecondary">
@@ -239,11 +291,17 @@ export function DateTimeScreen() {
               : "날짜와 시간을 선택해 주세요"}
           </Text>
         </View>
+
+        {updateReservation.error ? (
+          <Text className="mt-3 text-xs text-[#C04737]">
+            {updateReservation.error.message}
+          </Text>
+        ) : null}
       </ScrollView>
 
       <View className="px-6 pb-4 pt-2">
         <PrimaryButton
-          label="선택 완료"
+          label={isEditMode ? "일정 변경하기" : "선택 완료"}
           onPress={handleConfirm}
           disabled={!canSubmit}
         />

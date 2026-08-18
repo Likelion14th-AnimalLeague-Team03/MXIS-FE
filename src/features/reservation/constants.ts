@@ -1,48 +1,13 @@
-import type { ReservationStore } from "@/features/reservation/types";
-
-export const RESERVATION_STORES: ReservationStore[] = [
-  {
-    id: "gangnam-shinsegae",
-    name: "MCM 신세계 강남점",
-    address: "서울 서초구 신반포로 176",
-    distanceKm: 2.1
-  },
-  {
-    id: "haus-seoul",
-    name: "MCM HAUS 서울",
-    address: "서울 중구 명동길 412",
-    distanceKm: 3.4
-  },
-  {
-    id: "lotte-main",
-    name: "MCM 롯데백화점 본점",
-    address: "서울 중구 남대문로 81",
-    distanceKm: 1.2
-  }
-];
-
-export const RESERVATION_TIME_SLOTS = [
-  "11:00",
-  "11:30",
-  "12:00",
-  "12:30",
-  "13:00",
-  "13:30",
-  "14:00",
-  "14:30",
-  "15:00",
-  "15:30",
-  "16:00",
-  "16:30",
-  "17:00",
-  "17:30",
-  "18:00",
-  "18:30",
-  "19:00",
-  "19:30",
-  "20:00"
-];
+import type { ReservationStatus } from "@/features/reservation/types";
 
 export const RESERVATION_WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
-export const RESERVATION_UNAVAILABLE_TIMES = ["12:00", "15:30", "18:00"];
+export const RESERVATION_STATUS_LABEL: Record<ReservationStatus, string> = {
+  PENDING_APPROVAL: "승인 대기중",
+  CONFIRMED: "예약 확정",
+  CANCELLED: "예약 취소",
+  COMPLETED: "케어 완료",
+};
+
+/** 예약 시 함께 보내는 기본 서비스명 (ReservationCreateRequest.serviceType) */
+export const DEFAULT_SERVICE_TYPE = "제품 컨디션 점검";

@@ -8,14 +8,9 @@ import popIcon from "@/features/care/assets/pop.png";
 import temperatureIcon from "@/features/care/assets/temperature.png";
 import waterIcon from "@/features/care/assets/water.png";
 import { HumidityLineChart } from "@/features/care/components/HumidityLineChart";
-import {
-  HUMIDITY_LAST_7_DAYS,
-  HUMIDITY_LAST_12_MONTHS,
-  HUMIDITY_LAST_30_DAYS_PEAKS,
-  TEMPERATURE_LAST_7_DAYS,
-  TEMPERATURE_LAST_12_MONTHS,
-  TEMPERATURE_LAST_30_DAYS_PEAKS,
-} from "@/features/care/constants";
+import { useCareEnvironmentOverview } from "@/features/care/hooks/useCare";
+import type { CareEnvironmentOverview } from "@/features/care/types";
+import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
 import { Card } from "@/shared/components/Card";
 import { WarningIcon } from "@/shared/components/icons/WarningIcon";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
@@ -23,16 +18,11 @@ import { ScreenHeader } from "@/shared/components/ScreenHeader";
 const RANGES = ["최근 7일", "최근 30일", "최근 1년"] as const;
 type Range = (typeof RANGES)[number];
 
-const HUMIDITY_VALUES_BY_RANGE: Record<Range, number[]> = {
-  "최근 7일": HUMIDITY_LAST_7_DAYS,
-  "최근 30일": HUMIDITY_LAST_30_DAYS_PEAKS,
-  "최근 1년": HUMIDITY_LAST_12_MONTHS,
-};
-
-const TEMPERATURE_VALUES_BY_RANGE: Record<Range, number[]> = {
-  "최근 7일": TEMPERATURE_LAST_7_DAYS,
-  "최근 30일": TEMPERATURE_LAST_30_DAYS_PEAKS,
-  "최근 1년": TEMPERATURE_LAST_12_MONTHS,
+// 화면 탭 <-> CareEnvironmentOverviewResponse 필드 매핑
+const OVERVIEW_FIELD_BY_RANGE: Record<Range, keyof CareEnvironmentOverview> = {
+  "최근 7일": "sevenDays",
+  "최근 30일": "thirtyDays",
+  "최근 1년": "oneYear",
 };
 
 type Metric = "HUMIDITY" | "TEMP";
@@ -110,12 +100,15 @@ export function EnvironmentScreen() {
   const router = useRouter();
   const [range, setRange] = useState<Range>("최근 30일");
   const [metric, setMetric] = useState<Metric>("HUMIDITY");
-  const hasData = true;
+  const { productId } = usePrimaryProductId();
+  const { data: overview, isPending, error } = useCareEnvironmentOverview(productId);
 
+  const period = overview?.[OVERVIEW_FIELD_BY_RANGE[range]] ?? null;
   const isHumidity = metric === "HUMIDITY";
-  const values = isHumidity
-    ? HUMIDITY_VALUES_BY_RANGE[range]
-    : TEMPERATURE_VALUES_BY_RANGE[range];
+  const values = (
+    isHumidity ? (period?.humidityPoints ?? []) : (period?.temperaturePoints ?? [])
+  ).map((point) => point.value);
+  const hasData = values.length > 0;
   const recommended = isHumidity ? HUMIDITY_RECOMMENDED : TEMPERATURE_RECOMMENDED;
   const basicRange = isHumidity ? HUMIDITY_BASIC_RANGE : TEMPERATURE_BASIC_RANGE;
   const unit = isHumidity ? "%" : "°C";
@@ -163,7 +156,7 @@ export function EnvironmentScreen() {
           <View className="mt-4">
             <HumidityLineChart
               width={306}
-              values={hasData ? values : []}
+              values={values}
               min={chartMin}
               max={chartMax}
               recommendedMin={hasData ? recommended.min : undefined}
@@ -173,7 +166,7 @@ export function EnvironmentScreen() {
             {!hasData ? (
               <View className="absolute inset-0 items-center justify-center">
                 <Text className="text-xs font-medium text-concierge-textMuted">
-                  데이터 수집중
+                  {isPending ? "불러오는 중" : "데이터 수집중"}
                 </Text>
               </View>
             ) : null}
@@ -183,6 +176,9 @@ export function EnvironmentScreen() {
               ? "권장 범위 안에서 비교적 안정적으로 유지되었습니다."
               : "충분한 데이터가 모이지 않았습니다."}
           </Text>
+          {error ? (
+            <Text className="mt-2 text-xs text-[#C04737]">{error.message}</Text>
+          ) : null}
         </Card>
 
         {hasData && range === "최근 1년" ? (
@@ -210,8 +206,12 @@ export function EnvironmentScreen() {
               />
             }
             label="평균 온도"
-            value={hasData ? "22°C" : "수집중"}
-            muted={!hasData}
+            value={
+              period?.avgTemperature != null
+                ? `${Math.round(period.avgTemperature)}°C`
+                : "수집중"
+            }
+            muted={period?.avgTemperature == null}
           />
           <StatTile
             icon={
@@ -222,30 +222,28 @@ export function EnvironmentScreen() {
               />
             }
             label="평균 습도"
-            value={hasData ? "42%" : "수집중"}
-            muted={!hasData}
+            value={
+              period?.avgHumidity != null
+                ? `${Math.round(period.avgHumidity)}%`
+                : "수집중"
+            }
+            muted={period?.avgHumidity == null}
           />
           <StatTile
             icon={
-              <Image
-                source={outIcon}
-                className="size-[18px]"
-                resizeMode="contain"
-              />
+              <Image source={outIcon} className="size-[18px]" resizeMode="contain" />
             }
             label="외출"
-            value="1회"
+            value={period?.outingCount != null ? `${period.outingCount}회` : "수집중"}
+            muted={period?.outingCount == null}
           />
           <StatTile
             icon={
-              <Image
-                source={popIcon}
-                className="size-[18px]"
-                resizeMode="contain"
-              />
+              <Image source={popIcon} className="size-[18px]" resizeMode="contain" />
             }
             label="충격"
-            value="0회"
+            value={period?.shockCount != null ? `${period.shockCount}회` : "수집중"}
+            muted={period?.shockCount == null}
           />
         </View>
 
@@ -253,17 +251,10 @@ export function EnvironmentScreen() {
           <Text className="text-lg font-bold text-concierge-text">
             데이터 해석
           </Text>
-          {hasData ? (
-            <Text className="text-[15px] font-medium text-[#222222]">
-              이전 30일보다 습도 변화가 높았지만,{"\n"}온·습도 환경은
-              안정적이었습니다.
-            </Text>
-          ) : (
-            <Text className="text-[15px] font-medium text-[#222222]">
-              현재 데이터를 수집하고 있습니다.{"\n\n"}충분한 기록이 쌓이면
-              제품의 사용 환경과 패턴을 종합해 안내해 드립니다.
-            </Text>
-          )}
+          <Text className="text-[15px] font-medium text-[#222222]">
+            {period?.interpretation ??
+              "현재 데이터를 수집하고 있습니다.\n\n충분한 기록이 쌓이면 제품의 사용 환경과 패턴을 종합해 안내해 드립니다."}
+          </Text>
         </Card>
       </ScrollView>
     </SafeAreaView>

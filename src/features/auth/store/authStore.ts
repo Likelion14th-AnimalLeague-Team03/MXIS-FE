@@ -3,6 +3,7 @@ import { create } from "zustand";
 
 import { login, logout, refreshToken } from "@/features/auth/api/authApi";
 import type { AuthTokens, LoginRequest, UserProfile } from "@/features/auth/types";
+import { registerAuthSession } from "@/shared/api/authSession";
 
 const AUTH_TOKENS_KEY = "mxis.auth.tokens";
 
@@ -115,10 +116,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    const { accessToken, tokenType } = get();
+    const { accessToken } = get();
 
     if (accessToken) {
-      await logout(accessToken, tokenType);
+      await logout();
     }
 
     await removeTokens();
@@ -132,3 +133,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 }));
+
+// axios 인터셉터가 토큰을 스스로 붙이고, 401이면 재발급까지 하도록 스토어 동작을 등록해요.
+registerAuthSession({
+  getAccessToken: () => useAuthStore.getState().accessToken,
+  getTokenType: () => useAuthStore.getState().tokenType,
+  refresh: async () => {
+    const stored =
+      useAuthStore.getState().refreshTokenValue ?? (await readTokens())?.refreshToken;
+
+    if (!stored) {
+      return null;
+    }
+
+    try {
+      const response = await refreshToken(stored);
+      const tokens: AuthTokens = {
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+        tokenType: response.tokenType,
+      };
+      await saveTokens(tokens);
+
+      useAuthStore.setState({
+        accessToken: tokens.accessToken,
+        refreshTokenValue: tokens.refreshToken,
+        tokenType: tokens.tokenType,
+        user: response.user,
+        status: "authenticated",
+      });
+
+      return tokens.accessToken;
+    } catch {
+      return null;
+    }
+  },
+  clear: async () => {
+    await removeTokens();
+
+    useAuthStore.setState({
+      accessToken: null,
+      refreshTokenValue: null,
+      tokenType: "Bearer",
+      user: null,
+      status: "guest",
+    });
+  },
+});
