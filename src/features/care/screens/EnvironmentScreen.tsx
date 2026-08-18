@@ -93,7 +93,8 @@ const HUMIDITY_RECOMMENDED = { min: 45, max: 55 };
 const TEMPERATURE_RECOMMENDED = { min: 18, max: 20 };
 
 // 데이터 수집중일 땐 권장 범위와 무관하게 이 기본 축 범위로 기본 그래프만 그려요.
-const HUMIDITY_BASIC_RANGE = { min: 25, max: 70 };
+// 습도는 음수가 나올 수 없어서 축 하한을 0으로 고정해요.
+const HUMIDITY_BASIC_RANGE = { min: 0, max: 70 };
 const TEMPERATURE_BASIC_RANGE = { min: 10, max: 30 };
 
 export function EnvironmentScreen() {
@@ -101,22 +102,40 @@ export function EnvironmentScreen() {
   const [range, setRange] = useState<Range>("최근 30일");
   const [metric, setMetric] = useState<Metric>("HUMIDITY");
   const { productId } = usePrimaryProductId();
-  const { data: overview, isPending, error } = useCareEnvironmentOverview(productId);
+  const {
+    data: overview,
+    isPending,
+    error,
+  } = useCareEnvironmentOverview(productId);
 
   const period = overview?.[OVERVIEW_FIELD_BY_RANGE[range]] ?? null;
   const isHumidity = metric === "HUMIDITY";
   const values = (
-    isHumidity ? (period?.humidityPoints ?? []) : (period?.temperaturePoints ?? [])
+    isHumidity
+      ? (period?.humidityPoints ?? [])
+      : (period?.temperaturePoints ?? [])
   ).map((point) => point.value);
-  const hasData = values.length > 0;
-  const recommended = isHumidity ? HUMIDITY_RECOMMENDED : TEMPERATURE_RECOMMENDED;
-  const basicRange = isHumidity ? HUMIDITY_BASIC_RANGE : TEMPERATURE_BASIC_RANGE;
+  const numericValues = values.filter(
+    (value): value is number => typeof value === "number",
+  );
+  const hasData = numericValues.length > 0;
+  const recommended = isHumidity
+    ? HUMIDITY_RECOMMENDED
+    : TEMPERATURE_RECOMMENDED;
+  const basicRange = isHumidity
+    ? HUMIDITY_BASIC_RANGE
+    : TEMPERATURE_BASIC_RANGE;
   const unit = isHumidity ? "%" : "°C";
 
   // y축 최소/최대는 고정값이 아니라 백엔드가 넘겨주는 데이터의 최소값-5 ~ 최대값+5로 계산해요.
+  // 습도는 0 아래로 내려가지 않도록 하한을 0으로 고정해요.
   // 데이터 수집중일 땐 계산할 데이터가 없으니 기본 범위를 써요.
-  const chartMin = hasData ? Math.min(...values) - 5 : basicRange.min;
-  const chartMax = hasData ? Math.max(...values) + 5 : basicRange.max;
+  const chartMin = hasData
+    ? isHumidity
+      ? 0
+      : Math.min(...numericValues) - 5
+    : basicRange.min;
+  const chartMax = hasData ? Math.max(...numericValues) + 5 : basicRange.max;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -231,18 +250,30 @@ export function EnvironmentScreen() {
           />
           <StatTile
             icon={
-              <Image source={outIcon} className="size-[18px]" resizeMode="contain" />
+              <Image
+                source={outIcon}
+                className="size-[18px]"
+                resizeMode="contain"
+              />
             }
             label="외출"
-            value={period?.outingCount != null ? `${period.outingCount}회` : "수집중"}
+            value={
+              period?.outingCount != null ? `${period.outingCount}회` : "수집중"
+            }
             muted={period?.outingCount == null}
           />
           <StatTile
             icon={
-              <Image source={popIcon} className="size-[18px]" resizeMode="contain" />
+              <Image
+                source={popIcon}
+                className="size-[18px]"
+                resizeMode="contain"
+              />
             }
             label="충격"
-            value={period?.shockCount != null ? `${period.shockCount}회` : "수집중"}
+            value={
+              period?.shockCount != null ? `${period.shockCount}회` : "수집중"
+            }
             muted={period?.shockCount == null}
           />
         </View>

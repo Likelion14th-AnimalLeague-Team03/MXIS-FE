@@ -1,4 +1,10 @@
-import Svg, { Circle, Line, Polyline, Rect, Text as SvgText } from "react-native-svg";
+import Svg, {
+  Circle,
+  Line,
+  Polyline,
+  Rect,
+  Text as SvgText,
+} from "react-native-svg";
 
 import { colors } from "@/shared/styles/colors";
 
@@ -16,7 +22,7 @@ const AXIS_GRAY = "#9C968F";
 
 type Props = {
   /** 빈 배열이면 점/선 없이 축과 권장 범위 밴드만 그려요 (데이터 수집중 상태용). */
-  values: number[];
+  values: Array<number | null | undefined>;
   width?: number;
   color?: string;
   /** 그래프 y축 최소/최대값 — 보통 데이터 최소값-5 ~ 최대값+5로 넘겨주세요. */
@@ -44,18 +50,41 @@ export function HumidityLineChart({
   const height = (width * VIEW_HEIGHT) / VIEW_WIDTH;
   const range = Math.max(max - min, 1);
   const plotHeight = VIEW_HEIGHT - PADDING_Y * 2;
+  const pointSlots = values.length;
 
   const yFor = (value: number) => {
     const clamped = Math.min(Math.max(value, min), max);
     return PADDING_Y + (1 - (clamped - min) / range) * plotHeight;
   };
 
-  const stepX = values.length > 1 ? PLOT_WIDTH / (values.length - 1) : 0;
-  const points: [number, number][] = values.map((value, index) => [
-    PLOT_LEFT + index * stepX,
-    yFor(value),
-  ]);
-  const polylinePoints = points.map(([x, y]) => `${x},${y}`).join(" ");
+  const stepX = pointSlots > 1 ? PLOT_WIDTH / (pointSlots - 1) : 0;
+  const points: Array<[number, number] | null> = values.map((value, index) => {
+    if (value == null) {
+      return null;
+    }
+
+    return [PLOT_LEFT + index * stepX, yFor(value)];
+  });
+  const visiblePoints = points.filter(
+    (point): point is [number, number] => point != null,
+  );
+
+  const pointSegments: Array<Array<[number, number]>> = [];
+  let currentSegment: Array<[number, number]> = [];
+  points.forEach((point) => {
+    if (!point) {
+      if (currentSegment.length > 0) {
+        pointSegments.push(currentSegment);
+        currentSegment = [];
+      }
+      return;
+    }
+
+    currentSegment.push(point);
+  });
+  if (currentSegment.length > 0) {
+    pointSegments.push(currentSegment);
+  }
 
   const hasRecommended = recommendedMin != null && recommendedMax != null;
 
@@ -68,10 +97,14 @@ export function HumidityLineChart({
 
     axisRows = [
       { value: max, accent: false },
-      ...(midUpper > recommendedMax ? [{ value: midUpper, accent: false }] : []),
+      ...(midUpper > recommendedMax
+        ? [{ value: midUpper, accent: false }]
+        : []),
       { value: recommendedMax, accent: true },
       { value: recommendedMin, accent: true },
-      ...(midLower < recommendedMin ? [{ value: midLower, accent: false }] : []),
+      ...(midLower < recommendedMin
+        ? [{ value: midLower, accent: false }]
+        : []),
       { value: min, accent: false },
     ];
   } else {
@@ -86,7 +119,11 @@ export function HumidityLineChart({
   }
 
   return (
-    <Svg width={width} height={height} viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}>
+    <Svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+    >
       {hasRecommended ? (
         <Rect
           x={PLOT_LEFT}
@@ -120,17 +157,20 @@ export function HumidityLineChart({
           {`${Math.round(row.value)}${unit}`}
         </SvgText>
       ))}
-      {values.length > 0 ? (
+      {visiblePoints.length > 0 ? (
         <>
-          <Polyline
-            points={polylinePoints}
-            stroke={color}
-            strokeWidth={2}
-            fill="none"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-          {points.map(([x, y], index) => (
+          {pointSegments.map((segment, segmentIndex) => (
+            <Polyline
+              key={`segment-${segmentIndex}`}
+              points={segment.map(([x, y]) => `${x},${y}`).join(" ")}
+              stroke={color}
+              strokeWidth={2}
+              fill="none"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          ))}
+          {visiblePoints.map(([x, y], index) => (
             <Circle key={index} cx={x} cy={y} r={4} fill={color} />
           ))}
         </>
