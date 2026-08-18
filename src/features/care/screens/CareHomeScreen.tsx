@@ -8,8 +8,9 @@ import outIcon from "@/features/care/assets/out.png";
 import popIcon from "@/features/care/assets/pop.png";
 import temperatureIcon from "@/features/care/assets/temperature.png";
 import waterIcon from "@/features/care/assets/water.png";
+import { useCareDiagnosisHome } from "@/features/care/hooks/useCare";
 import { PRODUCTS } from "@/features/device/constants";
-import { useDeviceStore } from "@/features/device/store";
+import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 
@@ -56,9 +57,14 @@ function StatCard({
 
 export function CareHomeScreen() {
   const router = useRouter();
-  const selectedProduct = useDeviceStore((state) => state.selectedProductIndex);
-  const product = PRODUCTS[selectedProduct];
-  const hasData = true;
+  const { productId } = usePrimaryProductId();
+  const { data: diagnosis, isPending, error } = useCareDiagnosisHome(productId);
+
+  const product = diagnosis?.product;
+  const environment = diagnosis?.environment30d;
+  // 환경 30일 요약이 비어 있으면 아직 데이터가 모이는 중으로 봐요.
+  const hasData = environment?.avgTemperature != null || environment?.avgHumidity != null;
+  const fallbackImage = PRODUCTS[0].image;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -76,7 +82,11 @@ export function CareHomeScreen() {
             />
             <View className="absolute inset-0 items-center justify-center ">
               <Image
-                source={product.image}
+                source={
+                  product?.productImageUrl
+                    ? { uri: product.productImageUrl }
+                    : fallbackImage
+                }
                 className="size-[250px] "
                 resizeMode="contain"
               />
@@ -84,13 +94,18 @@ export function CareHomeScreen() {
           </View>
           <View className="flex-1 pr-3">
             <Text className="text-base font-bold text-concierge-text">
-              {product.name}
+              {product?.productName ?? (isPending ? "불러오는 중" : "등록된 제품 없음")}
             </Text>
             <Text className="mt-1 text-[11px] text-concierge-textMuted">
-              {product.variant}
+              {[product?.materialDisplayName, product?.color]
+                .filter(Boolean)
+                .join(" · ") || "-"}
             </Text>
             <Text className="mt-2 text-xs font-medium text-concierge-text">
-              함께한 외출 {hasData ? "50회" : "-회"}
+              함께한 외출{" "}
+              {diagnosis?.totalOutingCount != null
+                ? `${diagnosis.totalOutingCount}회`
+                : "-회"}
             </Text>
           </View>
         </Card>
@@ -98,14 +113,11 @@ export function CareHomeScreen() {
         <Card className="mt-4 border-0 bg-white px-3.5 py-3.5">
           <Text className="text-xs text-concierge-textMuted">현재 컨디션</Text>
           <Text className="mt-1 text-lg font-bold text-concierge-text">
-            {hasData
-              ? "균형 있게 유지되고 있습니다."
-              : "데이터가 수집되고 있습니다."}
+            {diagnosis?.condition?.summary ?? "데이터가 수집되고 있습니다."}
           </Text>
           <Text className="mt-1 text-[11px] text-concierge-textMuted">
-            {hasData
-              ? "최근 환경과 사용 기록이 안정적인 범위에 있습니다."
-              : "정확한 진단을 위해 환경 데이터를 모으고 있어요."}
+            {diagnosis?.condition?.description ??
+              "정확한 진단을 위해 환경 데이터를 모으고 있어요."}
           </Text>
           <Pressable
             onPress={() => router.push("/care/report")}
@@ -132,6 +144,10 @@ export function CareHomeScreen() {
             <ChevronRightIcon size={5} />
           </Pressable>
         </Card>
+
+        {error ? (
+          <Text className="mt-3 text-xs text-[#C04737]">{error.message}</Text>
+        ) : null}
 
         <Pressable
           onPress={() => router.push("/care/environment")}
@@ -160,9 +176,13 @@ export function CareHomeScreen() {
               />
             }
             label="온도"
-            caption="이상적입니다."
-            value={hasData ? "22°C" : "-°C"}
-            muted={!hasData}
+            caption={environment?.temperatureDescription ?? undefined}
+            value={
+              environment?.avgTemperature != null
+                ? `${Math.round(environment.avgTemperature)}°C`
+                : "-°C"
+            }
+            muted={environment?.avgTemperature == null}
           />
           <StatCard
             icon={
@@ -173,9 +193,13 @@ export function CareHomeScreen() {
               />
             }
             label="습도"
-            caption="이상적입니다."
-            value={hasData ? "42 %" : "- %"}
-            muted={!hasData}
+            caption={environment?.humidityDescription ?? undefined}
+            value={
+              environment?.avgHumidity != null
+                ? `${Math.round(environment.avgHumidity)} %`
+                : "- %"
+            }
+            muted={environment?.avgHumidity == null}
           />
           <StatCard
             icon={
@@ -186,8 +210,8 @@ export function CareHomeScreen() {
               />
             }
             label="충격"
-            value={hasData ? "낮음" : "수집중"}
-            muted={!hasData}
+            value={environment?.shockLevelLabel ?? "수집중"}
+            muted={!environment?.shockLevelLabel}
           />
           <StatCard
             icon={
@@ -198,8 +222,12 @@ export function CareHomeScreen() {
               />
             }
             label="최근 이동"
-            value={hasData ? "18회" : "수집중"}
-            muted={!hasData}
+            value={
+              environment?.outingCount != null
+                ? `${environment.outingCount}회`
+                : "수집중"
+            }
+            muted={environment?.outingCount == null}
           />
         </View>
       </ScrollView>

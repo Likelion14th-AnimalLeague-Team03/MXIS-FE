@@ -1,20 +1,19 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import productThumb from "@/features/reservation/assets/product-thumb-small.png";
-import { formatDateShort } from "@/features/reservation/format";
-import type { ReservationStatus } from "@/features/reservation/types";
-import { useReservationStore } from "@/features/reservation/store";
+import { RESERVATION_STATUS_LABEL } from "@/features/reservation/constants";
+import { formatDateShort, toReservationDateTime } from "@/features/reservation/format";
+import {
+  useActiveReservation,
+  useCancelReservation,
+  useReservation,
+} from "@/features/reservation/hooks/useReservation";
 import { AlertModal } from "@/shared/components/AlertModal";
 import { Card } from "@/shared/components/Card";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
-
-const STATUS_LABEL: Record<ReservationStatus, string> = {
-  PENDING: "승인 대기중",
-  CONFIRMED: "예약 확정",
-};
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -30,19 +29,30 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 export function DetailScreen() {
   const router = useRouter();
-  const confirmed = useReservationStore((state) => state.confirmed);
-  const cancelReservation = useReservationStore(
-    (state) => state.cancelReservation,
-  );
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  // 홈·완료 화면에서는 id를 넘겨주고, 예약 탭에서 바로 들어오면 진행 중인 예약을 찾아서 보여줘요.
+  const { activeReservation } = useActiveReservation();
+  const reservationId = id ? Number(id) : (activeReservation?.id ?? null);
+  const { data: reservation, isPending, error } = useReservation(reservationId);
+  const cancelReservation = useCancelReservation();
+
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [doneVisible, setDoneVisible] = useState(false);
 
-  const handleCancel = () => setConfirmVisible(true);
+  const dateTime = reservation
+    ? toReservationDateTime(reservation.reservedDate, reservation.reservedTime)
+    : null;
 
   const handleConfirmCancel = () => {
-    setConfirmVisible(false);
-    cancelReservation();
-    setDoneVisible(true);
+    if (!reservation) return;
+
+    cancelReservation.mutate(reservation.id, {
+      onSuccess: () => {
+        setConfirmVisible(false);
+        setDoneVisible(true);
+      },
+      onError: () => setConfirmVisible(false),
+    });
   };
 
   const handleDone = () => {
@@ -52,7 +62,7 @@ export function DetailScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
-      {confirmed ? (
+      {reservation && dateTime ? (
         <>
           <View className="px-6 pt-6 mb-2">
             <ScreenHeader
@@ -60,7 +70,7 @@ export function DetailScreen() {
               onBack={() => router.back()}
               right={
                 <Text className="text-sm text-concierge-textSecondary">
-                  {STATUS_LABEL[confirmed.status]}
+                  {RESERVATION_STATUS_LABEL[reservation.status]}
                 </Text>
               }
             />
@@ -79,24 +89,24 @@ export function DetailScreen() {
                 />
                 <View>
                   <Text className="text-sm font-semibold text-concierge-text">
-                    {confirmed.productName}
+                    {reservation.productName ?? "-"}
                   </Text>
                   <Text className="mt-0.5 text-xs text-concierge-textMuted">
-                    제품 컨디션 점검
+                    {reservation.serviceType ?? "제품 컨디션 점검"}
                   </Text>
                 </View>
               </View>
 
               <View className="border-t border-concierge-borderLight" />
 
-              <DetailRow label="매장" value={confirmed.storeName} />
+              <DetailRow label="매장" value={reservation.storeName ?? "-"} />
               <DetailRow
                 label="일정"
-                value={`${formatDateShort(confirmed.date)} · ${confirmed.time}`}
+                value={`${formatDateShort(dateTime.date)} · ${dateTime.time}`}
               />
               <DetailRow
                 label="예약 상태"
-                value={STATUS_LABEL[confirmed.status]}
+                value={RESERVATION_STATUS_LABEL[reservation.status]}
               />
 
               <View className="border-t border-concierge-borderLight" />
@@ -105,7 +115,7 @@ export function DetailScreen() {
                 요청사항
               </Text>
               <Text className="text-xs text-concierge-textMuted">
-                {confirmed.note || "전달된 요청사항이 없어요."}
+                {reservation.customerNote || "전달된 요청사항이 없어요."}
               </Text>
             </Card>
 
@@ -114,8 +124,13 @@ export function DetailScreen() {
                 매장 연락처
               </Text>
               <Text className="text-sm font-semibold text-concierge-text">
-                02-0000-0000
+                {reservation.storePhone ?? "-"}
               </Text>
+              {reservation.storeAddress ? (
+                <Text className="text-xs text-concierge-textMuted">
+                  {reservation.storeAddress}
+                </Text>
+              ) : null}
             </Card>
 
             <View className="gap-1 rounded-xl bg-concierge-surfaceMuted px-4 py-3">
@@ -127,36 +142,50 @@ export function DetailScreen() {
               </Text>
             </View>
 
-            <View className="mt-10 gap-2">
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/reservation/datetime",
-                    params: { mode: "edit" },
-                  })
-                }
-                className="items-center justify-center rounded-xl border border-concierge-border bg-white py-3.5"
-              >
-                <Text className="text-base font-semibold text-concierge-text">
-                  일정 변경
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={handleCancel}
-                className="items-center justify-center rounded-xl border border-concierge-border bg-white py-3.5"
-              >
-                <Text className="text-base font-semibold text-concierge-text">
-                  예약 취소
-                </Text>
-              </Pressable>
-            </View>
+            {cancelReservation.error ? (
+              <Text className="text-xs text-[#C04737]">
+                {cancelReservation.error.message}
+              </Text>
+            ) : null}
+
+            {reservation.status === "PENDING_APPROVAL" ||
+            reservation.status === "CONFIRMED" ? (
+              <View className="mt-10 gap-2">
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: "/reservation/datetime",
+                      params: { mode: "edit", id: String(reservation.id) },
+                    })
+                  }
+                  className="items-center justify-center rounded-xl border border-concierge-border bg-white py-3.5"
+                >
+                  <Text className="text-base font-semibold text-concierge-text">
+                    일정 변경
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setConfirmVisible(true)}
+                  disabled={cancelReservation.isPending}
+                  className="items-center justify-center rounded-xl border border-concierge-border bg-white py-3.5"
+                >
+                  <Text className="text-base font-semibold text-concierge-text">
+                    예약 취소
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
           </ScrollView>
         </>
       ) : (
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-sm text-concierge-textMuted">
-            확인된 예약 정보가 없어요.
-          </Text>
+          {isPending && reservationId !== null ? (
+            <ActivityIndicator />
+          ) : (
+            <Text className="text-sm text-concierge-textMuted">
+              {error?.message ?? "확인된 예약 정보가 없어요."}
+            </Text>
+          )}
         </View>
       )}
 

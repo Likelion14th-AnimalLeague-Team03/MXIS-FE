@@ -7,6 +7,10 @@ import outIcon from "@/features/care/assets/out.png";
 import popIcon from "@/features/care/assets/pop.png";
 import temperatureIcon from "@/features/care/assets/temperature.png";
 import waterIcon from "@/features/care/assets/water.png";
+import { useCareReport } from "@/features/care/hooks/useCare";
+import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
+import { formatDateDot } from "@/features/reservation/format";
+import { parseLocalDate } from "@/shared/api/localTime";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { ShieldCheckIcon } from "@/shared/components/icons/ShieldIcon";
@@ -45,7 +49,16 @@ function SummaryRow({
 
 export function ReportScreen() {
   const router = useRouter();
-  const hasData = true;
+  const { productId } = usePrimaryProductId();
+  const { data: report, isPending, error } = useCareReport(productId);
+
+  const environment = report?.environment30d;
+  const careNeeded = report?.careNeeded ?? false;
+  const nextCareLabel = report?.nextCareRecommendedAt
+    ? `${formatDateDot(parseLocalDate(report.nextCareRecommendedAt))} 이전`
+    : report?.careCycleMonths != null
+      ? `권장 케어 주기 ${report.careCycleMonths}개월`
+      : null;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -57,13 +70,15 @@ export function ReportScreen() {
         <Card className="mt-4 border-0 bg-white px-4 py-3.5">
           <Text className="text-xs text-concierge-textMuted">현재 컨디션</Text>
           <Text className="mt-1 text-lg font-bold text-concierge-text">
-            {hasData ? "안정적인 상태입니다." : "리포트 준비 중"}
+            {report?.condition?.summary ?? (isPending ? "불러오는 중" : "리포트 준비 중")}
           </Text>
           <Text className="mt-1 text-[13px] text-concierge-textMuted">
-            {hasData
-              ? "제품을 손상으로 단정하지 않고 최근 환경과 사용 기록을 바탕으로 관리 필요 가능성을 안내합니다."
-              : "아직 충분한 데이터가 쌓이지 않았습니다. 데이터를 수집 할수록 진단이 더 정확해져요"}
+            {report?.condition?.detail ??
+              "아직 충분한 데이터가 쌓이지 않았습니다. 데이터를 수집 할수록 진단이 더 정확해져요"}
           </Text>
+          {error ? (
+            <Text className="mt-2 text-xs text-[#C04737]">{error.message}</Text>
+          ) : null}
         </Card>
 
         <Text className="mt-5 text-xl font-bold text-concierge-text">
@@ -79,8 +94,12 @@ export function ReportScreen() {
               />
             }
             label="평균 온도"
-            caption="데이터 수집 중"
-            value={hasData ? "22°C" : "—"}
+            caption={environment?.temperatureDescription ?? "데이터 수집 중"}
+            value={
+              environment?.avgTemperature != null
+                ? `${Math.round(environment.avgTemperature)}°C`
+                : "—"
+            }
           />
           <SummaryRow
             icon={
@@ -91,8 +110,12 @@ export function ReportScreen() {
               />
             }
             label="평균 습도"
-            caption="데이터 수집 중"
-            value={hasData ? "42%" : "—"}
+            caption={environment?.humidityDescription ?? "데이터 수집 중"}
+            value={
+              environment?.avgHumidity != null
+                ? `${Math.round(environment.avgHumidity)}%`
+                : "—"
+            }
           />
           <SummaryRow
             icon={
@@ -103,8 +126,8 @@ export function ReportScreen() {
               />
             }
             label="충격"
-            caption="분석 전"
-            value={hasData ? "낮음" : "—"}
+            caption={environment?.shockLevelLabel ? "최근 30일" : "분석 전"}
+            value={environment?.shockLevelLabel ?? "—"}
           />
           <SummaryRow
             icon={
@@ -115,8 +138,10 @@ export function ReportScreen() {
               />
             }
             label="최근 사용 패턴"
-            caption="분석 전"
-            value={hasData ? "18회" : "—"}
+            caption={environment?.outingCount != null ? "최근 30일 외출" : "분석 전"}
+            value={
+              environment?.outingCount != null ? `${environment.outingCount}회` : "—"
+            }
             divider={false}
           />
         </Card>
@@ -130,21 +155,18 @@ export function ReportScreen() {
               제품 상태 해석
             </Text>
             <Text className="mt-1 text-[13px] text-concierge-textMuted">
-              {hasData
-                ? "현재는 안정적으로 유지되고 있으나, 다음 계절 전 가벼운 점검을 권장합니다."
-                : "아직 제품 상태를 해석할 만큼 데이터가 충분하지 않아요. 며칠 더 데이터를 모으면 맞춤 리포트를 확인할 수 있어요."}
+              {report?.interpretation ??
+                "아직 제품 상태를 해석할 만큼 데이터가 충분하지 않아요. 며칠 더 데이터를 모으면 맞춤 리포트를 확인할 수 있어요."}
             </Text>
           </View>
         </Card>
 
         <Card className="mt-4 border-0 bg-concierge-surfaceMuted px-4 py-3">
-          {hasData ? (
-            <Text className="text-xs text-concierge-textMuted">
-              이번 계절이 지나기 전
-            </Text>
+          {careNeeded && nextCareLabel ? (
+            <Text className="text-xs text-concierge-textMuted">{nextCareLabel}</Text>
           ) : null}
           <Text className="mt-1 text-[15px] font-bold text-concierge-text">
-            {hasData
+            {careNeeded
               ? "가벼운 컨디션 점검을 제안드려요."
               : "현재는 별도의 방문 케어가 필요하지 않아요."}
           </Text>

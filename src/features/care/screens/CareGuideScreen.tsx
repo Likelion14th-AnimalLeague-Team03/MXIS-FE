@@ -3,22 +3,21 @@ import { Image, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path, Rect } from "react-native-svg";
 
-import guide1 from "@/features/care/assets/guide1.png";
 import guide2 from "@/features/care/assets/guide2.png";
+import { useCareGuide } from "@/features/care/hooks/useCare";
+import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
 import { Card } from "@/shared/components/Card";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { colors } from "@/shared/styles/colors";
 
-const CARE_STEPS = [
+// 서버 가이드가 아직 없을 때 보여줄 기본값이에요.
+const FALLBACK_CARE_STEPS = [
   "마른 부드러운 천을 준비해주세요.",
   "결 방향을 따라 부드럽게 닦아주세요.",
   "강한 힘을 주지 않고 가볍게 닦아주세요.",
 ];
 
-// 추천 관리 이미지는 텍스트가 이미지 안에 그려진 완성본이라 그대로 보여주면 돼요.
-// GUIDE_IMAGES[0]=guide1, [1]=guide2 — 나중엔 AI 진단 결과로 정해지는 인덱스로 바꾸면 됩니다.
-const GUIDE_IMAGES = [guide1, guide2];
-const recommendedGuideIndex = 1;
+const FALLBACK_GUIDE_IMAGE = guide2;
 
 function CheckSquareIcon({
   size = 14,
@@ -67,6 +66,10 @@ function StepRow({ index, label }: { index: number; label: string }) {
 
 export function CareGuideScreen() {
   const router = useRouter();
+  const { productId } = usePrimaryProductId();
+  const { data: guide, isPending, error } = useCareGuide(productId);
+
+  const steps = guide?.steps?.length ? guide.steps : FALLBACK_CARE_STEPS;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -77,7 +80,9 @@ export function CareGuideScreen() {
 
         <View className="mt-4 overflow-hidden rounded-2xl">
           <Image
-            source={GUIDE_IMAGES[recommendedGuideIndex]}
+            source={
+              guide?.guideImageUrl ? { uri: guide.guideImageUrl } : FALLBACK_GUIDE_IMAGE
+            }
             className="w-full"
             style={{ aspectRatio: 338 / 223 }}
             resizeMode="cover"
@@ -87,15 +92,19 @@ export function CareGuideScreen() {
         <View className="mt-5 flex-row items-center gap-1.5">
           <CheckSquareIcon size={16} color={colors.primary} />
           <Text className="text-xs font-medium text-concierge-textMuted">
-            일상 관리
+            {guide?.materialDisplayName ?? "일상 관리"}
           </Text>
         </View>
         <Text className="mt-2 text-xl font-bold leading-7 text-concierge-text">
-          마른 부드러운 천으로 표면 정돈
+          {guide?.title ?? (isPending ? "가이드를 불러오는 중" : "마른 부드러운 천으로 표면 정돈")}
         </Text>
         <Text className="mt-2 text-[13px] leading-5 text-concierge-textMuted">
-          먼지와 오염을 부드럽게 제거하여 가죽의 컨디션을 유지해 주세요.
+          {guide?.description ??
+            "먼지와 오염을 부드럽게 제거하여 가죽의 컨디션을 유지해 주세요."}
         </Text>
+        {error ? (
+          <Text className="mt-2 text-xs text-[#C04737]">{error.message}</Text>
+        ) : null}
 
         <View className="mt-4 border-t border-concierge-borderLight" />
 
@@ -103,7 +112,7 @@ export function CareGuideScreen() {
           이렇게 관리해주세요
         </Text>
         <View className="mt-1">
-          {CARE_STEPS.map((step, i) => (
+          {steps.map((step, i) => (
             <StepRow key={step} index={i + 1} label={step} />
           ))}
         </View>
@@ -113,7 +122,8 @@ export function CareGuideScreen() {
             TIP.
           </Text>
           <Text className="flex-1 text-[13px] leading-5 text-concierge-textSecondary">
-            정기적으로 관리하면 가죽의 광택과 수명을 오래 유지할 수 있어요.
+            {guide?.tip ??
+              "정기적으로 관리하면 가죽의 광택과 수명을 오래 유지할 수 있어요."}
           </Text>
         </Card>
       </ScrollView>

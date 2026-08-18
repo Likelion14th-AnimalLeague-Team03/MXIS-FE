@@ -1,11 +1,10 @@
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { RESERVATION_STORES } from "@/features/reservation/constants";
+import { useStores } from "@/features/reservation/hooks/useReservation";
 import { useReservationStore } from "@/features/reservation/store";
-import { AlertModal } from "@/shared/components/AlertModal";
 import { MapPinIcon } from "@/shared/components/icons/MapPinIcon";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 
@@ -14,27 +13,30 @@ export function StoreScreen() {
   const draft = useReservationStore((state) => state.draft);
   const setDraftStore = useReservationStore((state) => state.setDraftStore);
   const [query, setQuery] = useState("");
-  const [locationGranted, setLocationGranted] = useState<boolean | null>(null);
+  const { data, isPending, error } = useStores();
 
   const stores = useMemo(() => {
+    const all = data ?? [];
     const q = query.trim();
     const filtered = q
-      ? RESERVATION_STORES.filter(
-          (store) => store.name.includes(q) || store.address.includes(q),
+      ? all.filter(
+          (store) =>
+            store.storeName.includes(q) || (store.address ?? "").includes(q),
         )
-      : RESERVATION_STORES;
+      : all;
 
-    const sorted = [...filtered];
-    if (locationGranted) {
-      sorted.sort((a, b) => a.distanceKm - b.distanceKm);
-    } else {
-      sorted.sort((a, b) => a.name.localeCompare(b.name, "ko"));
-    }
-    return sorted;
-  }, [query, locationGranted]);
+    // 서버가 distanceKm을 주면(좌표를 함께 보낸 경우) 가까운 순, 아니면 이름순으로 정렬해요.
+    return [...filtered].sort((a, b) => {
+      if (a.distanceKm != null && b.distanceKm != null) {
+        return a.distanceKm - b.distanceKm;
+      }
 
-  const handleSelect = (name: string, address: string) => {
-    setDraftStore(name, address);
+      return a.storeName.localeCompare(b.storeName, "ko");
+    });
+  }, [data, query]);
+
+  const handleSelect = (id: number, name: string, address: string | null) => {
+    setDraftStore({ id, name, address });
     router.back();
   };
 
@@ -59,27 +61,50 @@ export function StoreScreen() {
         className="flex-1 px-6 mt-3"
         contentContainerClassName="gap-2"
       >
+        {isPending ? (
+          <View className="items-center py-10">
+            <ActivityIndicator />
+          </View>
+        ) : null}
+
+        {error ? (
+          <Text className="px-1 py-4 text-sm text-[#C04737]">{error.message}</Text>
+        ) : null}
+
+        {!isPending && !error && stores.length === 0 ? (
+          <Text className="px-1 py-4 text-sm text-concierge-textMuted">
+            표시할 매장이 없어요.
+          </Text>
+        ) : null}
+
         {stores.map((store) => {
-          const selected = draft.storeName === store.name;
+          const selected = draft.storeId === store.id;
           return (
             <Pressable
               key={store.id}
-              onPress={() => handleSelect(store.name, store.address)}
+              onPress={() => handleSelect(store.id, store.storeName, store.address ?? null)}
               className={` flex-row items-center justify-between rounded-xl border bg-white px-4 py-4 ${
                 selected ? "border-black" : "border-concierge-borderLight"
               }`}
             >
-              <View>
+              <View className="flex-1 pr-3">
                 <Text className="text-base font-semibold text-concierge-text">
-                  {store.name}
+                  {store.storeName}
                 </Text>
-                <Text className="mt-1 text-xs text-concierge-textMuted">
-                  {store.address}
-                </Text>
+                {store.address ? (
+                  <Text className="mt-1 text-xs text-concierge-textMuted">
+                    {store.address}
+                  </Text>
+                ) : null}
+                {store.openingHours ? (
+                  <Text className="mt-1 text-xs text-concierge-textMuted">
+                    {store.openingHours}
+                  </Text>
+                ) : null}
               </View>
-              {locationGranted ? (
+              {store.distanceKm != null ? (
                 <Text className="text-sm text-concierge-text">
-                  {store.distanceKm}km
+                  {store.distanceKm.toFixed(1)}km
                 </Text>
               ) : null}
             </Pressable>
