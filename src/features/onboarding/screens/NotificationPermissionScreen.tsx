@@ -1,9 +1,10 @@
-import { Image, PermissionsAndroid, Platform, Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import notificationPermissionBag from "@/features/onboarding/assets/products/notification-permission-bag.png";
+import { ensureNotificationPermission } from "@/shared/notifications/notificationPermission";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
@@ -20,9 +21,8 @@ export function NotificationPermissionScreen() {
   };
 
   const requestNotificationPermission = async () => {
-    if (Platform.OS === "android" && Platform.Version >= 33) {
-      await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
-    }
+    // 여기서 거부해도 온보딩은 계속 진행하고, 마이페이지에서 다시 물어볼 수 있어요.
+    await ensureNotificationPermission();
 
     goNext();
   };
