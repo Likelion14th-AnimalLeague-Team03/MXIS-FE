@@ -153,11 +153,17 @@ function formatOutingCount(
   return `${count}회`;
 }
 
+/**
+ * 온도·습도는 참(센서)이 연결돼 있을 때만 의미가 있어요.
+ * 연결이 없으면 서버에 마지막 측정값이 남아 있어도 화면에는 "-"로 둡니다.
+ */
 function formatTemperature(
   product: Product | null,
   summary?: ProductDeviceManagementSummary | null,
+  hasConnectedCharm?: boolean,
 ) {
   if (
+    !hasConnectedCharm ||
     !isSameProductSummary(product, summary) ||
     summary?.currentEnvironment == null
   ) {
@@ -171,8 +177,10 @@ function formatTemperature(
 function formatHumidity(
   product: Product | null,
   summary?: ProductDeviceManagementSummary | null,
+  hasConnectedCharm?: boolean,
 ) {
   if (
+    !hasConnectedCharm ||
     !isSameProductSummary(product, summary) ||
     summary?.currentEnvironment == null
   ) {
@@ -949,14 +957,22 @@ export function DeviceScreen() {
             <View className="mt-3 flex-row items-center">
               <View className="flex-1 items-center">
                 <Text className="text-[20px] font-semibold text-[#171717]">
-                  {formatTemperature(selectedProduct, selectedProductSummary)}
+                  {formatTemperature(
+                    selectedProduct,
+                    selectedProductSummary,
+                    hasConnectedCharm,
+                  )}
                 </Text>
                 <Text className="text-[11px] text-[#686868]">온도</Text>
               </View>
               <View className="h-10 w-px bg-[#E4E1DD]" />
               <View className="flex-1 items-center">
                 <Text className="text-[20px] font-semibold text-[#171717]">
-                  {formatHumidity(selectedProduct, selectedProductSummary)}
+                  {formatHumidity(
+                    selectedProduct,
+                    selectedProductSummary,
+                    hasConnectedCharm,
+                  )}
                 </Text>
                 <Text className="text-[11px] text-[#686868]">습도</Text>
               </View>
