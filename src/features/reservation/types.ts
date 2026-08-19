@@ -9,6 +9,8 @@ export type Store = {
   latitude?: number | null;
   longitude?: number | null;
   openingHours?: string | null;
+  /** 매장 상세(웹) 링크 — "매장 자세히 보기"에서 외부 브라우저로 열어요. */
+  storeUrl?: string | null;
   distanceKm?: number | null;
 };
 
@@ -43,6 +45,8 @@ export type Reservation = {
   storeName?: string | null;
   storeAddress?: string | null;
   storePhone?: string | null;
+  /** 매장 상세(웹) 링크 */
+  storeUrl?: string | null;
   careSuggestionId?: number | null;
   serviceType?: string | null;
   reservationType: ReservationType;
@@ -63,6 +67,7 @@ export type ReservationSummary = {
   productName?: string | null;
   storeId: number;
   storeName?: string | null;
+  storeAddress?: string | null;
   reservationType: ReservationType;
   reservedDate: string;
   reservedTime: LocalTimeLike;
