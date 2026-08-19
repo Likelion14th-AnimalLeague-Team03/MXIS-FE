@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { login, logout, refreshToken } from "@/features/auth/api/authApi";
 import type { AuthTokens, LoginRequest, UserProfile } from "@/features/auth/types";
 import { registerAuthSession } from "@/shared/api/authSession";
+import { resetQueryCache } from "@/shared/api/queryClient";
 
 const AUTH_TOKENS_KEY = "mxis.auth.tokens";
 
@@ -60,6 +61,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     };
     await saveTokens(tokens);
 
+    // 계정이 바뀌었을 수 있으니 이전 사용자의 쿼리 캐시를 먼저 버립니다.
+    resetQueryCache();
+
     set({
       accessToken: tokens.accessToken,
       refreshTokenValue: tokens.refreshToken,
@@ -103,6 +107,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return true;
     } catch {
       await removeTokens();
+      resetQueryCache();
       set({
         accessToken: null,
         refreshTokenValue: null,
@@ -123,6 +128,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     await removeTokens();
+
+    resetQueryCache();
 
     set({
       accessToken: null,
@@ -170,6 +177,8 @@ registerAuthSession({
   },
   clear: async () => {
     await removeTokens();
+
+    resetQueryCache();
 
     useAuthStore.setState({
       accessToken: null,

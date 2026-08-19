@@ -13,6 +13,7 @@ import { PRODUCTS } from "@/features/device/constants";
 import { useCurrentProduct } from "@/features/product/hooks/useProduct";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
+import { SentenceList } from "@/shared/components/SentenceList";
 
 function StatCard({
   icon,
@@ -142,10 +143,12 @@ export function CareHomeScreen() {
           <Text className="mt-1 text-lg font-bold text-concierge-text">
             {diagnosis?.condition?.summary ?? "데이터가 수집되고 있습니다."}
           </Text>
-          <Text className="mt-1 text-[11px] text-concierge-textMuted">
-            {diagnosis?.condition?.description ??
-              "정확한 진단을 위해 환경 데이터를 모으고 있어요."}
-          </Text>
+          <SentenceList
+            className="mt-1"
+            text={diagnosis?.condition?.description}
+            fallback="정확한 진단을 위해 환경 데이터를 모으고 있어요."
+            textClassName="text-[11px] text-concierge-textMuted"
+          />
           <Pressable
             onPress={() => router.push("/care/report")}
             className="mt-2 flex-row items-center justify-end gap-1"

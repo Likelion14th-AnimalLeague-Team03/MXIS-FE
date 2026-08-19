@@ -14,6 +14,7 @@ import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
 import { Card } from "@/shared/components/Card";
 import { WarningIcon } from "@/shared/components/icons/WarningIcon";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
+import { SentenceList } from "@/shared/components/SentenceList";
 
 const RANGES = ["최근 7일", "최근 30일", "최근 1년"] as const;
 type Range = (typeof RANGES)[number];
@@ -282,10 +283,11 @@ export function EnvironmentScreen() {
           <Text className="text-lg font-bold text-concierge-text">
             데이터 해석
           </Text>
-          <Text className="text-[15px] font-medium text-[#222222]">
-            {period?.interpretation ??
-              "현재 데이터를 수집하고 있습니다.\n\n충분한 기록이 쌓이면 제품의 사용 환경과 패턴을 종합해 안내해 드립니다."}
-          </Text>
+          <SentenceList
+            text={period?.interpretation}
+            fallback="현재 데이터를 수집하고 있습니다. 충분한 기록이 쌓이면 제품의 사용 환경과 패턴을 종합해 안내해 드립니다."
+            textClassName="text-[15px] font-medium text-[#222222]"
+          />
         </Card>
       </ScrollView>
     </SafeAreaView>

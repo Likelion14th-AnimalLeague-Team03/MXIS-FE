@@ -14,6 +14,7 @@ import type {
   ReservationCreateRequest,
   ReservationStatus,
   ReservationSummary,
+  ReservationType,
   ReservationUpdateRequest,
 } from "@/features/reservation/types";
 
@@ -58,19 +59,38 @@ export function useReservations(status?: ReservationStatus) {
 }
 
 /**
+ * 진행 중인 예약을 종류별로 나눠서 돌려줘요.
+ * 컨시어지(유상)와 무상 케어는 각각 1건씩 가질 수 있어서, 둘 다 있으면 카드도 둘 다 보여줍니다.
+ */
+export function useActiveReservations(productId?: number | null) {
+  const query = useReservations();
+
+  const active = ((query.data ?? []) as ReservationSummary[])
+    .filter((item) => ACTIVE_STATUSES.includes(item.status))
+    .filter((item) => (productId == null ? true : item.productId === productId))
+    .sort((a, b) => a.reservedDate.localeCompare(b.reservedDate));
+
+  const findByType = (type: ReservationType) =>
+    active.find((item) => item.reservationType === type) ?? null;
+
+  return {
+    ...query,
+    activeReservations: active,
+    /** 케어 컨시어지(유상) 예약 */
+    paidReservation: findByType("PAID"),
+    /** 무상 케어 예약 */
+    freeReservation: findByType("FREE"),
+  };
+}
+
+/**
  * 예약 현황 카드에 쓸 "가장 가까운 진행 중 예약".
  * productId를 주면 그 제품(메인으로 선택한 가방)의 예약만 봅니다.
  */
 export function useActiveReservation(productId?: number | null) {
-  const query = useReservations();
+  const { activeReservations, ...rest } = useActiveReservations(productId);
 
-  const active = (query.data ?? [])
-    .filter((item) => ACTIVE_STATUSES.includes(item.status))
-    .filter((item) => (productId == null ? true : item.productId === productId))
-    .sort((a, b) => a.reservedDate.localeCompare(b.reservedDate))
-    .at(0) as ReservationSummary | undefined;
-
-  return { ...query, activeReservation: active ?? null };
+  return { ...rest, activeReservation: activeReservations.at(0) ?? null };
 }
 
 export function useReservation(id: number | null) {

@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -12,17 +13,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useCurrentProduct } from "@/features/product/hooks/useProduct";
 import calendarIcon from "@/features/reservation/assets/calendar.png";
 import giftIcon from "@/features/reservation/assets/gift.png";
+import { RESERVATION_TYPE_LABEL } from "@/features/reservation/constants";
 import {
   formatDateTimeMeridiem,
   toReservationDateTime,
 } from "@/features/reservation/format";
 import {
-  useActiveReservation,
+  useActiveReservations,
   useReservation,
 } from "@/features/reservation/hooks/useReservation";
 import { useReservationStore } from "@/features/reservation/store";
 import type {
-  ReservationStatus,
+  ReservationSummary,
   ReservationType,
 } from "@/features/reservation/types";
 import { Card } from "@/shared/components/Card";
@@ -84,23 +86,38 @@ function FreeCareCard({ onPress }: { onPress: () => void }) {
 /**
  * 예약 현황 카드 — 상태에 따라 라벨이 바뀌어요.
  * 컨시어지(유상) 예약은 담당자 승인을 거치므로 확정 전에는 "승인 대기"로 보여줍니다.
+ * 매장 주소·매장 링크(storeUrl)는 목록 응답에 없어서 카드마다 상세를 한 번 더 불러와요.
  */
 function ReservationStatusCard({
-  status,
-  dateLabel,
-  storeName,
-  storeAddress,
+  reservation,
   onPressEditSchedule,
   onPressDetail,
 }: {
-  status: ReservationStatus;
-  dateLabel: string;
-  storeName: string;
-  storeAddress?: string | null;
+  reservation: ReservationSummary;
   onPressEditSchedule: () => void;
   onPressDetail: () => void;
 }) {
-  const isPendingApproval = status === "PENDING_APPROVAL";
+  const { data: detail } = useReservation(reservation.id);
+
+  const isPendingApproval = reservation.status === "PENDING_APPROVAL";
+  const dateTime = toReservationDateTime(
+    reservation.reservedDate,
+    reservation.reservedTime,
+  );
+  const dateLabel = formatDateTimeMeridiem(dateTime.date, dateTime.time);
+  const storeName = reservation.storeName ?? detail?.storeName ?? "-";
+  const storeAddress = reservation.storeAddress ?? detail?.storeAddress ?? null;
+  const storeUrl = detail?.storeUrl ?? null;
+
+  const openStorePage = async () => {
+    if (!storeUrl) return;
+
+    try {
+      await Linking.openURL(storeUrl);
+    } catch {
+      // 열 수 없는 링크는 조용히 무시해요 — 예약 정보 확인이 막히면 안 되니까요.
+    }
+  };
 
   return (
     <Card className="mt-3 rounded-[20px] border-0 bg-concierge-surfaceMuted px-6 py-6">
@@ -112,6 +129,10 @@ function ReservationStatusCard({
         />
         <Text className="text-xs font-bold text-[#6D5243]">
           {isPendingApproval ? "승인 대기" : "예약 완료"}
+        </Text>
+        <View className="flex-1" />
+        <Text className="text-xs font-semibold text-[#8C6748]">
+          {RESERVATION_TYPE_LABEL[reservation.reservationType]}
         </Text>
       </View>
 
@@ -138,10 +159,18 @@ function ReservationStatusCard({
             <Text className="text-xs text-[#6E6965]">{storeAddress}</Text>
           ) : null}
         </View>
-        <View className="flex-row items-center gap-1 rounded-[10px] border border-concierge-border bg-white px-3 py-1.5">
+        <Pressable
+          onPress={openStorePage}
+          disabled={!storeUrl}
+          accessibilityRole="link"
+          accessibilityLabel={`${storeName} 매장 페이지 열기`}
+          className={`flex-row items-center gap-1 rounded-[10px] border border-concierge-border bg-white px-3 py-1.5 ${
+            storeUrl ? "" : "opacity-40"
+          }`}
+        >
           <Text className="text-xs text-[#3E352F]">매장 자세히 보기</Text>
           <ChevronRightIcon size={6} />
-        </View>
+        </Pressable>
       </View>
 
       <View className="mt-4 flex-row gap-2">
@@ -176,21 +205,14 @@ export function EntryScreen() {
   // 예약 현황은 "메인으로 선택한 가방"의 예약만 봅니다.
   const { productId, isPending: isProductPending } = useCurrentProduct();
   const {
-    activeReservation,
+    paidReservation,
+    freeReservation,
     isPending: isReservationPending,
     error,
-  } = useActiveReservation(productId);
-  // 매장 주소는 목록 응답에 없어서 상세를 한 번 더 불러와요.
-  const { data: activeDetail } = useReservation(activeReservation?.id ?? null);
+  } = useActiveReservations(productId);
 
   const isPending = isProductPending || isReservationPending;
-
-  const dateTime = activeReservation
-    ? toReservationDateTime(
-        activeReservation.reservedDate,
-        activeReservation.reservedTime,
-      )
-    : null;
+  const hasAnyReservation = Boolean(paidReservation || freeReservation);
 
   const goToInput = (careType: ReservationType) => {
     setPendingCareType(careType);
@@ -198,32 +220,28 @@ export function EntryScreen() {
     router.push("/reservation/input");
   };
 
-  const goToDetail = () => {
-    if (!activeReservation) return;
-
+  const goToDetail = (reservation: ReservationSummary) => {
     router.push({
       pathname: "/reservation/detail",
-      params: { id: String(activeReservation.id) },
+      params: { id: String(reservation.id) },
     });
   };
 
-  const goToEditSchedule = () => {
-    if (!activeReservation) return;
-
+  const goToEditSchedule = (reservation: ReservationSummary) => {
     router.push({
       pathname: "/reservation/datetime",
-      params: { mode: "edit", id: String(activeReservation.id) },
+      params: { mode: "edit", id: String(reservation.id) },
     });
   };
 
-  // 진행 중 예약이 있으면 남은 카드는 "반대편 예약 경로"를 안내해요.
-  // 컨시어지(유상) 예약 중이면 무상 케어 카드를, 무상 케어 예약 중이면 컨시어지 카드를 보여줍니다.
-  const secondaryCard =
-    activeReservation?.reservationType === "PAID" ? (
-      <FreeCareCard onPress={() => goToInput("FREE")} />
-    ) : (
-      <ConciergePromoCard onPress={() => goToInput("PAID")} />
-    );
+  const renderStatusCard = (reservation: ReservationSummary) => (
+    <ReservationStatusCard
+      key={reservation.id}
+      reservation={reservation}
+      onPressEditSchedule={() => goToEditSchedule(reservation)}
+      onPressDetail={() => goToDetail(reservation)}
+    />
+  );
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -240,17 +258,18 @@ export function EntryScreen() {
           <Card className="mt-3 items-center rounded-[20px] border-0 bg-concierge-surfaceMuted px-6 py-10">
             <ActivityIndicator />
           </Card>
-        ) : activeReservation && dateTime ? (
+        ) : hasAnyReservation ? (
+          // 컨시어지·무상 케어는 각각 1건씩 가질 수 있어서, 있는 만큼 카드를 나란히 보여줘요.
+          // 한쪽만 예약돼 있으면 남은 쪽은 예약 진입 카드로 안내합니다.
           <>
-            <ReservationStatusCard
-              status={activeReservation.status}
-              dateLabel={formatDateTimeMeridiem(dateTime.date, dateTime.time)}
-              storeName={activeReservation.storeName ?? "-"}
-              storeAddress={activeDetail?.storeAddress}
-              onPressEditSchedule={goToEditSchedule}
-              onPressDetail={goToDetail}
-            />
-            {secondaryCard}
+            {paidReservation ? renderStatusCard(paidReservation) : null}
+            {freeReservation ? renderStatusCard(freeReservation) : null}
+            {paidReservation ? null : (
+              <ConciergePromoCard onPress={() => goToInput("PAID")} />
+            )}
+            {freeReservation ? null : (
+              <FreeCareCard onPress={() => goToInput("FREE")} />
+            )}
           </>
         ) : (
           // 진행 중 예약이 없으면 무상 케어 제안과 컨시어지 예약 카드를 함께 보여줘요.

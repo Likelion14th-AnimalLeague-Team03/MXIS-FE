@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   LayoutAnimation,
   Modal,
@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import * as Notifications from "expo-notifications";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
 import {
@@ -27,10 +26,16 @@ import {
   useUpdateNotificationSettings,
 } from "@/features/mypage/hooks/useMypage";
 import type { ConsentType } from "@/features/mypage/types";
+import { AlertModal } from "@/shared/components/AlertModal";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { LogoutIcon } from "@/shared/components/icons/LogoutIcon";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
+import {
+  ensureNotificationPermission,
+  getNotificationPermission,
+  openAppNotificationSettings,
+} from "@/shared/notifications/notificationPermission";
 
 if (
   Platform.OS === "android" &&
@@ -126,6 +131,7 @@ export function MyPageScreen() {
   const signOut = useAuthStore((state) => state.signOut);
   const storedUser = useAuthStore((state) => state.user);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [openKey, setOpenKey] = useState<SectionKey | null>(null);
   const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
 
@@ -143,19 +149,64 @@ export function MyPageScreen() {
   const profile = fetchedProfile ?? storedUser;
   const profileError = profileQueryError?.message ?? null;
 
+  // 앱 밖(시스템 설정)에서 알림을 끄거나 켠 경우가 있어서,
+  // 화면이 뜰 때 OS 권한 상태를 서버 값(pushPermissionGranted)에 맞춰줘요.
+  const syncedPermissionRef = useRef<boolean | null>(null);
+  const serverPushGranted = notificationSettings?.pushPermissionGranted;
+
+  useEffect(() => {
+    if (serverPushGranted === undefined) return;
+
+    let cancelled = false;
+
+    const sync = async () => {
+      try {
+        const { granted } = await getNotificationPermission();
+
+        if (
+          cancelled ||
+          granted === serverPushGranted ||
+          syncedPermissionRef.current === granted
+        ) {
+          return;
+        }
+
+        syncedPermissionRef.current = granted;
+        updateNotificationSettings.mutate({ pushPermissionGranted: granted });
+      } catch {
+        // 권한 상태를 못 읽으면 서버 값을 그대로 둡니다.
+      }
+    };
+
+    void sync();
+
+    return () => {
+      cancelled = true;
+    };
+    // updateNotificationSettings는 매 렌더마다 새 객체라 의존성에서 제외해요.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverPushGranted]);
+
   const toggleSection = (key: SectionKey) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setOpenKey((prev) => (prev === key ? null : key));
   };
 
-  const ensureNotificationPermission = async () => {
-    if (Platform.OS !== "android") return true;
+  const ensureNotificationPermissionOrGuide = async () => {
+    const result = await ensureNotificationPermission();
 
-    const currentPermission = await Notifications.getPermissionsAsync();
-    if (currentPermission.granted) return true;
+    if (result === "blocked") {
+      // OS가 더 이상 권한 창을 띄우지 않는 상태 — 설정으로 보내야 켤 수 있어요.
+      setSettingsModalVisible(true);
+      return false;
+    }
 
-    const requestedPermission = await Notifications.requestPermissionsAsync();
-    return requestedPermission.granted;
+    if (result === "denied") {
+      setPermissionMessage("알림 권한을 허용하면 해당 알림을 받을 수 있습니다.");
+      return false;
+    }
+
+    return true;
   };
 
   const handleToggleNotification = async (
@@ -170,10 +221,9 @@ export function MyPageScreen() {
     }
 
     try {
-      const granted = await ensureNotificationPermission();
+      const granted = await ensureNotificationPermissionOrGuide();
       if (!granted) {
         updateNotificationSettings.mutate({ pushPermissionGranted: false });
-        setPermissionMessage("알림 권한을 허용하면 해당 알림을 받을 수 있습니다.");
         return;
       }
 
@@ -474,6 +524,27 @@ export function MyPageScreen() {
           </View>
         </View>
       </Modal>
+
+      <AlertModal
+        visible={settingsModalVisible}
+        title="알림 권한이 꺼져 있어요."
+        description={
+          "기기 설정에서 MXIS 알림을 허용해야 알림을 받을 수 있어요.\n설정 > 알림에서 켜주세요."
+        }
+        layout="column"
+        actions={[
+          {
+            label: "설정으로 이동",
+            onPress: () => {
+              setSettingsModalVisible(false);
+              void openAppNotificationSettings();
+            },
+            variant: "accent",
+          },
+          { label: "나중에", onPress: () => setSettingsModalVisible(false) },
+        ]}
+        onRequestClose={() => setSettingsModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
