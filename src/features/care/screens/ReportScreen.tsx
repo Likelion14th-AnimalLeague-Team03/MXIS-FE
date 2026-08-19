@@ -16,6 +16,7 @@ import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { ShieldCheckIcon } from "@/shared/components/icons/ShieldIcon";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
+import { SentenceList } from "@/shared/components/SentenceList";
 
 function SummaryRow({
   icon,
@@ -72,10 +73,11 @@ export function ReportScreen() {
           <Text className="mt-1 text-lg font-bold text-concierge-text">
             {report?.condition?.summary ?? (isPending ? "불러오는 중" : "리포트 준비 중")}
           </Text>
-          <Text className="mt-1 text-[13px] text-concierge-textMuted">
-            {report?.condition?.detail ??
-              "아직 충분한 데이터가 쌓이지 않았습니다. 데이터를 수집 할수록 진단이 더 정확해져요"}
-          </Text>
+          <SentenceList
+            className="mt-1"
+            text={report?.condition?.detail}
+            fallback="아직 충분한 데이터가 쌓이지 않았습니다. 데이터를 수집 할수록 진단이 더 정확해져요"
+          />
           {error ? (
             <Text className="mt-2 text-xs text-[#C04737]">{error.message}</Text>
           ) : null}
@@ -154,10 +156,11 @@ export function ReportScreen() {
             <Text className="text-sm font-bold text-concierge-text">
               제품 상태 해석
             </Text>
-            <Text className="mt-1 text-[13px] text-concierge-textMuted">
-              {report?.interpretation ??
-                "아직 제품 상태를 해석할 만큼 데이터가 충분하지 않아요. 며칠 더 데이터를 모으면 맞춤 리포트를 확인할 수 있어요."}
-            </Text>
+            <SentenceList
+              className="mt-1"
+              text={report?.interpretation}
+              fallback="아직 제품 상태를 해석할 만큼 데이터가 충분하지 않아요. 며칠 더 데이터를 모으면 맞춤 리포트를 확인할 수 있어요."
+            />
           </View>
         </Card>
 
