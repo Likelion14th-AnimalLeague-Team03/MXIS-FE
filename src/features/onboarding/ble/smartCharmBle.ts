@@ -1,4 +1,4 @@
-import type { Device as BleDevice } from "react-native-ble-plx";
+import { BleManager, type Device as BleDevice } from "react-native-ble-plx";
 
 export const SMART_CHARM_DEVICE_NAME = "SmartCharm";
 export const SMART_CHARM_SERVICE_UUID =
@@ -17,6 +17,7 @@ export const DEVICE_ID_CHARACTERISTIC_UUID =
 
 const BASE64_CHARS =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const bleConnectionManager = new BleManager();
 
 export type SensorReadingDto = {
   sequence: number;
@@ -182,6 +183,23 @@ export async function readSmartCharmDeviceId(device: BleDevice) {
   }
 
   return deviceId;
+}
+
+export async function disconnectSmartCharmConnection(
+  bleDeviceId?: string | null,
+) {
+  if (!bleDeviceId) return;
+
+  try {
+    const isConnected =
+      await bleConnectionManager.isDeviceConnected(bleDeviceId);
+
+    if (!isConnected) return;
+
+    await bleConnectionManager.cancelDeviceConnection(bleDeviceId);
+  } catch {
+    // 화면/API 상태 변경을 막지 않기 위해 BLE 해제 실패는 조용히 넘깁니다.
+  }
 }
 
 export async function writeTimeSync(device: BleDevice) {

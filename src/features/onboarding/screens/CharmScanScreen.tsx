@@ -72,7 +72,7 @@ function collectSensorReading(
 }
 
 function getDebugErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "?????녿뒗 ?ㅻ쪟";
+  return error instanceof Error ? error.message : "알 수 없는 오류";
 }
 
 async function runBleDebugStep<T>(
@@ -90,7 +90,7 @@ async function runBleDebugStep<T>(
     const message = getDebugErrorMessage(error);
     console.error(`[Charm BLE] ${stepName} failed`, error);
 
-    throw new Error(`${stepName} ?ㅽ뙣: ${message}`);
+    throw new Error(`${stepName} 실패: ${message}`);
   }
 }
 
@@ -240,7 +240,7 @@ export function CharmScanScreen() {
     const hasPermission = await ensureAndroidBluetoothPermissions();
     if (!hasPermission) {
       setScanResultState("empty");
-      setErrorMessage("MXIS Charm??李얠쑝?ㅻ㈃ Bluetooth 沅뚰븳 ?덉슜???꾩슂?⑸땲??");
+      setErrorMessage("MXIS Charm을 찾으려면 Bluetooth 권한 허용이 필요합니다.");
       return;
     }
 
@@ -250,7 +250,7 @@ export function CharmScanScreen() {
       (error: BleError | null, scannedDevice: BleDevice | null) => {
         if (error) {
           setScanResultState("empty");
-          setErrorMessage("Bluetooth 寃?됱쓣 ?쒖옉?섏? 紐삵뻽?듬땲??");
+          setErrorMessage("Bluetooth 검색을 시작하지 못했습니다.");
           stopScan();
           return;
         }
@@ -312,7 +312,7 @@ export function CharmScanScreen() {
     return () => {
       stopScan();
     };
-    // ?뺤콉 API?먯꽌 諛쏆? Service UUID? timeout??諛붾뚮㈃ ?ㅼ틪???ㅼ떆 ?쒖옉?⑸땲??
+    // 정책 API에서 받은 Service UUID와 timeout이 바뀌면 스캔을 다시 시작합니다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allowedServiceUuids.join(","), scanTimeoutSeconds]);
 
@@ -320,7 +320,7 @@ export function CharmScanScreen() {
     connectedDevice: BleDevice,
   ) => {
 
-    await runBleDebugStep("TimeSync ?곌린", () =>
+    await runBleDebugStep("TimeSync 쓰기", () =>
       writeTimeSync(connectedDevice),
     );
 
@@ -334,7 +334,7 @@ export function CharmScanScreen() {
         try {
           collectSensorReading(characteristic.value, readingMap);
         } catch {
-          // ?섎せ???⑦궥? ACK?섏? ?딄퀬 臾댁떆?⑸땲??
+          // 잘못된 패킷은 ACK하지 않고 무시합니다.
         }
       },
     );
@@ -360,7 +360,7 @@ export function CharmScanScreen() {
         try {
           decodeUint32LittleEndian(characteristic.value);
         } catch {
-          // 媛쒕컻/?붾쾭洹?UI媛 ?앷린硫??ш린 媛믪쓣 ?몄텧?섎㈃ ?⑸땲??
+          // 개발/디버그 UI가 생기면 여기 값을 노출하면 됩니다.
         }
       },
     );
@@ -447,7 +447,7 @@ export function CharmScanScreen() {
     smartCharmDeviceId: string,
   ) => {
     if (!accessToken) {
-      throw new Error("濡쒓렇???뺣낫媛 ?놁뼱 MXIS Charm???깅줉?????놁뒿?덈떎.");
+      throw new Error("로그인 정보가 없어 MXIS Charm을 등록할 수 없습니다.");
     }
 
     try {
@@ -467,7 +467,7 @@ export function CharmScanScreen() {
       );
 
       if (!existingDevice) {
-        throw new Error("MXIS Charm ?깅줉???ㅽ뙣?덉뒿?덈떎.");
+        throw new Error("MXIS Charm 등록에 실패했습니다.");
       }
 
       return existingDevice;
@@ -486,7 +486,7 @@ export function CharmScanScreen() {
     );
 
     try {
-      const connectedDevice = await runBleDebugStep("BLE ?곌껐", () =>
+      const connectedDevice = await runBleDebugStep("BLE 연결", () =>
         selectedDevice.bleDevice.connect({
           timeout: CONNECT_TIMEOUT_MS,
         }),
@@ -495,7 +495,7 @@ export function CharmScanScreen() {
         connectedDevice.discoverAllServicesAndCharacteristics(),
       );
 
-      const smartCharmDeviceId = await runBleDebugStep("DeviceId ?쎄린", () =>
+      const smartCharmDeviceId = await runBleDebugStep("DeviceId 읽기", () =>
         readSmartCharmDeviceId(connectedDevice),
       );
       const resolvedDevice = {
@@ -503,7 +503,7 @@ export function CharmScanScreen() {
         serialNumber: smartCharmDeviceId,
       };
       const registeredDevice = await runBleDebugStep(
-        "諛깆뿏??李??깅줉",
+        "백엔드 참 등록",
         () => registerConnectedDevice(resolvedDevice, smartCharmDeviceId),
       );
 
@@ -514,7 +514,7 @@ export function CharmScanScreen() {
       moveToConnectedScreen(resolvedDevice, registeredDevice);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "MXIS Charm ?곌껐???ㅽ뙣?덉뒿?덈떎.",
+        error instanceof Error ? error.message : "MXIS Charm 연결에 실패했습니다.",
       );
       setDevices((currentDevices) =>
         currentDevices.map((device) => ({
@@ -525,7 +525,7 @@ export function CharmScanScreen() {
     }
   };
 
-  const titleText = useMemo(() => "MXIS Charm??李얘퀬 ?덉뼱??", []);
+  const titleText = useMemo(() => "MXIS Charm을 찾고 있어요.", []);
 
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-concierge-bg">
@@ -536,7 +536,7 @@ export function CharmScanScreen() {
             {titleText}
           </Text>
           <Text className="mt-5 text-sm text-concierge-textSecondary">
-            ?ㅻ쭏?명룿 媛源뚯씠???먭퀬 ?좎떆留?湲곕떎??二쇱꽭??
+            스마트폰 가까이에 두고 잠시만 기다려 주세요.
           </Text>
 
           <View
@@ -556,9 +556,11 @@ export function CharmScanScreen() {
           {hasEmptyResult ? (
             <View className="mt-4 items-center">
               <Text className="text-center text-lg font-bold text-concierge-primary">
-                ?곌껐 媛?ν븳 李몄쓣 李얠쓣 ???놁뼱??              </Text>
+                연결 가능한 참을 찾을 수 없어요
+              </Text>
               <Text className="mt-1.5 text-center text-sm font-semibold text-concierge-textSecondary">
-                Charm???꾩썝??耳쒖졇?덈뒗吏 ?뺤씤??二쇱꽭??              </Text>
+                Charm의 전원이 켜져 있는지 확인해 주세요
+              </Text>
               {errorMessage ? (
                 <Text className="mt-2 text-center text-xs font-medium text-[#C04737]">
                   {errorMessage}
@@ -569,7 +571,7 @@ export function CharmScanScreen() {
             <ScrollView className="mt-4 flex-1" contentContainerClassName="gap-2 pb-4">
               {scanResultState === "scanning" && devices.length === 0 ? (
                 <Text className="py-4 text-center text-sm text-concierge-textSecondary">
-                  媛源뚯슫 MXIS Charm??寃?됲븯怨??덉뒿?덈떎.
+                  가까운 MXIS Charm을 검색하고 있습니다.
                 </Text>
               ) : null}
               {devices.map((device) => (

@@ -76,7 +76,9 @@ function ProductCard({
     <Pressable
       onPress={onPress}
       className={`h-[76px] flex-row items-center gap-3 overflow-hidden rounded-xl bg-white p-2.5 ${
-        selected ? "border-[1.5px] border-concierge-primary" : "border border-concierge-border"
+        selected
+          ? "border-[1.5px] border-concierge-primary"
+          : "border border-concierge-border"
       }`}
     >
       <View className="h-[52px] w-[52px] items-center justify-center overflow-hidden rounded-lg bg-concierge-bg">
@@ -87,15 +89,29 @@ function ProductCard({
             style={{ height: 48, width: 48 }}
           />
         ) : (
-          <Text className="text-[10px] text-concierge-textMuted">이미지 없음</Text>
+          <Text className="text-[10px] text-concierge-textMuted">
+            이미지 없음
+          </Text>
         )}
       </View>
 
       <View className="min-w-0 flex-1 gap-0.5">
-        <Text className="text-sm font-semibold text-concierge-text" numberOfLines={2}>
+        <Text
+          className="text-[13px] font-semibold text-concierge-text"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+          allowFontScaling={false}
+        >
           {product.name}
         </Text>
-        <Text className="text-xs text-concierge-textSecondary" numberOfLines={1}>
+        <Text
+          className="text-xs text-concierge-textSecondary"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.78}
+          allowFontScaling={false}
+        >
           {product.material} · {product.color}
         </Text>
       </View>
@@ -144,7 +160,9 @@ export function ProductSelectScreen() {
         setProducts([]);
         setSelectedProductId("");
         setErrorMessage(
-          error instanceof Error ? error.message : "제품 목록을 불러오지 못했습니다.",
+          error instanceof Error
+            ? error.message
+            : "제품 목록을 불러오지 못했습니다.",
         );
       } finally {
         if (mounted) {
@@ -161,7 +179,9 @@ export function ProductSelectScreen() {
   }, [accessToken, tokenType]);
 
   const handleConnectProduct = () => {
-    const selectedProduct = products.find((product) => product.id === selectedProductId);
+    const selectedProduct = products.find(
+      (product) => product.id === selectedProductId,
+    );
 
     if (!selectedProduct) {
       setErrorMessage("연결할 제품을 선택해 주세요.");
@@ -169,7 +189,9 @@ export function ProductSelectScreen() {
     }
 
     if (!deviceId || !deviceSerial) {
-      setErrorMessage("연결된 MXIS Charm 정보가 없습니다. Charm을 다시 연결해 주세요.");
+      setErrorMessage(
+        "연결된 MXIS Charm 정보가 없습니다. Charm을 다시 연결해 주세요.",
+      );
       return;
     }
 
@@ -195,14 +217,19 @@ export function ProductSelectScreen() {
 
       <View className="mx-auto w-full max-w-[390px] flex-1 px-6 pb-6 pt-6">
         <View className="flex-1">
-          <ScreenHeader title="연결할 제품을 선택해 주세요." onBack={() => router.back()} />
+          <ScreenHeader
+            title="연결할 제품을 선택해 주세요."
+            onBack={() => router.back()}
+          />
 
           <Text className="mt-3 text-sm text-concierge-textSecondary">
             MCM 계정에 등록된 제품 중 MXIS Charm과 연결할 제품을 선택해 주세요.
           </Text>
 
           <View className="mt-4 flex-row items-center gap-2">
-            <Text className="text-sm font-bold text-concierge-text">등록된 제품</Text>
+            <Text className="text-sm font-bold text-concierge-text">
+              등록된 제품
+            </Text>
             <View className="h-[22px] min-w-[22px] items-center justify-center rounded-full border border-concierge-primary bg-concierge-chip px-1.5">
               <Text
                 className="text-xs font-medium text-concierge-primary"

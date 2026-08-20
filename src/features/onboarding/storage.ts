@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { getDevices } from "@/features/device/api/deviceApi";
 import type { SensorReadingUploadItem } from "@/features/onboarding/api/onboardingApi";
 
 const CHARM_ONBOARDING_COMPLETED_PREFIX = "mxis.onboarding.charm.completed";
@@ -77,7 +78,18 @@ export async function clearPendingSensorReadings(deviceId: string) {
 }
 
 export async function getAuthenticatedEntryRoute() {
-  const isCharmOnboardingCompleted = await hasCompletedCharmOnboarding();
+  try {
+    const registeredDevices = await getDevices();
 
-  return isCharmOnboardingCompleted ? "/(tabs)" : "/onboarding/charm";
+    if (registeredDevices.length > 0) {
+      await completeCharmOnboarding();
+      return "/(tabs)";
+    }
+
+    return "/onboarding/charm";
+  } catch {
+    const isCharmOnboardingCompleted = await hasCompletedCharmOnboarding();
+
+    return isCharmOnboardingCompleted ? "/(tabs)" : "/onboarding/charm";
+  }
 }

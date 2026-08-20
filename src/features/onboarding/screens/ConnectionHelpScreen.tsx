@@ -1,4 +1,4 @@
-import { Linking, Pressable, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -82,8 +82,12 @@ export function ConnectionHelpScreen() {
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-concierge-bg">
       <StatusBar style="dark" backgroundColor="#FAF6F1" />
-      <View className="flex-1 px-6 pb-6 pt-6">
-        <View className="flex-1">
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="px-6 pb-8 pt-6"
+        showsVerticalScrollIndicator={false}
+      >
+        <View>
           <ScreenHeader title="연결 도움말" onBack={() => router.back()} />
           <View className="px-6">
             <Text className="mt-5 text-lg font-bold text-concierge-text">
@@ -116,7 +120,7 @@ export function ConnectionHelpScreen() {
             </View>
           </View>
         </View>
-        <View>
+        <View className="mt-8">
           <PrimaryButton label="다시 검색" onPress={() => router.back()} />
           <Pressable onPress={() => undefined} className="mt-3 items-center">
             <Text className="text-sm font-semibold text-concierge-textMuted">
@@ -124,7 +128,7 @@ export function ConnectionHelpScreen() {
             </Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

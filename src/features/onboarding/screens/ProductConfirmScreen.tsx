@@ -27,6 +27,8 @@ function ProductInfoRow({ label, value }: { label: string; value: string }) {
         className="flex-1 text-right text-sm font-semibold text-concierge-text"
         numberOfLines={1}
         adjustsFontSizeToFit
+        minimumFontScale={0.78}
+        allowFontScaling={false}
       >
         {value || "-"}
       </Text>
@@ -64,7 +66,9 @@ export function ProductConfirmScreen() {
 
   const handleConfirmProduct = async () => {
     if (!accessToken) {
-      setErrorMessage("로그인 정보가 없어 제품과 Charm을 연결할 수 없습니다.");
+      setErrorMessage(
+        "로그인 정보가 없어 제품과 Charm을 연결할 수 없습니다.",
+      );
       return;
     }
 
@@ -73,7 +77,9 @@ export function ProductConfirmScreen() {
       !Number.isFinite(numericDeviceId) ||
       !deviceSerial
     ) {
-      setErrorMessage("제품 또는 Charm 정보를 확인할 수 없습니다. 다시 연결해 주세요.");
+      setErrorMessage(
+        "제품 또는 Charm 정보를 확인할 수 없습니다. 다시 연결해 주세요.",
+      );
       return;
     }
 
@@ -88,7 +94,9 @@ export function ProductConfirmScreen() {
         tokenType,
       );
       const linkedSerial = linkedDevice.serialNumber || deviceSerial;
-      const pendingReadings = await getPendingSensorReadings(String(numericDeviceId));
+      const pendingReadings = await getPendingSensorReadings(
+        String(numericDeviceId),
+      );
 
       if (pendingReadings.length) {
         await uploadSensorReadings(
@@ -120,7 +128,9 @@ export function ProductConfirmScreen() {
       });
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "제품과 MXIS Charm 연결에 실패했습니다.",
+        error instanceof Error
+          ? error.message
+          : "제품과 MXIS Charm 연결에 실패했습니다.",
       );
     } finally {
       setIsSubmitting(false);
@@ -146,13 +156,21 @@ export function ProductConfirmScreen() {
               />
             ) : (
               <View className="h-[150px] w-[222px] items-center justify-center rounded-xl bg-white">
-                <Text className="text-sm text-concierge-textMuted">이미지 없음</Text>
+                <Text className="text-sm text-concierge-textMuted">
+                  이미지 없음
+                </Text>
               </View>
             )}
           </View>
 
           <View className="mt-6 rounded-xl border border-concierge-border bg-white px-4 py-3.5">
-            <Text className="text-sm font-semibold text-concierge-text">
+            <Text
+              className="text-[13px] font-semibold text-concierge-text"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+              allowFontScaling={false}
+            >
               {productName || "-"}
             </Text>
 
@@ -175,7 +193,10 @@ export function ProductConfirmScreen() {
             onPress={handleConfirmProduct}
             disabled={isSubmitting}
           />
-          <SecondaryButton label="다른 제품 선택" onPress={() => router.back()} />
+          <SecondaryButton
+            label="다른 제품 선택"
+            onPress={() => router.back()}
+          />
         </View>
       </View>
     </SafeAreaView>

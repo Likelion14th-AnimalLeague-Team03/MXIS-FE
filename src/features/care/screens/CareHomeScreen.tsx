@@ -3,6 +3,7 @@ import { type ReactNode } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import defaultProductImage from "@/features/care/assets/bag3.png";
 import careHeroBg from "@/features/care/assets/care-hero.png";
 import outIcon from "@/features/care/assets/out.png";
 import popIcon from "@/features/care/assets/pop.png";
@@ -31,7 +32,7 @@ function StatCard({
     <Card className="w-[47%] border-0 bg-white px-3 py-3">
       <View className="flex-row items-start gap-1.5">
         {icon}
-        <View>
+        <View className="min-w-0 flex-1">
           <Text className="text-base font-semibold text-concierge-text">
             {label}
           </Text>
@@ -62,6 +63,7 @@ function getTextValue(value: string | null | undefined, fallback: string) {
 export function CareHomeScreen() {
   const router = useRouter();
   const {
+    product: currentProduct,
     productId,
     isAuthenticated,
     isPending: isProductPending,
@@ -76,13 +78,28 @@ export function CareHomeScreen() {
 
   const isPending =
     isProductPending || (productId !== null && isDiagnosisPending);
-  const product = diagnosis?.product;
+  const diagnosisProduct = diagnosis?.product;
+  const product =
+    diagnosisProduct || currentProduct
+      ? {
+          productId: diagnosisProduct?.productId ?? currentProduct?.id ?? 0,
+          productImageUrl:
+            diagnosisProduct?.productImageUrl ??
+            currentProduct?.productImageUrl ??
+            null,
+          productName:
+            diagnosisProduct?.productName ?? currentProduct?.productName ?? null,
+          materialDisplayName:
+            diagnosisProduct?.materialDisplayName ??
+            currentProduct?.materialDisplayName ??
+            null,
+          color: diagnosisProduct?.color ?? currentProduct?.color ?? null,
+        }
+      : null;
   const environment = diagnosis?.environment30d;
-  // 환경 30일 요약이 비어 있으면 아직 데이터가 모이는 중으로 봐요.
   const hasData =
     environment?.avgTemperature != null || environment?.avgHumidity != null;
 
-  // 제품을 못 구하면 케어 진단 요청 자체가 나가지 않으니, 그 이유를 화면에 그대로 보여줘요.
   const blockedReason = !isAuthenticated
     ? "로그인이 필요해요. 다시 로그인해 주세요."
     : hasNoProduct
@@ -91,7 +108,7 @@ export function CareHomeScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
-      <ScrollView className="flex-1 px-6" contentContainerClassName="pb-8">
+      <ScrollView className="flex-1 px-6" contentContainerClassName="pb-28">
         <Text className="pt-6 text-xl font-bold text-concierge-text">
           케어진단
         </Text>
@@ -103,26 +120,39 @@ export function CareHomeScreen() {
               className="size-full"
               resizeMode="cover"
             />
-            <View className="absolute inset-0 items-center justify-center ">
+            <View className="absolute inset-0 items-center justify-center">
               <Image
                 source={
                   product?.productImageUrl
                     ? { uri: product.productImageUrl }
-                    : undefined
+                    : defaultProductImage
                 }
-                className="size-[180px] mt-5 "
+                className="mt-5 size-[180px]"
                 resizeMode="contain"
               />
             </View>
           </View>
-          <View className="flex-1 pr-3">
-            <Text className="text-base font-bold text-concierge-text">
+
+          <View className="min-w-0 flex-1 pr-3">
+            <Text
+              className="text-base font-bold text-concierge-text"
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.78}
+              allowFontScaling={false}
+            >
               {getTextValue(
                 product?.productName,
                 isPending ? "불러오는 중" : "등록된 제품 없음",
               )}
             </Text>
-            <Text className="mt-1 text-[11px] text-concierge-textMuted">
+            <Text
+              className="mt-1 text-[11px] text-concierge-textMuted"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+              allowFontScaling={false}
+            >
               {[product?.materialDisplayName?.trim(), product?.color?.trim()]
                 .filter(Boolean)
                 .join(" · ") || "-"}
@@ -179,7 +209,7 @@ export function CareHomeScreen() {
 
         <Pressable
           onPress={() => router.push("/care/environment")}
-          className="mt-6 mx-2 flex-row items-center justify-between"
+          className="mx-2 mt-6 flex-row items-center justify-between"
         >
           <View>
             <Text className="text-2xl font-semibold text-concierge-text">
@@ -187,8 +217,8 @@ export function CareHomeScreen() {
             </Text>
             <Text className="mt-1 text-[13px] text-concierge-textMuted">
               {hasData
-                ? "최근 30일 동안의 평균이에요."
-                : "데이터가 충분히 쌓이면 확인할 수 있어요."}
+                ? "최근 30일 동안의 평균이에요"
+                : "데이터가 충분히 쌓이면 확인할 수 있어요"}
             </Text>
           </View>
           <ChevronRightIcon size={9} />
@@ -199,7 +229,7 @@ export function CareHomeScreen() {
             icon={
               <Image
                 source={temperatureIcon}
-                className="size-[18px] mt-1.5 "
+                className="mt-1.5 size-[18px]"
                 resizeMode="contain"
               />
             }
@@ -207,8 +237,8 @@ export function CareHomeScreen() {
             caption={environment?.temperatureDescription ?? undefined}
             value={
               environment?.avgTemperature != null
-                ? `${Math.round(environment.avgTemperature)}°C`
-                : "-°C"
+                ? `${Math.round(environment.avgTemperature)}℃`
+                : "-℃"
             }
             muted={environment?.avgTemperature == null}
           />
@@ -216,7 +246,7 @@ export function CareHomeScreen() {
             icon={
               <Image
                 source={waterIcon}
-                className="size-[18px] mt-1.5"
+                className="mt-1.5 size-[18px]"
                 resizeMode="contain"
               />
             }
@@ -233,7 +263,7 @@ export function CareHomeScreen() {
             icon={
               <Image
                 source={popIcon}
-                className="size-[18px] mt-1.5 "
+                className="mt-1.5 size-[18px]"
                 resizeMode="contain"
               />
             }
@@ -245,7 +275,7 @@ export function CareHomeScreen() {
             icon={
               <Image
                 source={outIcon}
-                className="size-[18px] mt-1.5"
+                className="mt-1.5 size-[18px]"
                 resizeMode="contain"
               />
             }

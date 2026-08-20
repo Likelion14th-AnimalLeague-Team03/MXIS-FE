@@ -1,18 +1,15 @@
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import homeProduct from "@/features/home/assets/home-back.png";
 import clockIcon from "@/features/home/assets/time.png";
 import updateIcon from "@/features/home/assets/update.png";
-import homeProduct from "@/features/home/assets/home-back.png";
 import { useHomeSummary } from "@/features/home/hooks/useHome";
-import { useHomePromptStore } from "@/features/home/store";
 import type { HomeSummary } from "@/features/home/types";
 import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
 import { formatDateShort } from "@/features/reservation/format";
 import { formatLocalTime, parseLocalDate } from "@/shared/api/localTime";
-import { AlertModal } from "@/shared/components/AlertModal";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { ProgressRing } from "@/shared/components/ProgressRing";
@@ -27,31 +24,24 @@ const GRADE_CONTENT: Record<
 > = {
   EXCELLENT: {
     label: "Excellent",
-    description: "가벼운 케어와 함께 컨디션을 유지해 주세요.",
+    description: "가벼운 케어로 함께한 컨디션을 유지해 주세요.",
     color: "#335940",
   },
   STANDARD: {
     label: "Standard",
-    description: "가벼운 케어와 함께 컨디션을 유지해 주세요.",
+    description: "가벼운 케어로 함께한 컨디션을 유지해 주세요.",
     color: "#814C17",
   },
   NEEDS_ATTENTION: {
     label: "Needs Attention",
-    description: "전문적인 케어를 받아보시길 권장합니다.",
+    description: "섬세한 케어를 받아보시길 권장합니다.",
     color: "#A51F21",
   },
 };
 
-// 서버는 productState(COLLECTING/NEEDS_UPDATE/NORMAL)와 score(0~100)만 주기 때문에
-// 화면에 쓰는 등급 라벨은 score 구간으로 환산해요.
 function toGrade(score: number) {
-  if (score >= 85) {
-    return "EXCELLENT" as const;
-  }
-
-  if (score >= 60) {
-    return "STANDARD" as const;
-  }
+  if (score >= 85) return "EXCELLENT" as const;
+  if (score >= 60) return "STANDARD" as const;
 
   return "NEEDS_ATTENTION" as const;
 }
@@ -100,55 +90,12 @@ export function HomeScreen() {
   const router = useRouter();
   const { productId } = usePrimaryProductId();
   const { data: home, isPending } = useHomeSummary(productId);
-  const [reconnectModalVisible, setReconnectModalVisible] = useState(false);
-  const reconnectPromptShown = useHomePromptStore(
-    (state) => state.reconnectPromptShown,
-  );
-  const markReconnectPromptShown = useHomePromptStore(
-    (state) => state.markReconnectPromptShown,
-  );
-  const resetReconnectPrompt = useHomePromptStore(
-    (state) => state.resetReconnectPrompt,
-  );
 
   const productState = home?.productState ?? "COLLECTING";
   const score = home?.score ?? 0;
   const isNormal = productState === "NORMAL";
   const grade = isNormal ? toGrade(score) : null;
   const upcomingReservation = home?.upcomingReservation ?? null;
-  const needsReconnect = home?.charmNeedsReconnect ?? false;
-
-  // 참(Charm)이 끊기면 안내 모달을 한 번만 띄워요. 다시 연결되면 플래그를 초기화해서
-  // 다음에 또 끊겼을 때 안내할 수 있게 합니다.
-  useEffect(() => {
-    if (!needsReconnect) {
-      setReconnectModalVisible(false);
-
-      if (reconnectPromptShown) {
-        resetReconnectPrompt();
-      }
-
-      return;
-    }
-
-    if (reconnectPromptShown) {
-      return;
-    }
-
-    setReconnectModalVisible(true);
-    markReconnectPromptShown();
-  }, [
-    needsReconnect,
-    reconnectPromptShown,
-    markReconnectPromptShown,
-    resetReconnectPrompt,
-  ]);
-
-  const handleReconnect = () => {
-    setReconnectModalVisible(false);
-    // 기기 연동 메인 화면(연동 탭)에서 Charm을 다시 연결할 수 있어요.
-    router.navigate("/(tabs)/device");
-  };
 
   const headline =
     home?.headline ??
@@ -160,7 +107,7 @@ export function HomeScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
-      <ScrollView className="flex-1" contentContainerClassName="pb-8">
+      <ScrollView className="flex-1" contentContainerClassName="pb-28">
         <View className="px-6 pt-6">
           <Text className="text-[15px] font-semibold text-[#747270]">
             안녕하세요, {home?.userName ?? "고객"}님!
@@ -170,16 +117,23 @@ export function HomeScreen() {
           </Text>
         </View>
 
-        <Image
-          source={
-            home?.productImageUrl ? { uri: home.productImageUrl } : homeProduct
-          }
-          className="mx-auto mt-4 h-[230px] w-[356px] rounded-2xl"
-          resizeMode="cover"
-        />
+        <View className="mt-4 items-center px-6">
+          <Image
+            source={
+              home?.productImageUrl ? { uri: home.productImageUrl } : homeProduct
+            }
+            resizeMode="contain"
+            style={{
+              alignSelf: "center",
+              height: 230,
+              maxWidth: 356,
+              width: "100%",
+            }}
+          />
+        </View>
 
         <View className="px-6">
-          <Card className="mt-4 flex-row items-center justify-between border-0 bg-white px-5 pr-10 py-6 ">
+          <Card className="mt-4 flex-row items-center justify-between border-0 bg-white px-5 py-6 pr-10">
             <View className="flex-1 pr-6">
               <Text className="text-sm text-concierge-text">제품상태</Text>
               {grade ? (
@@ -198,7 +152,7 @@ export function HomeScreen() {
                       : "데이터 업데이트가 필요해요"}
                 </Text>
               )}
-              <Text className="mt-1 text-sm max-w-[180px] text-concierge-text">
+              <Text className="mt-1 max-w-[180px] text-sm text-concierge-text">
                 {grade
                   ? GRADE_CONTENT[grade].description
                   : productState === "COLLECTING"
@@ -262,8 +216,8 @@ export function HomeScreen() {
                     예정된 예약이 없어요
                   </Text>
 
-                  <Text className="mt-1 mb-4 text-xs text-concierge-textMuted">
-                    제품 케어가 필요할때 간편하게 예약할 수 있어요.
+                  <Text className="mb-4 mt-1 text-xs text-concierge-textMuted">
+                    제품 케어가 필요할 때 간편하게 예약할 수 있어요
                   </Text>
 
                   <View className="-mx-4 border-t border-concierge-borderLight" />
@@ -283,17 +237,6 @@ export function HomeScreen() {
           </View>
         </View>
       </ScrollView>
-
-      <AlertModal
-        visible={reconnectModalVisible}
-        title="MXIS Charm 재연결이 필요해요"
-        description="MXIS Charm을 다시 연결하면 등록을 계속할 수 있어요."
-        actions={[
-          { label: "나중에", onPress: () => setReconnectModalVisible(false) },
-          { label: "다시 연결", onPress: handleReconnect, variant: "accent" },
-        ]}
-        onRequestClose={() => setReconnectModalVisible(false)}
-      />
     </SafeAreaView>
   );
 }
