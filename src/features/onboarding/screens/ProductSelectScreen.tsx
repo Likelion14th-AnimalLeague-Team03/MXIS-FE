@@ -11,10 +11,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
-  MOCK_ONBOARDING_PRODUCTS,
-  type OnboardingProduct,
-} from "@/features/onboarding/data/mockProducts";
-import {
   getOnboardingProducts,
   type OnboardingProductResponse,
 } from "@/features/onboarding/api/onboardingApi";
@@ -23,16 +19,26 @@ import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { CheckmarkCircleIcon } from "@/shared/components/icons/CheckmarkCircleIcon";
 
-function getProductImageSource(product: OnboardingProduct): ImageSourcePropType {
-  return product.productImageUrl ? { uri: product.productImageUrl } : product.thumbnail;
+type OnboardingProduct = {
+  id: string;
+  productId: number;
+  name: string;
+  material: string;
+  color: string;
+  productCode: string;
+  modelCode?: string;
+  productImageUrl?: string | null;
+};
+
+function getProductImageSource(
+  product: OnboardingProduct,
+): ImageSourcePropType | null {
+  return product.productImageUrl ? { uri: product.productImageUrl } : null;
 }
 
 function mapApiProductToOnboardingProduct(
   product: OnboardingProductResponse,
-  index: number,
 ): OnboardingProduct {
-  const fallback = MOCK_ONBOARDING_PRODUCTS[index % MOCK_ONBOARDING_PRODUCTS.length];
-
   return {
     id: String(product.productId),
     productId: product.productId,
@@ -42,8 +48,6 @@ function mapApiProductToOnboardingProduct(
     productCode: product.dppCode || product.modelCode || "",
     modelCode: product.modelCode ?? undefined,
     productImageUrl: product.productImageUrl,
-    thumbnail: fallback.thumbnail,
-    detailImage: fallback.detailImage,
   };
 }
 
@@ -52,7 +56,9 @@ function SelectionControl({ selected }: { selected: boolean }) {
     return <CheckmarkCircleIcon size={22} color="#E4AB7C" />;
   }
 
-  return <View className="h-[22px] w-[22px] rounded-full border-[1.2px] border-concierge-border bg-white" />;
+  return (
+    <View className="h-[22px] w-[22px] rounded-full border-[1.2px] border-concierge-border bg-white" />
+  );
 }
 
 function ProductCard({
@@ -64,6 +70,8 @@ function ProductCard({
   selected: boolean;
   onPress: () => void;
 }) {
+  const imageSource = getProductImageSource(product);
+
   return (
     <Pressable
       onPress={onPress}
@@ -72,11 +80,15 @@ function ProductCard({
       }`}
     >
       <View className="h-[52px] w-[52px] items-center justify-center overflow-hidden rounded-lg bg-concierge-bg">
-        <Image
-          source={getProductImageSource(product)}
-          resizeMode="contain"
-          style={{ height: 48, width: 48 }}
-        />
+        {imageSource ? (
+          <Image
+            source={imageSource}
+            resizeMode="contain"
+            style={{ height: 48, width: 48 }}
+          />
+        ) : (
+          <Text className="text-[10px] text-concierge-textMuted">이미지 없음</Text>
+        )}
       </View>
 
       <View className="min-w-0 flex-1 gap-0.5">
@@ -93,7 +105,6 @@ function ProductCard({
   );
 }
 
-// 스크롤 없이 화면 안에 항상 다 들어오도록, ScrollView 대신 고정 flex 레이아웃을 씁니다.
 export function ProductSelectScreen() {
   const router = useRouter();
   const { deviceId, deviceSerial } = useLocalSearchParams<{
@@ -157,6 +168,11 @@ export function ProductSelectScreen() {
       return;
     }
 
+    if (!deviceId || !deviceSerial) {
+      setErrorMessage("연결된 MXIS Charm 정보가 없습니다. Charm을 다시 연결해 주세요.");
+      return;
+    }
+
     router.push({
       pathname: "/onboarding/product-confirm",
       params: {
@@ -167,8 +183,8 @@ export function ProductSelectScreen() {
         productCode: selectedProduct.productCode,
         modelCode: selectedProduct.modelCode ?? "",
         productImageUrl: selectedProduct.productImageUrl ?? "",
-        deviceId: deviceId ?? "",
-        deviceSerial: deviceSerial ?? "",
+        deviceId,
+        deviceSerial,
       },
     });
   };

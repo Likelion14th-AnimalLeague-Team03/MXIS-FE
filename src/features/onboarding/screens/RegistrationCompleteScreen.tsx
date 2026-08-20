@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { getOnboardingProductById } from "@/features/onboarding/data/mockProducts";
 import {
   completeCharmOnboarding,
   getPrimaryCharmProductLink,
@@ -22,7 +21,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
         numberOfLines={1}
         adjustsFontSizeToFit
       >
-        {value}
+        {value || "-"}
       </Text>
     </View>
   );
@@ -30,18 +29,15 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 
 export function RegistrationCompleteScreen() {
   const router = useRouter();
-  const { productId } = useLocalSearchParams<{ productId?: string }>();
-  const fallbackProduct = getOnboardingProductById(productId);
   const [link, setLink] = useState<PrimaryCharmProductLink | null>(null);
 
   useEffect(() => {
     getPrimaryCharmProductLink().then(setLink);
   }, []);
 
-  const charmName = link?.charmName ?? "SN-0001";
-  const productName =
-    link?.productName ?? fallbackProduct.name.replace("\n", " ");
-  const material = link?.material ?? fallbackProduct.material;
+  const charmName = link?.charmName ?? "-";
+  const productName = link?.productName ?? "-";
+  const material = link?.material ?? "-";
 
   const handleStartCareJourney = async () => {
     await completeCharmOnboarding();

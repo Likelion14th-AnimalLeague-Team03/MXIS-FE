@@ -9,7 +9,6 @@ import popIcon from "@/features/care/assets/pop.png";
 import temperatureIcon from "@/features/care/assets/temperature.png";
 import waterIcon from "@/features/care/assets/water.png";
 import { useCareDiagnosisHome } from "@/features/care/hooks/useCare";
-import { PRODUCTS } from "@/features/device/constants";
 import { useCurrentProduct } from "@/features/product/hooks/useProduct";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
@@ -82,7 +81,6 @@ export function CareHomeScreen() {
   // 환경 30일 요약이 비어 있으면 아직 데이터가 모이는 중으로 봐요.
   const hasData =
     environment?.avgTemperature != null || environment?.avgHumidity != null;
-  const fallbackImage = PRODUCTS[0].image;
 
   // 제품을 못 구하면 케어 진단 요청 자체가 나가지 않으니, 그 이유를 화면에 그대로 보여줘요.
   const blockedReason = !isAuthenticated
@@ -110,7 +108,7 @@ export function CareHomeScreen() {
                 source={
                   product?.productImageUrl
                     ? { uri: product.productImageUrl }
-                    : fallbackImage
+                    : undefined
                 }
                 className="size-[180px] mt-5 "
                 resizeMode="contain"
