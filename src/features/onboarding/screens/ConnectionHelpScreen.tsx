@@ -88,7 +88,11 @@ export function ConnectionHelpScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View>
-          <ScreenHeader title="연결 도움말" onBack={() => router.back()} />
+          <ScreenHeader
+            title="연결 도움말"
+            titleClassName="text-lg"
+            onBack={() => router.back()}
+          />
           <View className="px-6">
             <Text className="mt-5 text-lg font-bold text-concierge-text">
               MXIS Charm이 연결되지 않나요?

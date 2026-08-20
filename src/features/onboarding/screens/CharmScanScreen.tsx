@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import {
   Image,
   PermissionsAndroid,
@@ -38,6 +38,7 @@ import {
   writeTimeSync,
 } from "@/features/onboarding/ble/smartCharmBle";
 import charmOnboardingDevice from "@/features/onboarding/assets/charm-onboarding-device.png";
+import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
 
 type CharmConnectionStatus = "idle" | "connecting" | "failed";
@@ -525,16 +526,16 @@ export function CharmScanScreen() {
     }
   };
 
-  const titleText = useMemo(() => "MXIS Charm을 찾고 있어요.", []);
-
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-concierge-bg">
       <StatusBar style="dark" backgroundColor="#FAF6F1" />
       <View className="flex-1 px-6 pb-6 pt-6">
         <View className="flex-1">
-          <Text className="text-2xl font-bold text-concierge-text">
-            {titleText}
-          </Text>
+          <ScreenHeader
+            title="MXIS Charm을 찾고 있어요."
+            titleClassName="text-[19px]"
+            onBack={() => router.back()}
+          />
           <Text className="mt-5 text-sm text-concierge-textSecondary">
             스마트폰 가까이에 두고 잠시만 기다려 주세요.
           </Text>

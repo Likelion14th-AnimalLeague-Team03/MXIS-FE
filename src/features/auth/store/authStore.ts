@@ -17,7 +17,6 @@ type AuthState = {
   user: UserProfile | null;
   status: AuthStatus;
   signIn: (request: LoginRequest) => Promise<void>;
-  signInWithKakao: (accessToken: string) => Promise<void>;
   restoreSession: () => Promise<boolean>;
   signOut: () => Promise<void>;
 };
@@ -71,10 +70,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       user: response.user,
       status: "authenticated",
     });
-  },
-
-  signInWithKakao: async () => {
-    throw new Error("카카오 로그인은 현재 비활성화되어 있습니다.");
   },
 
   restoreSession: async () => {

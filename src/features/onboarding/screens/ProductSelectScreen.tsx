@@ -219,6 +219,7 @@ export function ProductSelectScreen() {
         <View className="flex-1">
           <ScreenHeader
             title="연결할 제품을 선택해 주세요."
+            titleClassName="text-lg"
             onBack={() => router.back()}
           />
 

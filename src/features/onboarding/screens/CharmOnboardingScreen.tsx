@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import charmOnboardingDevice from "@/features/onboarding/assets/charm-onboarding-device.png";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
+import { ScreenHeader } from "@/shared/components/ScreenHeader";
 
 function CharmDevicePreview() {
   return (
@@ -43,9 +44,11 @@ export function CharmOnboardingScreen() {
       <StatusBar style="dark" backgroundColor="#FAF6F1" />
       <View className="flex-1 px-6 pb-6 pt-6">
         <View className="flex-1">
-          <Text className="text-xl font-bold text-concierge-text">
-            MXIS Charm을 연결해 주세요.
-          </Text>
+          <ScreenHeader
+            title="MXIS Charm을 연결해 주세요."
+            titleClassName="text-lg"
+            onBack={() => router.replace("/auth/login")}
+          />
           <Text className="mt-3 text-sm text-concierge-textSecondary">
             가방 가까이에 Charm을 두면 연결되는 순간부터 제품과 함께한 환경과
             시간이 기록됩니다.

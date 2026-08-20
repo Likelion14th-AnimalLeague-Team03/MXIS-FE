@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
+import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { CheckmarkCircleIcon } from "@/shared/components/icons/CheckmarkCircleIcon";
 
 export function CharmConnectedScreen() {
@@ -33,11 +34,13 @@ export function CharmConnectedScreen() {
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-concierge-bg">
       <StatusBar style="dark" backgroundColor="#FAF6F1" />
 
-      <View className="flex-1 px-6 pb-7">
+      <View className="flex-1 px-6 pb-7 pt-6">
+        <ScreenHeader title="" onBack={() => router.back()} />
+
         <View className="flex-1 items-center justify-center">
           <CheckmarkCircleIcon size={56} color="#E4AB7C" />
 
-          <Text className="mt-5 w-full text-center text-2xl font-bold text-concierge-text">
+          <Text className="mt-5 w-full text-center text-[22px] font-bold text-concierge-text">
             연결이 완료되었습니다.
           </Text>
 

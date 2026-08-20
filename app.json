@@ -36,22 +36,6 @@
           ],
           "bluetoothAlwaysPermission": "Smart Charm connection uses Bluetooth."
         }
-      ],
-      [
-        "@react-native-seoul/kakao-login",
-        {
-          "kakaoAppKey": "cefbd9c29b55c14379aadf1524f82aa0"
-        }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "extraMavenRepos": [
-              "https://devrepo.kakao.com/nexus/content/groups/public/"
-            ]
-          }
-        }
       ]
     ]
   }

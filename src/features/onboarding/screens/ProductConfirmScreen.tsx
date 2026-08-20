@@ -15,6 +15,7 @@ import {
   savePrimaryCharmProductLink,
 } from "@/features/onboarding/storage";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
+import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
 
 function ProductInfoRow({ label, value }: { label: string; value: string }) {
@@ -143,9 +144,11 @@ export function ProductConfirmScreen() {
 
       <View className="mx-auto w-full max-w-[390px] flex-1 px-6 pb-6 pt-6">
         <View className="flex-1">
-          <Text className="text-2xl font-bold text-concierge-text">
-            연결할 제품을 확인해 주세요.
-          </Text>
+          <ScreenHeader
+            title="연결할 제품을 확인해 주세요."
+            titleClassName="text-[22px]"
+            onBack={() => router.back()}
+          />
 
           <View className="mt-6 h-[170px] items-center justify-center">
             {productImageUrl ? (
