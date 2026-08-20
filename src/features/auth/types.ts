@@ -1,0 +1,26 @@
+export type AuthTokens = {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: "Bearer" | string;
+};
+
+export type UserProfile = {
+  id: number;
+  email: string;
+  name: string;
+  phone?: string | null;
+  provider: "LOCAL" | string;
+  createdAt: string;
+};
+
+export type LoginRequest = {
+  email: string;
+  password: string;
+};
+
+export type SignupRequest = {
+  email: string;
+  password: string;
+  name: string;
+  phone?: string;
+};

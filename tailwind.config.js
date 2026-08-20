@@ -10,10 +10,26 @@ module.exports = {
           100: "#DFF3EC",
           500: "#33A474",
           600: "#24865D",
-          900: "#12392B"
-        }
-      }
-    }
+          900: "#12392B",
+        },
+        // Keep in sync with src/shared/styles/colors.ts (same values,
+        // sourced from the Figma file's Variables panel).
+        concierge: {
+          bg: "#FAF6F1",
+          surface: "#FFFFFF",
+          surfaceMuted: "#F2EBE5",
+          chip: "#F6F5F2",
+          border: "#DBDBD6",
+          borderLight: "#DDD8D4",
+          primary: "#814C27",
+          accent: "#E4AB7C",
+          accentMuted: "#A49486",
+          text: "#121212",
+          textSecondary: "#63635E",
+          textMuted: "#746E69",
+        },
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 };

@@ -1,0 +1,100 @@
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ActivityIndicator, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { formatDateDot, toReservationDateTime } from "@/features/reservation/format";
+import { useReservation } from "@/features/reservation/hooks/useReservation";
+import { CheckmarkCircleIcon } from "@/shared/components/icons/CheckmarkCircleIcon";
+import { PrimaryButton } from "@/shared/components/PrimaryButton";
+import { ScreenHeader } from "@/shared/components/ScreenHeader";
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row items-center justify-between py-1.5">
+      <Text className="text-sm font-semibold text-concierge-textSecondary">
+        {label}
+      </Text>
+      <Text className="text-sm font-semibold text-concierge-text">{value}</Text>
+    </View>
+  );
+}
+
+export function CompleteScreen() {
+  const router = useRouter();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const reservationId = id ? Number(id) : null;
+  const { data: reservation, isPending, error } = useReservation(reservationId);
+
+  const isFree = reservation?.reservationType === "FREE";
+  const dateTime = reservation
+    ? toReservationDateTime(reservation.reservedDate, reservation.reservedTime)
+    : null;
+
+  return (
+    <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
+      <View className="px-6 pt-6">
+        <ScreenHeader title="" onBack={() => router.back()} />
+      </View>
+
+      {reservation && dateTime ? (
+        <View className="flex-1 px-6 pt-4">
+          <View className="items-center mt-10">
+            <CheckmarkCircleIcon />
+            <Text className="mt-5 text-xl font-bold text-concierge-text">
+              {isFree
+                ? "무상 케어 예약이 완료되었습니다."
+                : "예약 요청이 전달되었습니다."}
+            </Text>
+            <Text className="mt-5 text-center text-sm font-semibold text-concierge-textSecondary">
+              {isFree
+                ? "예약 정보를 확인하고 편안하게 방문해 주세요."
+                : "매장에서 확인 후 예약을 확정해 드립니다."}
+            </Text>
+          </View>
+
+          <View className="mt-6 gap-1 rounded-xl px-4 py-3.5">
+            <InfoRow label="제품" value={reservation.productName ?? "-"} />
+            <InfoRow label="매장" value={reservation.storeName ?? "-"} />
+            <InfoRow label="날짜" value={formatDateDot(dateTime.date)} />
+            <InfoRow label="시간" value={dateTime.time} />
+          </View>
+
+          <View className="mt-4 gap-1.5 rounded-xl bg-concierge-surfaceMuted px-4 py-3">
+            <Text className="text-sm font-semibold text-concierge-text">
+              방문 안내
+            </Text>
+            <Text className="text-sm text-concierge-textSecondary">
+              {isFree
+                ? "예약 시간 5분 전 매장에 도착해 제품을 함께 전달해 주세요."
+                : "예약확정 여부는 예약 페이지에서 확인 가능합니다."}
+            </Text>
+          </View>
+
+          <View className="flex-1" />
+
+          <View className="pb-10">
+            <PrimaryButton
+              label="예약 상세 보기"
+              onPress={() =>
+                router.replace({
+                  pathname: "/reservation/detail",
+                  params: { id: String(reservation.id) },
+                })
+              }
+            />
+          </View>
+        </View>
+      ) : (
+        <View className="flex-1 items-center justify-center px-6">
+          {isPending && reservationId !== null ? (
+            <ActivityIndicator />
+          ) : (
+            <Text className="text-sm text-concierge-textMuted">
+              {error?.message ?? "확인된 예약 정보가 없어요."}
+            </Text>
+          )}
+        </View>
+      )}
+    </SafeAreaView>
+  );
+}

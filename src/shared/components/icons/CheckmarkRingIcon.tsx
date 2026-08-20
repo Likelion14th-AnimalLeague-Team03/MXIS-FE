@@ -1,0 +1,20 @@
+import Svg, { Circle, Path } from "react-native-svg";
+
+import { colors } from "@/shared/styles/colors";
+
+type Props = {
+  size?: number;
+  color?: string;
+};
+
+export function CheckmarkRingIcon({ size = 62, color = colors.primary }: Props) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 62 62" fill="none">
+      <Circle cx={31} cy={31} r={30} stroke={color} strokeWidth={2} />
+      <Path
+        d="M27.9375 36.9375L38.5312 26.3438C38.7812 26.0938 39.0729 25.9688 39.4063 25.9688C39.7396 25.9688 40.0312 26.0938 40.2812 26.3438C40.5312 26.5938 40.6563 26.8908 40.6563 27.235C40.6563 27.5792 40.5312 27.8758 40.2812 28.125L28.8125 39.625C28.5625 39.875 28.2708 40 27.9375 40C27.6042 40 27.3125 39.875 27.0625 39.625L21.6875 34.25C21.4375 34 21.3175 33.7033 21.3275 33.36C21.3375 33.0167 21.4679 32.7196 21.7187 32.4687C21.9696 32.2179 22.2667 32.0929 22.61 32.0937C22.9533 32.0946 23.25 32.2196 23.5 32.4687L27.9375 36.9375Z"
+        fill={color}
+      />
+    </Svg>
+  );
+}

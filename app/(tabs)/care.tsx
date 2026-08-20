@@ -1,9 +1,5 @@
-import { Text, View } from "react-native";
+import { CareHomeScreen } from "@/features/care/screens/CareHomeScreen";
 
 export default function CarePage() {
-  return (
-    <View className="flex-1 items-center justify-center bg-white px-6">
-      <Text className="text-xl font-semibold text-zinc-900">Care</Text>
-    </View>
-  );
+  return <CareHomeScreen />;
 }
