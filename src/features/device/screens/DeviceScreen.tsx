@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Image,
   type ImageSourcePropType,
@@ -32,6 +32,7 @@ import {
 import heroBackground from "@/features/device/assets/final/device-hero-bg-final.png";
 import type { Product } from "@/features/product/types";
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { disconnectSmartCharmConnection } from "@/features/onboarding/ble/smartCharmBle";
 import { BatteryIcon } from "@/shared/components/icons/BatteryIcon";
 import { InfoIcon } from "@/shared/components/icons/InfoIcon";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
@@ -154,8 +155,8 @@ function formatOutingCount(
 }
 
 /**
- * 온도·습도는 참(센서)이 연결돼 있을 때만 의미가 있어요.
- * 연결이 없으면 서버에 마지막 측정값이 남아 있어도 화면에는 "-"로 둡니다.
+ * 온도와 습도는 참 센서가 연결돼 있을 때만 화면에 표시합니다.
+ * 연결이 없으면 서버에 마지막 측정값이 남아 있어도 "-"로 둡니다.
  */
 function formatTemperature(
   product: Product | null,
@@ -167,11 +168,11 @@ function formatTemperature(
     !isSameProductSummary(product, summary) ||
     summary?.currentEnvironment == null
   ) {
-    return "-°C";
+    return "-℃";
   }
 
   const value = summary.currentEnvironment.temperature;
-  return typeof value === "number" ? `${Math.round(value)}°C` : "-°C";
+  return typeof value === "number" ? `${Math.round(value)}℃` : "-℃";
 }
 
 function formatHumidity(
@@ -192,12 +193,12 @@ function formatHumidity(
 }
 
 function formatLastSyncedAt(device: DisplayCharm | null) {
-  if (!device) return "*월 *일";
+  if (!device) return "-";
   if (device.connectionStatus === "CONNECTED") return "방금 전";
-  if (!device.lastSyncedAt) return "*월 *일";
+  if (!device.lastSyncedAt) return "-";
 
   const syncedAt = new Date(device.lastSyncedAt).getTime();
-  if (Number.isNaN(syncedAt)) return "*월 *일";
+  if (Number.isNaN(syncedAt)) return "-";
 
   const diffMs = Math.max(0, Date.now() - syncedAt);
   const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
@@ -542,7 +543,16 @@ export function DeviceScreen() {
   });
 
   const disconnectMutation = useMutation({
-    mutationFn: disconnectProductDevice,
+    mutationFn: async ({
+      productId,
+      device,
+    }: {
+      productId: number;
+      device: DisplayCharm;
+    }) => {
+      await disconnectProductDevice({ productId, deviceId: device.id });
+      await disconnectSmartCharmConnection(device.macAddress);
+    },
     onSuccess: async () => {
       setDisconnectModalVisible(false);
       setCharmExpanded(false);
@@ -556,7 +566,10 @@ export function DeviceScreen() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteDevice,
+    mutationFn: async (device: DisplayCharm) => {
+      await deleteDevice(device.id);
+      await disconnectSmartCharmConnection(device.macAddress);
+    },
     onSuccess: async () => {
       setDeleteModalVisible(false);
       setPendingDeviceId(null);
@@ -602,7 +615,7 @@ export function DeviceScreen() {
 
   const confirmDeleteCharm = () => {
     if (!pendingCharm) return;
-    deleteMutation.mutate(pendingCharm.id);
+    deleteMutation.mutate(pendingCharm);
   };
 
   const confirmDisconnectCharm = () => {
@@ -615,7 +628,7 @@ export function DeviceScreen() {
 
     disconnectMutation.mutate({
       productId: selectedProduct.id,
-      deviceId: pendingCharm.id,
+      device: pendingCharm,
     });
   };
 
@@ -700,7 +713,7 @@ export function DeviceScreen() {
               })}
             </View>
             <Text className="mt-1 text-[14px] font-medium text-[#6B6B6B]">
-              좌우로 넘겨 가방을 선택하세요.
+              좌우로 넘겨 가방을 선택하세요
             </Text>
           </View>
 
@@ -744,13 +757,25 @@ export function DeviceScreen() {
 
           <View className="flex-row items-start justify-between">
             <View className="flex-1 pr-4">
-              <Text className="text-[14px] font-semibold text-[#171717]">
+              <Text
+                className="text-[13px] font-semibold text-[#171717]"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.72}
+                allowFontScaling={false}
+              >
                 {selectedProduct?.productName ?? "등록된 제품이 없습니다."}
               </Text>
-              <Text className="mt-[2px] text-[14px] font-medium text-[#6B6B6B]">
+              <Text
+                className="mt-[2px] text-[13px] font-medium text-[#6B6B6B]"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.78}
+                allowFontScaling={false}
+              >
                 {selectedProduct ? formatMaterialColor(selectedProduct) : "-"}
               </Text>
-              <Text className="mt-[2px] text-[14px] font-medium text-[#232323]">
+              <Text className="mt-[2px] text-[13px] font-medium text-[#232323]">
                 함께한 외출{" "}
                 <Text className="text-[#814C27]">
                   {formatOutingCount(
@@ -802,7 +827,7 @@ export function DeviceScreen() {
                   </Text>
                 )}
               </View>
-              <View className="ml-3 flex-1">
+              <View className="ml-2 mr-2 flex-1">
                 <View className="flex-row items-center gap-[6px]">
                   <View
                     className="h-2 w-2 rounded-full"
@@ -812,7 +837,13 @@ export function DeviceScreen() {
                         : "#898989",
                     }}
                   />
-                  <Text className="text-[14px] font-semibold text-[#121212]">
+                  <Text
+                    className="text-[12px] font-semibold text-[#121212]"
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.78}
+                    allowFontScaling={false}
+                  >
                     {cardCharm?.serialNumber ?? "연결된 참 없음"}
                   </Text>
                 </View>
@@ -900,15 +931,20 @@ export function DeviceScreen() {
                   </Pressable>
                 </ScrollView>
 
-                <View className="mt-5 flex-row items-center justify-between">
-                  <Text className="text-[12px] font-medium text-[#898989]">
+                <View className="mt-5 gap-3">
+                  <Text
+                    className="text-[12px] font-medium text-[#898989]"
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
+                  >
                     선택한 참을 가방에 연결해주세요
                   </Text>
-                  <View className="flex-row gap-2">
+                  <View className="flex-row justify-end gap-2">
                     <Pressable
                       onPress={() => setDeleteModalVisible(true)}
                       disabled={!pendingCharm || deleteMutation.isPending}
-                      className="h-7 items-center justify-center rounded-[6px] bg-white px-3"
+                      className="h-7 min-w-[62px] items-center justify-center rounded-[6px] bg-white px-2.5"
                     >
                       <Text className="text-[12px] font-medium text-[#A51F21]">
                         참 삭제
@@ -918,7 +954,7 @@ export function DeviceScreen() {
                       <Pressable
                         onPress={() => setDisconnectModalVisible(true)}
                         disabled={disconnectMutation.isPending}
-                        className="h-7 items-center justify-center rounded-[6px] bg-[#814C27] px-3"
+                        className="h-7 min-w-[68px] items-center justify-center rounded-[6px] bg-[#814C27] px-2.5"
                       >
                         <Text className="text-[12px] font-medium text-white">
                           연결 해제
@@ -932,7 +968,7 @@ export function DeviceScreen() {
                           !selectedProduct ||
                           connectMutation.isPending
                         }
-                        className="h-7 items-center justify-center rounded-[6px] bg-[#814C27] px-3"
+                        className="h-7 min-w-[62px] items-center justify-center rounded-[6px] bg-[#814C27] px-2.5"
                       >
                         <Text className="text-[12px] font-medium text-white">
                           참 연결
@@ -1027,7 +1063,7 @@ export function DeviceScreen() {
         visible={deleteModalVisible}
         title={`${pendingCharm?.serialNumber ?? "SN-0001"}을 가방에서 삭제할까요?`}
         body={
-          "참을 삭제하면 현재 가방과의 연결이 해제되며\n보유 중인 참 목록에서도 삭제돼요.\n필요하면 나중에 다시 등록할 수 있어요."
+          "참을 삭제하면 현재 가방과의 연결이 해제되며\n보유중인 참 목록에서도 삭제돼요.\n필요하면 나중에 다시 등록할 수 있어요."
         }
         confirmLabel="삭제"
         onConfirm={confirmDeleteCharm}

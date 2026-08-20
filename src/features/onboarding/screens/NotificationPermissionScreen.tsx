@@ -33,7 +33,11 @@ export function NotificationPermissionScreen() {
 
       <View className="mx-auto w-full max-w-[390px] flex-1 px-6 pb-6 pt-6">
         <View className="flex-1">
-          <ScreenHeader title="알림 권한" onBack={() => router.back()} />
+          <ScreenHeader
+            title="알림 권한"
+            titleClassName="text-lg"
+            onBack={() => router.back()}
+          />
 
           <Text className="mt-5 text-sm text-concierge-textSecondary">
             제품의 변화부터 케어 일정까지,{"\n"}필요한 순간을 놓치지 않도록 알려드릴게요.

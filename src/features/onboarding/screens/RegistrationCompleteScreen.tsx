@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { getOnboardingProductById } from "@/features/onboarding/data/mockProducts";
 import {
   completeCharmOnboarding,
   getPrimaryCharmProductLink,
   type PrimaryCharmProductLink,
 } from "@/features/onboarding/storage";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
+import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { CheckmarkCircleIcon } from "@/shared/components/icons/CheckmarkCircleIcon";
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
@@ -22,7 +22,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
         numberOfLines={1}
         adjustsFontSizeToFit
       >
-        {value}
+        {value || "-"}
       </Text>
     </View>
   );
@@ -30,18 +30,15 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 
 export function RegistrationCompleteScreen() {
   const router = useRouter();
-  const { productId } = useLocalSearchParams<{ productId?: string }>();
-  const fallbackProduct = getOnboardingProductById(productId);
   const [link, setLink] = useState<PrimaryCharmProductLink | null>(null);
 
   useEffect(() => {
     getPrimaryCharmProductLink().then(setLink);
   }, []);
 
-  const charmName = link?.charmName ?? "SN-0001";
-  const productName =
-    link?.productName ?? fallbackProduct.name.replace("\n", " ");
-  const material = link?.material ?? fallbackProduct.material;
+  const charmName = link?.charmName ?? "-";
+  const productName = link?.productName ?? "-";
+  const material = link?.material ?? "-";
 
   const handleStartCareJourney = async () => {
     await completeCharmOnboarding();
@@ -52,11 +49,13 @@ export function RegistrationCompleteScreen() {
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-concierge-bg">
       <StatusBar style="dark" backgroundColor="#FAF6F1" />
 
-      <View className="flex-1 px-6 pb-7">
+      <View className="flex-1 px-6 pb-7 pt-6">
+        <ScreenHeader title="" onBack={() => router.back()} />
+
         <View className="flex-1 items-center justify-center">
           <CheckmarkCircleIcon size={56} color="#E4AB7C" />
 
-          <Text className="mt-5 w-full text-center text-2xl font-bold text-concierge-text">
+          <Text className="mt-5 w-full text-center text-[22px] font-bold text-concierge-text">
             연결이 완료되었습니다.
           </Text>
 

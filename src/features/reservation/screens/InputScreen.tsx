@@ -23,6 +23,7 @@ import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { WarningIcon } from "@/shared/components/icons/WarningIcon";
 import { NoticeModal } from "@/shared/components/NoticeModal";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
+import { ScreenHeader } from "@/shared/components/ScreenHeader";
 
 function SelectRow({
   label,
@@ -141,9 +142,9 @@ export function InputScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
-      <Text className="px-6 pt-6 text-xl font-bold pb-2 text-concierge-text">
-        케어 컨시어지 예약
-      </Text>
+      <View className="px-6 pt-6 pb-2">
+        <ScreenHeader title="케어 컨시어지 예약" onBack={() => router.back()} />
+      </View>
 
       <ScrollView
         className="flex-1 px-6"
