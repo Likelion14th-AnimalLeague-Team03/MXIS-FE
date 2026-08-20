@@ -19,6 +19,10 @@ import { ProgressRing } from "@/shared/components/ProgressRing";
 
 const ACCENT_TEXT = "#814C27";
 
+// 시연 영상 촬영용으로 Charm 재연결 안내 모달을 잠시 끕니다.
+// 촬영이 끝나면 true로 되돌려 주세요.
+const RECONNECT_PROMPT_ENABLED = false;
+
 type Grade = "EXCELLENT" | "STANDARD" | "NEEDS_ATTENTION";
 
 const GRADE_CONTENT: Record<
@@ -121,6 +125,12 @@ export function HomeScreen() {
   // 참(Charm)이 끊기면 안내 모달을 한 번만 띄워요. 다시 연결되면 플래그를 초기화해서
   // 다음에 또 끊겼을 때 안내할 수 있게 합니다.
   useEffect(() => {
+    if (!RECONNECT_PROMPT_ENABLED) {
+      setReconnectModalVisible(false);
+
+      return;
+    }
+
     if (!needsReconnect) {
       setReconnectModalVisible(false);
 
@@ -285,7 +295,7 @@ export function HomeScreen() {
       </ScrollView>
 
       <AlertModal
-        visible={reconnectModalVisible}
+        visible={RECONNECT_PROMPT_ENABLED && reconnectModalVisible}
         title="MXIS Charm 재연결이 필요해요"
         description="MXIS Charm을 다시 연결하면 등록을 계속할 수 있어요."
         actions={[

@@ -10,6 +10,7 @@ import waterIcon from "@/features/care/assets/water.png";
 import { useCareReport } from "@/features/care/hooks/useCare";
 import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
 import { formatDateDot } from "@/features/reservation/format";
+import { useReservationStore } from "@/features/reservation/store";
 import { parseLocalDate } from "@/shared/api/localTime";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
@@ -52,6 +53,10 @@ export function ReportScreen() {
   const router = useRouter();
   const { productId } = usePrimaryProductId();
   const { data: report, isPending, error } = useCareReport(productId);
+  const setPendingCareType = useReservationStore(
+    (state) => state.setPendingCareType,
+  );
+  const resetDraft = useReservationStore((state) => state.resetDraft);
 
   const environment = report?.environment30d;
   const careNeeded = report?.careNeeded ?? false;
@@ -60,6 +65,13 @@ export function ReportScreen() {
     : report?.careCycleMonths != null
       ? `권장 케어 주기 ${report.careCycleMonths}개월`
       : null;
+
+  // 상태 리포트에서 제안하는 케어는 무상 케어라서, 예약 종류를 FREE로 고정해서 넘깁니다.
+  const goToFreeCareInput = () => {
+    setPendingCareType("FREE");
+    resetDraft();
+    router.push("/reservation/input");
+  };
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -177,7 +189,7 @@ export function ReportScreen() {
             누적 사용 기록을 바탕으로 예방 케어 시점을 안내합니다.
           </Text>
           <Pressable
-            onPress={() => router.push("/reservation/input")}
+            onPress={goToFreeCareInput}
             className="mt-2 flex-row items-center justify-between"
           >
             <Text className="text-sm text-concierge-text">

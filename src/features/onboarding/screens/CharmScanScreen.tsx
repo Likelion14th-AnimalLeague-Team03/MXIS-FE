@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -56,6 +56,8 @@ const MOCK_CHARM_DEVICES: MockCharmDevice[] = [
 
 const CONNECTION_DELAY_MS = 1200;
 const SEARCH_DELAY_MS = 700;
+// 이 개수를 넘으면 목록 공간을 넓혀서 스크롤로 보게 합니다.
+const VISIBLE_DEVICE_LIMIT = 3;
 
 // 안드로이드에서 알약 배지 안 한글 텍스트가 위쪽이 잘려 보이는 문제가 있어서,
 // 텍스트 줄높이에 기대지 않고 고정 높이 + 가운데 정렬로 넉넉하게 감싸줍니다.
@@ -148,7 +150,7 @@ function SearchBottomActions({ onSearchAgain }: { onSearchAgain: () => void }) {
   );
 }
 
-// 스크롤 없이 화면 안에 항상 다 들어오도록, ScrollView 대신 고정 flex 레이아웃을 씁니다.
+// 상단 안내와 하단 버튼은 고정하고, 스캔된 기기 목록만 남은 공간에서 스크롤되게 합니다.
 export function CharmScanScreen() {
   const router = useRouter();
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
@@ -332,12 +334,14 @@ export function CharmScanScreen() {
   };
 
   const hasEmptyResult = scanResultState === "empty";
+  // 기기가 많으면 일러스트가 목록 공간을 너무 많이 차지하므로 조금 줄입니다.
+  const hasManyDevices = devices.length > VISIBLE_DEVICE_LIMIT;
 
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-concierge-bg">
       <StatusBar style="dark" backgroundColor="#FAF6F1" />
       <View className="flex-1 px-6 pb-6 pt-6">
-        <View className="flex-1">
+        <View className="min-h-0 flex-1">
           <Text className="text-2xl font-bold text-concierge-text">
             MXIS Charm을 찾고 있어요.
           </Text>
@@ -346,14 +350,22 @@ export function CharmScanScreen() {
           </Text>
 
           <View
-            className={`items-center justify-center overflow-visible ${
-              hasEmptyResult ? "mt-40 mb-20 h-[200px]" : "mt-20 mb-10 h-[180px]"
+            className={`shrink-0 items-center justify-center overflow-visible ${
+              hasEmptyResult
+                ? "mt-40 mb-20 h-[200px]"
+                : hasManyDevices
+                  ? "mt-8 mb-6 h-[140px]"
+                  : "mt-20 mb-10 h-[180px]"
             }`}
           >
             <Image
               source={charmOnboardingDevice}
               className={
-                hasEmptyResult ? "h-[370px] w-[370px]" : "h-[280px] w-[280px]"
+                hasEmptyResult
+                  ? "h-[370px] w-[370px]"
+                  : hasManyDevices
+                    ? "h-[220px] w-[220px]"
+                    : "h-[280px] w-[280px]"
               }
               resizeMode="contain"
             />
@@ -369,19 +381,26 @@ export function CharmScanScreen() {
               </Text>
             </View>
           ) : (
-            <View className="mt-4 gap-2">
-            {devices.map((device) => (
-                <CharmDeviceCard
-                  key={device.id}
-                  device={device}
-                  onPress={handleConnectDevice}
-                />
-              ))}
-              {errorMessage ? (
-                <Text className="text-center text-xs font-medium text-[#C04737]">
-                  {errorMessage}
-                </Text>
-              ) : null}
+            <View className="mt-4 min-h-0 flex-1">
+              <ScrollView
+                className="flex-1"
+                contentContainerClassName="gap-2 pb-1"
+                showsVerticalScrollIndicator
+                keyboardShouldPersistTaps="handled"
+              >
+                {devices.map((device) => (
+                  <CharmDeviceCard
+                    key={device.id}
+                    device={device}
+                    onPress={handleConnectDevice}
+                  />
+                ))}
+                {errorMessage ? (
+                  <Text className="text-center text-xs font-medium text-[#C04737]">
+                    {errorMessage}
+                  </Text>
+                ) : null}
+              </ScrollView>
             </View>
           )}
         </View>
