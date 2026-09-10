@@ -88,6 +88,36 @@ export function HumidityLineChart({
 
   const hasRecommended = recommendedMin != null && recommendedMax != null;
 
+  // 마지막 실측값을 선 끝에 배지로 띄워요 (Figma: #814C27, radius 3, 흰 글씨).
+  const lastValue = [...values]
+    .reverse()
+    .find((value): value is number => typeof value === "number");
+  const lastPoint =
+    visiblePoints.length > 0 ? visiblePoints[visiblePoints.length - 1] : null;
+  const finalBadge =
+    lastPoint && lastValue != null
+      ? (() => {
+          const label = `${Math.round(lastValue)}${unit}`;
+          const width = label.length * 8 + 14;
+          const height = 21;
+          const GAP = 7;
+          const [pointX, pointY] = lastPoint;
+          // 배지가 그래프 밖으로 잘리지 않도록 좌우를 클램프해요.
+          const x = Math.min(
+            Math.max(pointX - width / 2, 0),
+            VIEW_WIDTH - width,
+          );
+          // 기본은 점 위쪽이지만, 위에 자리가 없으면 점을 가리지 않게 아래로 내려요.
+          const above = pointY - height - GAP;
+          const y =
+            above >= 0
+              ? above
+              : Math.min(pointY + GAP, VIEW_HEIGHT - height);
+
+          return { label, width, height, x, y };
+        })()
+      : null;
+
   let axisRows: { value: number; accent: boolean }[];
   if (hasRecommended) {
     // 위/아래 칸이 휑해 보이지 않게, max~권장상단 사이와 권장하단~min 사이에도
@@ -173,6 +203,28 @@ export function HumidityLineChart({
           {visiblePoints.map(([x, y], index) => (
             <Circle key={index} cx={x} cy={y} r={4} fill={color} />
           ))}
+          {finalBadge ? (
+            <>
+              <Rect
+                x={finalBadge.x}
+                y={finalBadge.y}
+                width={finalBadge.width}
+                height={finalBadge.height}
+                rx={3}
+                fill={color}
+              />
+              <SvgText
+                x={finalBadge.x + finalBadge.width / 2}
+                y={finalBadge.y + finalBadge.height / 2 + 5}
+                fontSize={15}
+                fontWeight="600"
+                fill="#FFFFFF"
+                textAnchor="middle"
+              >
+                {finalBadge.label}
+              </SvgText>
+            </>
+          ) : null}
         </>
       ) : null}
     </Svg>

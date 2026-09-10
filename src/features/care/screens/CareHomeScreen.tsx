@@ -3,17 +3,27 @@ import { type ReactNode } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import defaultProductImage from "@/features/care/assets/bag3.png";
 import careHeroBg from "@/features/care/assets/care-hero.png";
 import outIcon from "@/features/care/assets/out.png";
 import popIcon from "@/features/care/assets/pop.png";
 import temperatureIcon from "@/features/care/assets/temperature.png";
 import waterIcon from "@/features/care/assets/water.png";
 import { useCareDiagnosisHome } from "@/features/care/hooks/useCare";
-import { PRODUCTS } from "@/features/device/constants";
 import { useCurrentProduct } from "@/features/product/hooks/useProduct";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
+import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { SentenceList } from "@/shared/components/SentenceList";
+
+/** 케어진단 홈 카드에 공통으로 쓰는 옅은 그림자 */
+const CARD_SHADOW = {
+  shadowColor: "#000000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  elevation: 2,
+} as const;
 
 function StatCard({
   icon,
@@ -29,10 +39,10 @@ function StatCard({
   muted?: boolean;
 }) {
   return (
-    <Card className="w-[47%] border-0 bg-white px-3 py-3">
+    <Card className="w-[47%] border-0 bg-white px-3 py-3" style={CARD_SHADOW}>
       <View className="flex-row items-start gap-1.5">
         {icon}
-        <View>
+        <View className="min-w-0 flex-1">
           <Text className="text-base font-semibold text-concierge-text">
             {label}
           </Text>
@@ -63,6 +73,7 @@ function getTextValue(value: string | null | undefined, fallback: string) {
 export function CareHomeScreen() {
   const router = useRouter();
   const {
+    product: currentProduct,
     productId,
     isAuthenticated,
     isPending: isProductPending,
@@ -77,14 +88,30 @@ export function CareHomeScreen() {
 
   const isPending =
     isProductPending || (productId !== null && isDiagnosisPending);
-  const product = diagnosis?.product;
+  const diagnosisProduct = diagnosis?.product;
+  const product =
+    diagnosisProduct || currentProduct
+      ? {
+          productId: diagnosisProduct?.productId ?? currentProduct?.id ?? 0,
+          productImageUrl:
+            diagnosisProduct?.productImageUrl ??
+            currentProduct?.productImageUrl ??
+            null,
+          productName:
+            diagnosisProduct?.productName ??
+            currentProduct?.productName ??
+            null,
+          materialDisplayName:
+            diagnosisProduct?.materialDisplayName ??
+            currentProduct?.materialDisplayName ??
+            null,
+          color: diagnosisProduct?.color ?? currentProduct?.color ?? null,
+        }
+      : null;
   const environment = diagnosis?.environment30d;
-  // 환경 30일 요약이 비어 있으면 아직 데이터가 모이는 중으로 봐요.
   const hasData =
     environment?.avgTemperature != null || environment?.avgHumidity != null;
-  const fallbackImage = PRODUCTS[0].image;
 
-  // 제품을 못 구하면 케어 진단 요청 자체가 나가지 않으니, 그 이유를 화면에 그대로 보여줘요.
   const blockedReason = !isAuthenticated
     ? "로그인이 필요해요. 다시 로그인해 주세요."
     : hasNoProduct
@@ -93,38 +120,54 @@ export function CareHomeScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
-      <ScrollView className="flex-1 px-6" contentContainerClassName="pb-8">
+      <ScrollView className="flex-1 px-6" contentContainerClassName="pb-28">
         <Text className="pt-6 text-xl font-bold text-concierge-text">
           케어진단
         </Text>
 
-        <Card className="mt-4 flex-row items-center gap-4 overflow-hidden border-concierge-borderLight bg-white p-0">
-          <View className="h-[171px] w-[45%] overflow-hidden">
+        <Card
+          className="mt-4 flex-row items-center gap-4 overflow-hidden border-1 border-concierge-primary bg-white p-0"
+          style={CARD_SHADOW}
+        >
+          <View className="h-[108px] w-[45%] overflow-hidden">
             <Image
               source={careHeroBg}
               className="size-full"
               resizeMode="cover"
             />
-            <View className="absolute inset-0 items-center justify-center ">
+            <View className="absolute inset-0 items-center justify-center">
               <Image
                 source={
                   product?.productImageUrl
                     ? { uri: product.productImageUrl }
-                    : fallbackImage
+                    : defaultProductImage
                 }
-                className="size-[180px] mt-5 "
+                className=" size-[130px]"
                 resizeMode="contain"
               />
             </View>
           </View>
-          <View className="flex-1 pr-3">
-            <Text className="text-base font-bold text-concierge-text">
+
+          <View className="min-w-0 flex-1 pr-3">
+            <Text
+              className="text-base  font-bold text-concierge-text"
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.78}
+              allowFontScaling={false}
+            >
               {getTextValue(
                 product?.productName,
                 isPending ? "불러오는 중" : "등록된 제품 없음",
               )}
             </Text>
-            <Text className="mt-1 text-[11px] text-concierge-textMuted">
+            <Text
+              className="mt-1 text-[11px] text-concierge-textMuted"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+              allowFontScaling={false}
+            >
               {[product?.materialDisplayName?.trim(), product?.color?.trim()]
                 .filter(Boolean)
                 .join(" · ") || "-"}
@@ -138,7 +181,10 @@ export function CareHomeScreen() {
           </View>
         </Card>
 
-        <Card className="mt-4 border-0 bg-white px-3.5 py-3.5">
+        <Card
+          className="mt-4 border-1 border-concierge-primary bg-white px-3.5 py-3.5"
+          style={CARD_SHADOW}
+        >
           <Text className="text-xs text-concierge-textMuted">현재 컨디션</Text>
           <Text className="mt-1 text-lg font-bold text-concierge-text">
             {diagnosis?.condition?.summary ?? "데이터가 수집되고 있습니다."}
@@ -160,28 +206,13 @@ export function CareHomeScreen() {
           </Pressable>
         </Card>
 
-        <Card className="mt-3 border-0 bg-white px-3.5 py-6">
-          <Text className="text-sm font-semibold text-concierge-text">
-            지금 추천하는 관리를 확인해보세요.
-          </Text>
-          <Pressable
-            onPress={() => router.push("/care/guide")}
-            className="mt-2 flex-row items-center justify-end gap-1"
-          >
-            <Text className="text-[11px] font-medium text-concierge-text">
-              관리 가이드 가기
-            </Text>
-            <ChevronRightIcon size={5} />
-          </Pressable>
-        </Card>
-
         {blockedReason ? (
           <Text className="mt-3 text-xs text-[#C04737]">{blockedReason}</Text>
         ) : null}
 
         <Pressable
           onPress={() => router.push("/care/environment")}
-          className="mt-6 mx-2 flex-row items-center justify-between"
+          className="mx-2 mt-6 flex-row items-center justify-between"
         >
           <View>
             <Text className="text-2xl font-semibold text-concierge-text">
@@ -189,8 +220,8 @@ export function CareHomeScreen() {
             </Text>
             <Text className="mt-1 text-[13px] text-concierge-textMuted">
               {hasData
-                ? "최근 30일 동안의 평균이에요."
-                : "데이터가 충분히 쌓이면 확인할 수 있어요."}
+                ? "최근 30일 동안의 평균이에요"
+                : "데이터가 충분히 쌓이면 확인할 수 있어요"}
             </Text>
           </View>
           <ChevronRightIcon size={9} />
@@ -201,7 +232,7 @@ export function CareHomeScreen() {
             icon={
               <Image
                 source={temperatureIcon}
-                className="size-[18px] mt-1.5 "
+                className="mt-1.5 size-[18px]"
                 resizeMode="contain"
               />
             }
@@ -209,8 +240,8 @@ export function CareHomeScreen() {
             caption={environment?.temperatureDescription ?? undefined}
             value={
               environment?.avgTemperature != null
-                ? `${Math.round(environment.avgTemperature)}°C`
-                : "-°C"
+                ? `${Math.round(environment.avgTemperature)}℃`
+                : "-℃"
             }
             muted={environment?.avgTemperature == null}
           />
@@ -218,7 +249,7 @@ export function CareHomeScreen() {
             icon={
               <Image
                 source={waterIcon}
-                className="size-[18px] mt-1.5"
+                className="mt-1.5 size-[18px]"
                 resizeMode="contain"
               />
             }
@@ -235,7 +266,7 @@ export function CareHomeScreen() {
             icon={
               <Image
                 source={popIcon}
-                className="size-[18px] mt-1.5 "
+                className="mt-1.5 size-[18px]"
                 resizeMode="contain"
               />
             }
@@ -247,7 +278,7 @@ export function CareHomeScreen() {
             icon={
               <Image
                 source={outIcon}
-                className="size-[18px] mt-1.5"
+                className="mt-1.5 size-[18px]"
                 resizeMode="contain"
               />
             }
@@ -260,6 +291,12 @@ export function CareHomeScreen() {
             muted={environment?.outingCount == null}
           />
         </View>
+
+        <PrimaryButton
+          className="mt-6"
+          label="관리 가이드 보기"
+          onPress={() => router.push("/care/guide")}
+        />
       </ScrollView>
     </SafeAreaView>
   );
