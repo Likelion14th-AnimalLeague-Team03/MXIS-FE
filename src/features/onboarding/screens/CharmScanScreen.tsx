@@ -11,7 +11,8 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BleError, BleManager, type Device as BleDevice } from "react-native-ble-plx";
+import { type BleError, type Device as BleDevice } from "react-native-ble-plx";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { useDeviceStore } from "@/features/device/store";
@@ -20,28 +21,24 @@ import {
   getDevices,
   registerDevice,
   type DeviceResponse,
-  type SensorReadingUploadItem,
 } from "@/features/onboarding/api/onboardingApi";
-import { savePendingSensorReadings } from "@/features/onboarding/storage";
 import {
-  decodeSensorReading,
-  decodeUint16LittleEndian,
-  decodeUint32LittleEndian,
-  DROPPED_READING_COUNT_CHARACTERISTIC_UUID,
+  connectSmartCharm,
+  DEFAULT_SMART_CHARM_SERVICE_UUIDS,
+  disconnectSmartCharmConnection,
   getBleDeviceName,
-  getBleFallbackSerialNumber,
-  isSmartCharmDevice,
-  PENDING_COUNT_CHARACTERISTIC_UUID,
-  readSmartCharmDeviceId,
-  SENSOR_READING_CHARACTERISTIC_UUID,
-  SMART_CHARM_SERVICE_UUID,
-  writeTimeSync,
+  getCharmScanServiceUuids,
+  getSmartCharmBleManager,
+  isVisibleCharmScanCandidate,
+  resolveOrangeScanPolicy,
+  waitForBluetoothReady,
 } from "@/features/onboarding/ble/smartCharmBle";
+import { collectSmartCharm, registerSmartCharmBackend } from "@/features/onboarding/ble/smartCharmSync";
 import charmOnboardingDevice from "@/features/onboarding/assets/charm-onboarding-device.png";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
 
-type CharmConnectionStatus = "idle" | "connecting" | "failed";
+type CharmConnectionStatus = "idle" | "connecting" | "checking" | "syncing" | "registering" | "failed" | "setup-failed";
 type ScanResultState = "scanning" | "found" | "empty";
 
 type CharmDevice = {
@@ -56,21 +53,6 @@ type CharmDevice = {
 
 const DEFAULT_SCAN_TIMEOUT_SECONDS = 8;
 const CONNECT_TIMEOUT_MS = 10000;
-const INITIAL_SYNC_COLLECT_MS = 15000;
-
-function wait(milliseconds: number) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, milliseconds);
-  });
-}
-
-function collectSensorReading(
-  base64Value: string,
-  readingMap: Map<number, SensorReadingUploadItem>,
-) {
-  const reading = decodeSensorReading(base64Value);
-  readingMap.set(reading.sequence, reading);
-}
 
 function getDebugErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "알 수 없는 오류";
@@ -118,9 +100,9 @@ function StatusPill({
 }: {
   status: Exclude<CharmConnectionStatus, "idle">;
 }) {
-  const isFailed = status === "failed";
+  const isFailed = status === "failed" || status === "setup-failed";
   const color = isFailed ? "#A51F21" : "#814C27";
-  const label = isFailed ? "연결 실패" : "연결 중";
+  const label = { connecting: "연결 중", checking: "기기 확인", syncing: "데이터 수신", registering: "서버 등록", failed: "연결 실패", "setup-failed": "연결 실패" }[status];
 
   return (
     <View
@@ -134,19 +116,21 @@ function StatusPill({
   );
 }
 
-function CharmDeviceRow({
+function CharmDeviceCard({
   device,
   onPress,
-  showDivider,
+  disabled,
+  isLast,
 }: {
   device: CharmDevice;
   onPress: (device: CharmDevice) => void;
-  showDivider: boolean;
+  disabled: boolean;
+  isLast: boolean;
 }) {
-  const isFailed = device.status === "failed";
+  const isFailed = device.status === "failed" || device.status === "setup-failed";
   const visibleStatus = device.status === "idle" ? null : device.status;
   const dotColor =
-    device.status === "failed"
+    isFailed
       ? "#A51F21"
       : device.status === "connecting"
         ? "#E4AB7C"
@@ -154,15 +138,10 @@ function CharmDeviceRow({
 
   return (
     <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
       onPress={() => onPress(device)}
-      className={`flex-row items-center gap-2.5 px-4 ${
-        isFailed ? "min-h-[56px] py-2.5" : "h-11 py-2.5"
-      }`}
-      style={
-        showDivider
-          ? { borderTopWidth: 1, borderTopColor: "#EFEAE4" }
-          : undefined
-      }
+      className={`min-h-[56px] flex-row items-center gap-2.5 px-4 py-2.5 ${isLast ? "" : "border-b border-concierge-border"}`}
     >
       <View
         className="h-2 w-2 shrink-0 rounded-full"
@@ -178,10 +157,10 @@ function CharmDeviceRow({
         </Text>
         {isFailed ? (
           <Text
-            className="mt-0.5 text-xs font-medium text-concierge-textSecondary"
-            numberOfLines={1}
+            className="mt-0.5 text-sm font-medium text-concierge-textSecondary"
+            numberOfLines={2}
           >
-            연결이 중단되었습니다. 다시 시도해주세요.
+            연결 실패했습니다. 다시 시도해주세요.
           </Text>
         ) : null}
       </View>
@@ -191,31 +170,10 @@ function CharmDeviceRow({
   );
 }
 
-function CharmDeviceList({
-  devices,
-  onPressDevice,
-}: {
-  devices: CharmDevice[];
-  onPressDevice: (device: CharmDevice) => void;
-}) {
-  return (
-    <View className="overflow-hidden rounded-xl bg-concierge-surface">
-      {devices.map((device, index) => (
-        <CharmDeviceRow
-          key={device.id}
-          device={device}
-          onPress={onPressDevice}
-          showDivider={index > 0}
-        />
-      ))}
-    </View>
-  );
-}
-
-function SearchBottomActions({ onSearchAgain }: { onSearchAgain: () => void }) {
+function SearchBottomActions({ onSearchAgain, disabled }: { onSearchAgain: () => void; disabled: boolean }) {
   return (
     <View className="gap-2">
-      <SecondaryButton label="다시 검색" onPress={onSearchAgain} />
+      <SecondaryButton label="다시 검색" onPress={onSearchAgain} disabled={disabled} />
       <Link href="/onboarding/connection-help" asChild>
         <Pressable
           hitSlop={12}
@@ -232,19 +190,25 @@ function SearchBottomActions({ onSearchAgain }: { onSearchAgain: () => void }) {
 
 export function CharmScanScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const accessToken = useAuthStore((state) => state.accessToken);
   const tokenType = useAuthStore((state) => state.tokenType);
+  const ownerId = useAuthStore((state) => String(state.user?.id ?? ""));
   const addOwnedCharm = useDeviceStore((state) => state.addOwnedCharm);
-  const bleManagerRef = useRef(new BleManager());
+  const bleManagerRef = useRef(getSmartCharmBleManager());
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+  const connectingRef = useRef(false);
+  const handedOffRef = useRef(false);
+  const scanRunRef = useRef(0);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [scanResultState, setScanResultState] =
     useState<ScanResultState>("scanning");
   const [devices, setDevices] = useState<CharmDevice[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
-  const [allowedServiceUuids, setAllowedServiceUuids] = useState([
-    SMART_CHARM_SERVICE_UUID,
-  ]);
+  const [allowedServiceUuids, setAllowedServiceUuids] = useState(DEFAULT_SMART_CHARM_SERVICE_UUIDS);
+  const [policyReady, setPolicyReady] = useState(false);
   const [scanTimeoutSeconds, setScanTimeoutSeconds] = useState(
     DEFAULT_SCAN_TIMEOUT_SECONDS,
   );
@@ -252,66 +216,94 @@ export function CharmScanScreen() {
   const hasEmptyResult = scanResultState === "empty";
 
   const stopScan = () => {
+    scanRunRef.current++;
     if (scanTimerRef.current) {
       clearTimeout(scanTimerRef.current);
       scanTimerRef.current = null;
     }
 
-    bleManagerRef.current.stopDeviceScan();
+    return bleManagerRef.current.stopDeviceScan().catch(() => undefined);
   };
 
   const startScan = async () => {
-    stopScan();
+    if (!policyReady || connectingRef.current) return;
+    const stopped = stopScan();
+    const scanRun = scanRunRef.current;
+    await stopped;
+    if (!mountedRef.current || scanRun !== scanRunRef.current) return;
     setDevices([]);
     setErrorMessage("");
     setScanResultState("scanning");
 
-    const hasPermission = await ensureAndroidBluetoothPermissions();
+    const hasPermission = await ensureAndroidBluetoothPermissions().catch(() => false);
+    if (!mountedRef.current || scanRun !== scanRunRef.current) return;
     if (!hasPermission) {
       setScanResultState("empty");
       setErrorMessage("MXIS Charm을 찾으려면 Bluetooth 권한 허용이 필요합니다.");
       return;
     }
 
-    bleManagerRef.current.startDeviceScan(
-      allowedServiceUuids,
-      { allowDuplicates: false },
-      (error: BleError | null, scannedDevice: BleDevice | null) => {
-        if (error) {
-          setScanResultState("empty");
-          setErrorMessage("Bluetooth 검색을 시작하지 못했습니다.");
-          stopScan();
-          return;
-        }
-
-        if (!scannedDevice || !isSmartCharmDevice(scannedDevice, allowedServiceUuids)) {
-          return;
-        }
-
-        setScanResultState("found");
-        setDevices((currentDevices) => {
-          if (currentDevices.some((device) => device.id === scannedDevice.id)) {
-            return currentDevices;
+    const receivedIds = new Set<string>();
+    const visibleIds = new Set<string>();
+    try {
+      await waitForBluetoothReady(bleManagerRef.current);
+      if (!mountedRef.current || scanRun !== scanRunRef.current) return;
+      const serviceUuids = getCharmScanServiceUuids("service", allowedServiceUuids);
+      console.log("[Charm BLE] scan started", { serviceUuids });
+      await bleManagerRef.current.startDeviceScan(
+        serviceUuids,
+        { allowDuplicates: true },
+        (error: BleError | null, scannedDevice: BleDevice | null) => {
+          if (!mountedRef.current || scanRun !== scanRunRef.current) return;
+          if (error) {
+            console.warn("[Charm BLE] scan error", { code: error.errorCode, message: error.message });
+            setScanResultState(visibleIds.size ? "found" : "empty");
+            setErrorMessage(`Bluetooth 검색 오류 (${error.errorCode}): ${error.message}`);
+            stopScan();
+            return;
           }
 
-          return [
-            ...currentDevices,
-            {
+          if (!scannedDevice) return;
+          if (!receivedIds.has(scannedDevice.id) && __DEV__) {
+            console.log("[Charm BLE] advertisement", {
+              id: scannedDevice.id, name: getBleDeviceName(scannedDevice),
+              serviceUUIDs: scannedDevice.serviceUUIDs ?? [],
+            });
+          }
+          receivedIds.add(scannedDevice.id);
+          if (!isVisibleCharmScanCandidate(scannedDevice, "service", allowedServiceUuids)) return;
+          visibleIds.add(scannedDevice.id);
+          setScanResultState("found");
+          setDevices((currentDevices) => {
+            const candidate: CharmDevice = {
               id: scannedDevice.id,
               name: getBleDeviceName(scannedDevice),
-              serialNumber: getBleFallbackSerialNumber(scannedDevice),
+              serialNumber: getBleDeviceName(scannedDevice), // Display label only; ID command replaces it before registration.
               macAddress: scannedDevice.id,
               serviceUUIDs: scannedDevice.serviceUUIDs ?? [],
               status: "idle",
               bleDevice: scannedDevice,
-            },
-          ];
-        });
-      },
-    );
-
+            };
+            const index = currentDevices.findIndex((device) => device.id === candidate.id);
+            if (index < 0) return [...currentDevices, candidate];
+            const previous = currentDevices[index];
+            if (previous.name === candidate.name && previous.serviceUUIDs.join(",") === candidate.serviceUUIDs.join(",")) return currentDevices;
+            return currentDevices.map((device, i) => i === index ? candidate : device);
+          });
+        },
+      );
+    } catch (error) {
+      if (mountedRef.current && scanRun === scanRunRef.current) {
+        setScanResultState("empty");
+        setErrorMessage(getDebugErrorMessage(error));
+        stopScan();
+      }
+      return;
+    }
+    if (!mountedRef.current || scanRun !== scanRunRef.current) return;
     scanTimerRef.current = setTimeout(() => {
-      bleManagerRef.current.stopDeviceScan();
+      console.log("[Charm BLE] scan finished", { received: receivedIds.size, visible: visibleIds.size });
+      stopScan();
       setScanResultState((current) =>
         current === "found" ? "found" : "empty",
       );
@@ -319,20 +311,41 @@ export function CharmScanScreen() {
   };
 
   useEffect(() => {
+    let cancelled = false;
     getConnectionPolicy()
       .then((policy) => {
-        setAllowedServiceUuids(
-          policy.allowedServiceUuids?.length
-            ? policy.allowedServiceUuids
-            : [SMART_CHARM_SERVICE_UUID],
-        );
+        if (cancelled) return;
+        console.log("[Charm BLE] server scan policy", { allowedServiceUuids: policy.allowedServiceUuids });
+        try {
+          const uuids = resolveOrangeScanPolicy(policy.allowedServiceUuids);
+          setAllowedServiceUuids(uuids);
+          console.log("[Charm BLE] scan policy", { source: "server", effectiveScanServiceUuids: uuids });
+        } catch (error) {
+          setAllowedServiceUuids(DEFAULT_SMART_CHARM_SERVICE_UUIDS);
+          console.warn("[Charm BLE] incompatible server policy; local Orange UUID configuration used", {
+            message: getDebugErrorMessage(error),
+          });
+        }
         setScanTimeoutSeconds(
-          policy.scanTimeoutSeconds || DEFAULT_SCAN_TIMEOUT_SECONDS,
+          Number.isFinite(policy.scanTimeoutSeconds)
+            ? Math.min(30, Math.max(3, policy.scanTimeoutSeconds)) : DEFAULT_SCAN_TIMEOUT_SECONDS,
         );
       })
       .catch(() => {
-        setAllowedServiceUuids([SMART_CHARM_SERVICE_UUID]);
-      });
+        if (cancelled) return;
+        setAllowedServiceUuids(DEFAULT_SMART_CHARM_SERVICE_UUIDS);
+        console.warn("[Charm BLE] connection-policy unavailable; local Orange UUID configuration used");
+      })
+      .finally(() => { if (!cancelled) setPolicyReady(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (connectingRef.current && !handedOffRef.current) void disconnectSmartCharmConnection();
+    };
   }, []);
 
   useEffect(() => {
@@ -343,104 +356,7 @@ export function CharmScanScreen() {
     };
     // 정책 API에서 받은 Service UUID와 timeout이 바뀌면 스캔을 다시 시작합니다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowedServiceUuids.join(","), scanTimeoutSeconds]);
-
-  const syncInitialSensorReadings = async (
-    connectedDevice: BleDevice,
-  ) => {
-
-    await runBleDebugStep("TimeSync 쓰기", () =>
-      writeTimeSync(connectedDevice),
-    );
-
-    const readingMap = new Map<number, SensorReadingUploadItem>();
-    const sensorSubscription = connectedDevice.monitorCharacteristicForService(
-      SMART_CHARM_SERVICE_UUID,
-      SENSOR_READING_CHARACTERISTIC_UUID,
-      (_error, characteristic) => {
-        if (!characteristic?.value) return;
-
-        try {
-          collectSensorReading(characteristic.value, readingMap);
-        } catch {
-          // 잘못된 패킷은 ACK하지 않고 무시합니다.
-        }
-      },
-    );
-    const pendingSubscription = connectedDevice.monitorCharacteristicForService(
-      SMART_CHARM_SERVICE_UUID,
-      PENDING_COUNT_CHARACTERISTIC_UUID,
-      (_error, characteristic) => {
-        if (!characteristic?.value) return;
-
-        try {
-          decodeUint16LittleEndian(characteristic.value);
-        } catch {
-          // PendingCount is only used for development/debug state here.
-        }
-      },
-    );
-    const droppedSubscription = connectedDevice.monitorCharacteristicForService(
-      SMART_CHARM_SERVICE_UUID,
-      DROPPED_READING_COUNT_CHARACTERISTIC_UUID,
-      (_error, characteristic) => {
-        if (!characteristic?.value) return;
-
-        try {
-          decodeUint32LittleEndian(characteristic.value);
-        } catch {
-          // 개발/디버그 UI가 생기면 여기 값을 노출하면 됩니다.
-        }
-      },
-    );
-
-    await Promise.allSettled([
-      connectedDevice
-        .readCharacteristicForService(
-          SMART_CHARM_SERVICE_UUID,
-          SENSOR_READING_CHARACTERISTIC_UUID,
-        )
-        .then((characteristic) => {
-          if (characteristic.value) {
-            collectSensorReading(characteristic.value, readingMap);
-          }
-        }),
-      connectedDevice
-        .readCharacteristicForService(
-          SMART_CHARM_SERVICE_UUID,
-          PENDING_COUNT_CHARACTERISTIC_UUID,
-        )
-        .then((characteristic) => {
-          if (characteristic.value) {
-            decodeUint16LittleEndian(characteristic.value);
-          }
-        }),
-      connectedDevice
-        .readCharacteristicForService(
-          SMART_CHARM_SERVICE_UUID,
-          DROPPED_READING_COUNT_CHARACTERISTIC_UUID,
-        )
-        .then((characteristic) => {
-          if (characteristic.value) {
-            decodeUint32LittleEndian(characteristic.value);
-          }
-        }),
-    ]);
-
-    await wait(INITIAL_SYNC_COLLECT_MS);
-
-    sensorSubscription.remove();
-    pendingSubscription.remove();
-    droppedSubscription.remove();
-
-    const readings = [...readingMap.values()].sort(
-      (first, second) => first.sequence - second.sequence,
-    );
-
-    console.log("[Charm BLE] SensorReading collected", readings);
-
-    return readings;
-  };
+  }, [policyReady, allowedServiceUuids.join(","), scanTimeoutSeconds]);
   const moveToConnectedScreen = (
     selectedDevice: CharmDevice,
     registeredDevice: DeviceResponse,
@@ -489,14 +405,14 @@ export function CharmScanScreen() {
         accessToken,
         tokenType,
       );
-    } catch {
-      const ownedDevices = await getDevices(accessToken, tokenType);
+    } catch (registrationError) {
+      const ownedDevices = await getDevices(accessToken, tokenType).catch(() => { throw registrationError; });
       const existingDevice = ownedDevices.find(
         (device) => device.serialNumber === smartCharmDeviceId,
       );
 
       if (!existingDevice) {
-        throw new Error("MXIS Charm 등록에 실패했습니다.");
+        throw registrationError;
       }
 
       return existingDevice;
@@ -504,7 +420,26 @@ export function CharmScanScreen() {
   };
 
   const handleConnectDevice = async (selectedDevice: CharmDevice) => {
-    stopScan();
+    if (connectingRef.current) return;
+    if (!policyReady) {
+      setErrorMessage("서버 검색 정책 확인 중입니다.");
+      return;
+    }
+    if (!ownerId || !accessToken) {
+      setErrorMessage("로그인 후 참을 연결해 주세요.");
+      return;
+    }
+    connectingRef.current = true;
+    setIsConnecting(true);
+    handedOffRef.current = false;
+    let stage = "BLE 연결";
+    const updateStage = (name: string, status: CharmConnectionStatus = "checking") => {
+      if (!mountedRef.current || String(useAuthStore.getState().user?.id ?? "") !== ownerId) throw new Error("연결 작업이 취소되었습니다.");
+      stage = name;
+      console.log(`[Charm BLE] ${name}`);
+      setDevices((items) => items.map((item) => item.id === selectedDevice.id ? { ...item, status } : item));
+    };
+    const stopped = stopScan();
     setScanResultState("found");
     setErrorMessage("");
     setDevices((currentDevices) =>
@@ -515,42 +450,39 @@ export function CharmScanScreen() {
     );
 
     try {
-      const connectedDevice = await runBleDebugStep("BLE 연결", () =>
-        selectedDevice.bleDevice.connect({
-          timeout: CONNECT_TIMEOUT_MS,
-        }),
-      );
-      await runBleDebugStep("서비스 검색", () =>
-        connectedDevice.discoverAllServicesAndCharacteristics(),
-      );
-
-      const smartCharmDeviceId = await runBleDebugStep("DeviceId 읽기", () =>
-        readSmartCharmDeviceId(connectedDevice),
-      );
-      const resolvedDevice = {
-        ...selectedDevice,
-        serialNumber: smartCharmDeviceId,
-      };
-      const registeredDevice = await runBleDebugStep(
-        "백엔드 참 등록",
-        () => registerConnectedDevice(resolvedDevice, smartCharmDeviceId),
-      );
-
-      const initialReadings = await runBleDebugStep("초기 센서 수집", () =>
-        syncInitialSensorReadings(connectedDevice),
-      );
-      await savePendingSensorReadings(String(registeredDevice.id), initialReadings);
+      await stopped;
+      const connection = await connectSmartCharm(selectedDevice.id, ownerId, {
+        timeoutMs: CONNECT_TIMEOUT_MS,
+        allowedServiceUuids,
+        onStage: (name) => updateStage(name, name === "BLE 연결" ? "connecting" : "checking"),
+      });
+      const resolvedDevice = { ...selectedDevice, serialNumber: connection.serialNumber };
+      updateStage("시간 설정 및 전체 센서 수신", "syncing");
+      const sync = await collectSmartCharm(connection);
+      console.log("[Charm BLE] SYNC verified", { count: sync.readings.length, through: sync.through, dropped: sync.after.dropped });
+      updateStage("서버 기기 등록", "registering");
+      const registeredDevice = await runBleDebugStep("서버 기기 등록", () => registerConnectedDevice(resolvedDevice, connection.serialNumber));
+      if (registeredDevice.serialNumber !== connection.serialNumber) throw new Error("서버가 반환한 참 ID가 실제 기기와 다릅니다.");
+      await registerSmartCharmBackend(ownerId, connection.serialNumber, registeredDevice.id);
+      await queryClient.invalidateQueries({ queryKey: ["device"] });
+      updateStage("등록 완료", "registering");
+      handedOffRef.current = true;
       moveToConnectedScreen(resolvedDevice, registeredDevice);
     } catch (error) {
+      if (!mountedRef.current) return;
       setErrorMessage(
-        error instanceof Error ? error.message : "MXIS Charm 연결에 실패했습니다.",
+        `${stage}: ${getDebugErrorMessage(error)}`,
       );
       setDevices((currentDevices) =>
         currentDevices.map((device) => ({
           ...device,
-          status: device.id === selectedDevice.id ? "failed" : "idle",
+          status: device.id === selectedDevice.id ? (stage === "BLE 연결" ? "failed" : "setup-failed") : "idle",
         })),
       );
+    } finally {
+      if (!handedOffRef.current) await disconnectSmartCharmConnection();
+      connectingRef.current = false;
+      if (mountedRef.current) setIsConnecting(false);
     }
   };
 
@@ -561,66 +493,62 @@ export function CharmScanScreen() {
         <View className="flex-1">
           <ScreenHeader
             title="MXIS Charm을 찾고 있어요."
-            titleClassName="text-[19px]"
+            titleClassName="text-2xl"
             onBack={() => router.back()}
           />
-          <Text className="mt-5 text-sm text-concierge-textSecondary">
+          <Text className="mt-2 text-sm font-medium text-concierge-textSecondary">
             스마트폰 가까이에 두고 잠시만 기다려 주세요.
           </Text>
 
-          <View
-            className={`items-center justify-center overflow-visible ${
-              hasEmptyResult ? "mt-40 mb-20 h-[200px]" : "mt-20 mb-10 h-[180px]"
-            }`}
-          >
+          <View className="h-[286px] items-center justify-center">
             <Image
               source={charmOnboardingDevice}
-              className={
-                hasEmptyResult ? "h-[370px] w-[370px]" : "h-[280px] w-[280px]"
-              }
+              className="h-[286px] w-[286px]"
               resizeMode="contain"
             />
           </View>
 
-          {hasEmptyResult ? (
-            <View className="mt-4 items-center">
-              <Text className="text-center text-lg font-bold text-concierge-primary">
-                연결 가능한 참을 찾을 수 없어요
+          <ScrollView className="flex-1" contentContainerClassName="pb-4">
+            {errorMessage && devices.length === 0 ? (
+              <Text accessibilityLiveRegion="polite" className="mb-2 text-center text-xs font-medium text-[#C04737]">
+                {errorMessage}
               </Text>
-              <Text className="mt-1.5 text-center text-sm font-semibold text-concierge-textSecondary">
-                Charm의 전원이 켜져 있는지 확인해 주세요
+            ) : null}
+            {hasEmptyResult ? (
+              <View className="items-center py-4">
+                <Text className="text-center text-base font-bold text-concierge-primary">
+                  {errorMessage ? "검색을 완료하지 못했어요" : "연결 가능한 참을 찾을 수 없어요"}
+                </Text>
+                {!errorMessage ? (
+                  <Text className="mt-1.5 text-center text-sm font-semibold text-concierge-textSecondary">
+                    Charm의 전원이 켜져 있는지 확인해 주세요
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+            {scanResultState === "scanning" && devices.length === 0 ? (
+              <Text className="py-4 text-center text-sm text-concierge-textSecondary">
+                {!policyReady ? "검색 준비 중" : "가까운 MXIS Charm을 검색하고 있습니다."}
               </Text>
-              {errorMessage ? (
-                <Text className="mt-2 text-center text-xs font-medium text-[#C04737]">
-                  {errorMessage}
-                </Text>
-              ) : null}
-            </View>
-          ) : (
-            <ScrollView className="mt-4 flex-1" contentContainerClassName="gap-2 pb-4">
-              {scanResultState === "scanning" && devices.length === 0 ? (
-                <Text className="py-4 text-center text-sm text-concierge-textSecondary">
-                  가까운 MXIS Charm을 검색하고 있습니다.
-                </Text>
-              ) : null}
-              {devices.length > 0 ? (
-                <CharmDeviceList
-                  devices={devices}
-                  onPressDevice={handleConnectDevice}
-                />
-              ) : null}
-              {errorMessage ? (
-                <Text className="text-center text-xs font-medium text-[#C04737]">
-                  {errorMessage}
-                </Text>
-              ) : null}
-            </ScrollView>
-          )}
+            ) : null}
+            {devices.length > 0 ? (
+              <View className="overflow-hidden rounded-[10px] bg-white">
+                {devices.map((device, index) => (
+                  <CharmDeviceCard
+                    key={device.id}
+                    device={device}
+                    onPress={handleConnectDevice}
+                    disabled={isConnecting}
+                    isLast={index === devices.length - 1}
+                  />
+                ))}
+              </View>
+            ) : null}
+          </ScrollView>
         </View>
 
-        <SearchBottomActions onSearchAgain={startScan} />
+        <SearchBottomActions onSearchAgain={() => { void startScan(); }} disabled={!policyReady || isConnecting} />
       </View>
     </SafeAreaView>
   );
 }
-

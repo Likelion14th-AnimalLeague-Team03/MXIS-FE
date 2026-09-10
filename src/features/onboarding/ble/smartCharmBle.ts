@@ -1,221 +1,210 @@
 import { BleManager, type Device as BleDevice } from "react-native-ble-plx";
+import {
+  DEFAULT_SMART_CHARM_SERVICE_UUIDS, normalizeUuid,
+} from "./smartCharmProtocol";
+import { createUartSession, type SmartCharmUartSession } from "./smartCharmUartSession";
 
-export const SMART_CHARM_DEVICE_NAME = "SmartCharm";
-export const SMART_CHARM_SERVICE_UUID =
-  "8A100000-7B2C-4D55-9000-000000000001";
-export const SENSOR_READING_CHARACTERISTIC_UUID =
-  "8A100001-7B2C-4D55-9000-000000000001";
-export const PENDING_COUNT_CHARACTERISTIC_UUID =
-  "8A100002-7B2C-4D55-9000-000000000001";
-export const ACK_CHARACTERISTIC_UUID = "8A100003-7B2C-4D55-9000-000000000001";
-export const TIME_SYNC_CHARACTERISTIC_UUID =
-  "8A100004-7B2C-4D55-9000-000000000001";
-export const DROPPED_READING_COUNT_CHARACTERISTIC_UUID =
-  "8A100008-7B2C-4D55-9000-000000000001";
-export const DEVICE_ID_CHARACTERISTIC_UUID =
-  "8A100009-7B2C-4D55-9000-000000000001";
+export * from "./smartCharmProtocol";
+export type { SmartCharmUartSession } from "./smartCharmUartSession";
 
-const BASE64_CHARS =
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-const bleConnectionManager = new BleManager();
-
-export type SensorReadingDto = {
-  sequence: number;
-  measuredAt: number;
-  temperature: number;
-  humidity: number;
-  maxShock: number;
-  motionCount: number;
-};
-
-export function normalizeUuid(uuid: string) {
-  return uuid.toLowerCase();
+let manager: BleManager | undefined;
+export function getSmartCharmBleManager() {
+  manager ??= new BleManager();
+  return manager;
 }
 
-export function getBleDeviceName(device: BleDevice) {
-  const localName = (device as BleDevice & { localName?: string | null }).localName;
-
-  return localName || device.name || SMART_CHARM_DEVICE_NAME;
+export function getBleDeviceName(device: Pick<BleDevice, "localName" | "name">) {
+  return device.localName || device.name || "이름 없는 BLE 기기";
 }
 
-export function getBleFallbackSerialNumber(device: BleDevice) {
-  const name = getBleDeviceName(device);
-
-  if (name !== SMART_CHARM_DEVICE_NAME) {
-    return name;
-  }
-
-  return device.id;
+// This is a candidate filter, not product authentication. No name-based bypass.
+export function isSmartCharmDevice(device: Pick<BleDevice, "serviceUUIDs">, allowedServiceUuids: string[]) {
+  const allowed = allowedServiceUuids.map(normalizeUuid);
+  return (device.serviceUUIDs ?? []).some((uuid) => allowed.includes(normalizeUuid(uuid)));
 }
 
-export function isSmartCharmDevice(
-  device: BleDevice,
-  allowedServiceUuids: string[],
+export function hasSmartCharmName(device: Pick<BleDevice, "localName" | "name">) {
+  const name = (device.localName || device.name || "").toLowerCase().replace(/[\s_-]/g, "");
+  return name.startsWith("smartcharm") || name.startsWith("mxis") || name.startsWith("scob");
+}
+
+export type CharmScanMode = "service" | "nearby";
+
+export function getCharmScanServiceUuids(mode: CharmScanMode, allowed: string[]) {
+  if (mode === "nearby") return null;
+  resolveOrangeScanPolicy(allowed);
+  // Some Orange boards do not include their UART service UUID in advertisements.
+  // Scan broadly, then verify the actual GATT service before registration.
+  return null;
+}
+
+export function isVisibleCharmScanCandidate(
+  device: Pick<BleDevice, "serviceUUIDs" | "localName" | "name">,
+  mode: CharmScanMode,
+  allowed: string[],
 ) {
-  const deviceName = getBleDeviceName(device);
-  const advertisedUuids = (device.serviceUUIDs ?? []).map(normalizeUuid);
-  const allowedUuids = allowedServiceUuids.map(normalizeUuid);
-  const hasAllowedService = advertisedUuids.some((uuid) =>
-    allowedUuids.includes(uuid),
-  );
-
-  return deviceName.includes(SMART_CHARM_DEVICE_NAME) || hasAllowedService;
+  return mode === "nearby" || isSmartCharmDevice(device, allowed) || hasSmartCharmName(device);
 }
 
-export function bytesToBase64(bytes: Uint8Array) {
-  let output = "";
-  let index = 0;
-
-  while (index < bytes.length) {
-    const first = bytes[index++];
-    const second = index < bytes.length ? bytes[index++] : undefined;
-    const third = index < bytes.length ? bytes[index++] : undefined;
-    const triple =
-      (first << 16) | ((second ?? 0) << 8) | ((third ?? 0) << 0);
-
-    output += BASE64_CHARS[(triple >> 18) & 63];
-    output += BASE64_CHARS[(triple >> 12) & 63];
-    output += second === undefined ? "=" : BASE64_CHARS[(triple >> 6) & 63];
-    output += third === undefined ? "=" : BASE64_CHARS[triple & 63];
-  }
-
-  return output;
-}
-
-export function base64ToBytes(base64: string) {
-  const cleanBase64 = base64.replace(/=+$/, "");
-  const bytes: number[] = [];
-  let buffer = 0;
-  let bits = 0;
-
-  for (const char of cleanBase64) {
-    const value = BASE64_CHARS.indexOf(char);
-
-    if (value < 0) continue;
-
-    buffer = (buffer << 6) | value;
-    bits += 6;
-
-    if (bits >= 8) {
-      bits -= 8;
-      bytes.push((buffer >> bits) & 0xff);
+export function waitForBluetoothReady(
+  bleManager: Pick<BleManager, "onStateChange">,
+  timeoutMs = 4000,
+) {
+  return new Promise<void>((resolve, reject) => {
+    let settled = false;
+    let subscription: { remove(): void } | undefined;
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      subscription?.remove();
+      if (error) reject(error);
+      else resolve();
+    };
+    const timer = setTimeout(() => finish(new Error("Bluetooth 초기화가 지연되고 있습니다. 다시 검색해 주세요.")), timeoutMs);
+    try {
+      subscription = bleManager.onStateChange((state) => {
+        if (state === "PoweredOn") finish();
+        else if (state === "PoweredOff") finish(new Error("휴대폰의 Bluetooth를 켠 뒤 다시 검색해 주세요."));
+        else if (state === "Unauthorized") finish(new Error("휴대폰 설정에서 Bluetooth 권한을 허용해 주세요."));
+        else if (state === "Unsupported") finish(new Error("이 기기는 Bluetooth LE를 지원하지 않습니다."));
+      }, true);
+      if (settled) subscription.remove();
+    } catch (error) {
+      finish(error instanceof Error ? error : new Error(String(error)));
     }
+  });
+}
+
+export function resolveOrangeScanPolicy(allowed?: string[]) {
+  const uuids = allowed ?? DEFAULT_SMART_CHARM_SERVICE_UUIDS;
+  if (!Array.isArray(uuids) || !uuids.length || !uuids.every((uuid) =>
+    typeof uuid === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid))) {
+    throw new Error("서버의 Bluetooth 검색 설정을 확인해 주세요.");
   }
-
-  return new Uint8Array(bytes);
+  const uart = uuids.filter((uuid) => !/^8a1000[0-9a-f]{2}-/i.test(uuid));
+  if (!uart.length) throw new Error("서버에 이전 센서의 검색 설정만 등록되어 있습니다.");
+  const seen = new Set<string>();
+  return uart.filter((uuid) => {
+    const normalized = normalizeUuid(uuid);
+    if (seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
 }
 
-export function uint32LittleEndian(value: number) {
-  const bytes = new Uint8Array(4);
-  const view = new DataView(bytes.buffer);
-
-  view.setUint32(0, value, true);
-
-  return bytes;
-}
-
-export function decodeSensorReading(base64Value: string): SensorReadingDto {
-  const bytes = base64ToBytes(base64Value);
-
-  if (bytes.byteLength !== 16) {
-    throw new Error("SensorReading payload는 16 bytes여야 합니다.");
-  }
-
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const sequence = view.getUint32(0, true);
-  const measuredAt = view.getUint32(4, true);
-  const temperatureX100 = view.getInt16(8, true);
-  const humidityX100 = view.getUint16(10, true);
-  const maxShockX100 = view.getUint16(12, true);
-  const motionCount = view.getUint16(14, true);
-
-  return {
-    sequence,
-    measuredAt,
-    temperature: temperatureX100 / 100,
-    humidity: humidityX100 / 100,
-    maxShock: maxShockX100 / 100,
-    motionCount,
-  };
-}
-
-export function decodeUint32LittleEndian(base64Value: string) {
-  const bytes = base64ToBytes(base64Value);
-
-  if (bytes.byteLength !== 4) {
-    throw new Error("uint32 payload는 4 bytes여야 합니다.");
-  }
-
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-
-  return view.getUint32(0, true);
-}
-
-export function decodeUint16LittleEndian(base64Value: string) {
-  const bytes = base64ToBytes(base64Value);
-
-  if (bytes.byteLength !== 2) {
-    throw new Error("uint16 payload must be 2 bytes.");
-  }
-
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-
-  return view.getUint16(0, true);
-}
-
-export function decodeUtf8String(base64Value: string) {
-  const bytes = base64ToBytes(base64Value);
-
-  return String.fromCharCode(...bytes).replace(/\0+$/, "");
-}
-
-export async function readSmartCharmDeviceId(device: BleDevice) {
-  const characteristic = await device.readCharacteristicForService(
-    SMART_CHARM_SERVICE_UUID,
-    DEVICE_ID_CHARACTERISTIC_UUID,
+export async function createSmartCharmUartSession(
+  device: BleDevice,
+  allowedServiceUuids = DEFAULT_SMART_CHARM_SERVICE_UUIDS,
+): Promise<SmartCharmUartSession> {
+  const allowed = new Set(
+    resolveOrangeScanPolicy(allowedServiceUuids).map(normalizeUuid),
   );
-  const deviceId = characteristic.value
-    ? decodeUtf8String(characteristic.value)
-    : "";
-
-  if (!deviceId || !deviceId.startsWith("SC-")) {
-    throw new Error("Smart Charm 고유 ID를 확인할 수 없습니다.");
+  const services = await device.services();
+  const matches = services.filter((item) => allowed.has(normalizeUuid(item.uuid)));
+  if (matches.length !== 1) throw new Error("센서 통신 경로를 하나로 확인할 수 없습니다. Bluetooth 설정을 확인해 주세요.");
+  const service = matches[0];
+  const characteristics = await device.characteristicsForService(service.uuid);
+  const writes = characteristics.filter((item) => item.isWritableWithResponse || item.isWritableWithoutResponse);
+  const notifications = characteristics.filter((item) => item.isNotifiable);
+  if (writes.length !== 1 || notifications.length !== 1) {
+    throw new Error("센서의 쓰기·수신 경로를 확인할 수 없습니다. Bluetooth 속성을 확인해 주세요.");
   }
-
-  return deviceId;
+  const write = writes[0];
+  const notify = notifications[0];
+  return createUartSession({
+    write: (value) => write.isWritableWithResponse
+      ? device.writeCharacteristicWithResponseForService(service.uuid, write.uuid, value)
+      : device.writeCharacteristicWithoutResponseForService(service.uuid, write.uuid, value),
+    subscribe: (onValue, onError) => {
+      const subscription = device.monitorCharacteristicForService(service.uuid, notify.uuid, (error, item) => {
+        if (error) onError(new Error(error.message));
+        else if (item?.value != null) onValue(item.value);
+      });
+      return () => subscription.remove();
+    },
+    onDisconnect: (onError) => {
+      const subscription = device.onDisconnected((error) => onError(new Error(error?.message ?? "참과의 연결이 끊어졌습니다.")));
+      return () => subscription.remove();
+    },
+  });
 }
 
-export async function disconnectSmartCharmConnection(
-  bleDeviceId?: string | null,
+export type SmartCharmConnection = {
+  ownerId: string;
+  device: BleDevice;
+  serialNumber: string;
+  session: SmartCharmUartSession;
+  allowedServiceUuids: string[];
+};
+let connection: SmartCharmConnection | null = null;
+let connecting = false;
+let generation = 0;
+
+export async function connectSmartCharm(
+  deviceId: string,
+  ownerId: string,
+  options: { expectedSerial?: string; timeoutMs?: number; allowedServiceUuids?: string[]; onStage?: (stage: string) => void } = {},
 ) {
-  if (!bleDeviceId) return;
-
+  if (!ownerId) throw new Error("로그인 계정 확인이 필요합니다.");
+  if (connecting) throw new Error("다른 참 연결이 진행 중입니다.");
+  if (connection?.ownerId === ownerId && connection.device.id === deviceId && !connection.session.isClosed) {
+    if (options.expectedSerial && connection.serialNumber !== options.expectedSerial) throw new Error("연결된 참의 ID가 다릅니다.");
+    return connection;
+  }
+  connecting = true;
+  let device: BleDevice | undefined;
+  let session: SmartCharmUartSession | undefined;
   try {
-    const isConnected =
-      await bleConnectionManager.isDeviceConnected(bleDeviceId);
-
-    if (!isConnected) return;
-
-    await bleConnectionManager.cancelDeviceConnection(bleDeviceId);
-  } catch {
-    // 화면/API 상태 변경을 막지 않기 위해 BLE 해제 실패는 조용히 넘깁니다.
+    await disconnectSmartCharmConnection();
+    const attempt = generation;
+    const stage = (value: string) => {
+      if (attempt !== generation) throw new Error("참 연결 작업이 취소되었습니다.");
+      options.onStage?.(value);
+    };
+    stage("BLE 연결");
+    device = await getSmartCharmBleManager().connectToDevice(deviceId, { timeout: options.timeoutMs ?? 10000 });
+    stage("서비스 검색");
+    await device.discoverAllServicesAndCharacteristics();
+    stage("UART 구독");
+    const allowedServiceUuids = resolveOrangeScanPolicy(options.allowedServiceUuids);
+    session = await createSmartCharmUartSession(device, allowedServiceUuids);
+    stage("PING 확인");
+    await session.ping();
+    stage("PROFILE 확인");
+    await session.verifyProfile();
+    stage("DeviceId 확인");
+    const serialNumber = await session.readDeviceId();
+    if (options.expectedSerial && serialNumber !== options.expectedSerial) throw new Error("다른 참에 연결되었습니다. ACK를 보내지 않았습니다.");
+    stage("기기 확인 완료");
+    connection = { device, session, serialNumber, ownerId, allowedServiceUuids };
+    return connection;
+  } catch (error) {
+    session?.dispose();
+    await device?.cancelConnection().catch(() => undefined);
+    throw error;
+  } finally {
+    connecting = false;
   }
 }
 
-export async function writeTimeSync(device: BleDevice) {
-  const unixSeconds = Math.floor(Date.now() / 1000);
-
-  await device.writeCharacteristicWithResponseForService(
-    SMART_CHARM_SERVICE_UUID,
-    TIME_SYNC_CHARACTERISTIC_UUID,
-    bytesToBase64(uint32LittleEndian(unixSeconds)),
-  );
+export function getSmartCharmConnection(ownerId: string, serialNumber: string) {
+  return connection?.ownerId === ownerId && connection.serialNumber === serialNumber && !connection.session.isClosed ? connection : null;
 }
 
-export async function writeAckSequence(device: BleDevice, sequence: number) {
-  await device.writeCharacteristicWithResponseForService(
-    SMART_CHARM_SERVICE_UUID,
-    ACK_CHARACTERISTIC_UUID,
-    bytesToBase64(uint32LittleEndian(sequence)),
-  );
+export async function disconnectSmartCharmConnection(bleDeviceId?: string | null) {
+  if (bleDeviceId === null || bleDeviceId === "") return;
+  generation++;
+  const current = connection;
+  if (!bleDeviceId || current?.device.id === bleDeviceId) {
+    connection = null;
+    current?.session.dispose();
+  }
+  const id = bleDeviceId ?? current?.device.id;
+  if (!id || !manager) return;
+  try {
+    if (await manager.isDeviceConnected(id)) await manager.cancelDeviceConnection(id);
+  } catch {
+    // Local subscriptions are already released, even when the radio is gone.
+  }
 }
