@@ -20,22 +20,16 @@ import {
   getDevices,
   registerDevice,
   type DeviceResponse,
-  type SensorReadingUploadItem,
 } from "@/features/onboarding/api/onboardingApi";
 import { savePendingSensorReadings } from "@/features/onboarding/storage";
 import {
-  decodeSensorReading,
-  decodeUint16LittleEndian,
-  decodeUint32LittleEndian,
-  DROPPED_READING_COUNT_CHARACTERISTIC_UUID,
+  createSmartCharmUartSession,
+  DEFAULT_SMART_CHARM_SERVICE_UUIDS,
   getBleDeviceName,
   getBleFallbackSerialNumber,
   isSmartCharmDevice,
-  PENDING_COUNT_CHARACTERISTIC_UUID,
   readSmartCharmDeviceId,
-  SENSOR_READING_CHARACTERISTIC_UUID,
-  SMART_CHARM_SERVICE_UUID,
-  writeTimeSync,
+  type SmartCharmUartSession,
 } from "@/features/onboarding/ble/smartCharmBle";
 import charmOnboardingDevice from "@/features/onboarding/assets/charm-onboarding-device.png";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
@@ -56,21 +50,6 @@ type CharmDevice = {
 
 const DEFAULT_SCAN_TIMEOUT_SECONDS = 8;
 const CONNECT_TIMEOUT_MS = 10000;
-const INITIAL_SYNC_COLLECT_MS = 15000;
-
-function wait(milliseconds: number) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, milliseconds);
-  });
-}
-
-function collectSensorReading(
-  base64Value: string,
-  readingMap: Map<number, SensorReadingUploadItem>,
-) {
-  const reading = decodeSensorReading(base64Value);
-  readingMap.set(reading.sequence, reading);
-}
 
 function getDebugErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "알 수 없는 오류";
@@ -214,9 +193,7 @@ export function CharmScanScreen() {
     useState<ScanResultState>("scanning");
   const [devices, setDevices] = useState<CharmDevice[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
-  const [allowedServiceUuids, setAllowedServiceUuids] = useState([
-    SMART_CHARM_SERVICE_UUID,
-  ]);
+  const [allowedServiceUuids, setAllowedServiceUuids] = useState(DEFAULT_SMART_CHARM_SERVICE_UUIDS);
   const [scanTimeoutSeconds, setScanTimeoutSeconds] = useState(
     DEFAULT_SCAN_TIMEOUT_SECONDS,
   );
@@ -246,7 +223,7 @@ export function CharmScanScreen() {
     }
 
     bleManagerRef.current.startDeviceScan(
-      allowedServiceUuids,
+      null,
       { allowDuplicates: false },
       (error: BleError | null, scannedDevice: BleDevice | null) => {
         if (error) {
@@ -296,14 +273,14 @@ export function CharmScanScreen() {
         setAllowedServiceUuids(
           policy.allowedServiceUuids?.length
             ? policy.allowedServiceUuids
-            : [SMART_CHARM_SERVICE_UUID],
+            : DEFAULT_SMART_CHARM_SERVICE_UUIDS,
         );
         setScanTimeoutSeconds(
           policy.scanTimeoutSeconds || DEFAULT_SCAN_TIMEOUT_SECONDS,
         );
       })
       .catch(() => {
-        setAllowedServiceUuids([SMART_CHARM_SERVICE_UUID]);
+        setAllowedServiceUuids(DEFAULT_SMART_CHARM_SERVICE_UUIDS);
       });
   }, []);
 
@@ -317,98 +294,8 @@ export function CharmScanScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allowedServiceUuids.join(","), scanTimeoutSeconds]);
 
-  const syncInitialSensorReadings = async (
-    connectedDevice: BleDevice,
-  ) => {
-
-    await runBleDebugStep("TimeSync 쓰기", () =>
-      writeTimeSync(connectedDevice),
-    );
-
-    const readingMap = new Map<number, SensorReadingUploadItem>();
-    const sensorSubscription = connectedDevice.monitorCharacteristicForService(
-      SMART_CHARM_SERVICE_UUID,
-      SENSOR_READING_CHARACTERISTIC_UUID,
-      (_error, characteristic) => {
-        if (!characteristic?.value) return;
-
-        try {
-          collectSensorReading(characteristic.value, readingMap);
-        } catch {
-          // 잘못된 패킷은 ACK하지 않고 무시합니다.
-        }
-      },
-    );
-    const pendingSubscription = connectedDevice.monitorCharacteristicForService(
-      SMART_CHARM_SERVICE_UUID,
-      PENDING_COUNT_CHARACTERISTIC_UUID,
-      (_error, characteristic) => {
-        if (!characteristic?.value) return;
-
-        try {
-          decodeUint16LittleEndian(characteristic.value);
-        } catch {
-          // PendingCount is only used for development/debug state here.
-        }
-      },
-    );
-    const droppedSubscription = connectedDevice.monitorCharacteristicForService(
-      SMART_CHARM_SERVICE_UUID,
-      DROPPED_READING_COUNT_CHARACTERISTIC_UUID,
-      (_error, characteristic) => {
-        if (!characteristic?.value) return;
-
-        try {
-          decodeUint32LittleEndian(characteristic.value);
-        } catch {
-          // 개발/디버그 UI가 생기면 여기 값을 노출하면 됩니다.
-        }
-      },
-    );
-
-    await Promise.allSettled([
-      connectedDevice
-        .readCharacteristicForService(
-          SMART_CHARM_SERVICE_UUID,
-          SENSOR_READING_CHARACTERISTIC_UUID,
-        )
-        .then((characteristic) => {
-          if (characteristic.value) {
-            collectSensorReading(characteristic.value, readingMap);
-          }
-        }),
-      connectedDevice
-        .readCharacteristicForService(
-          SMART_CHARM_SERVICE_UUID,
-          PENDING_COUNT_CHARACTERISTIC_UUID,
-        )
-        .then((characteristic) => {
-          if (characteristic.value) {
-            decodeUint16LittleEndian(characteristic.value);
-          }
-        }),
-      connectedDevice
-        .readCharacteristicForService(
-          SMART_CHARM_SERVICE_UUID,
-          DROPPED_READING_COUNT_CHARACTERISTIC_UUID,
-        )
-        .then((characteristic) => {
-          if (characteristic.value) {
-            decodeUint32LittleEndian(characteristic.value);
-          }
-        }),
-    ]);
-
-    await wait(INITIAL_SYNC_COLLECT_MS);
-
-    sensorSubscription.remove();
-    pendingSubscription.remove();
-    droppedSubscription.remove();
-
-    const readings = [...readingMap.values()].sort(
-      (first, second) => first.sequence - second.sequence,
-    );
-
+  const syncInitialSensorReadings = async (uartSession: SmartCharmUartSession) => {
+    const readings = await uartSession.syncReadings();
     console.log("[Charm BLE] SensorReading collected", readings);
 
     return readings;
@@ -496,23 +383,31 @@ export function CharmScanScreen() {
         connectedDevice.discoverAllServicesAndCharacteristics(),
       );
 
-      const smartCharmDeviceId = await runBleDebugStep("DeviceId 읽기", () =>
-        readSmartCharmDeviceId(connectedDevice),
-      );
-      const resolvedDevice = {
-        ...selectedDevice,
-        serialNumber: smartCharmDeviceId,
-      };
-      const registeredDevice = await runBleDebugStep(
-        "백엔드 참 등록",
-        () => registerConnectedDevice(resolvedDevice, smartCharmDeviceId),
+      const uartSession = await runBleDebugStep("UART discovery", () =>
+        createSmartCharmUartSession(connectedDevice),
       );
 
-      const initialReadings = await runBleDebugStep("초기 센서 수집", () =>
-        syncInitialSensorReadings(connectedDevice),
-      );
-      await savePendingSensorReadings(String(registeredDevice.id), initialReadings);
-      moveToConnectedScreen(resolvedDevice, registeredDevice);
+      try {
+        const smartCharmDeviceId = await runBleDebugStep("DeviceId read", () =>
+          readSmartCharmDeviceId(uartSession),
+        );
+        const resolvedDevice = {
+          ...selectedDevice,
+          serialNumber: smartCharmDeviceId,
+        };
+        const registeredDevice = await runBleDebugStep(
+          "Backend device registration",
+          () => registerConnectedDevice(resolvedDevice, smartCharmDeviceId),
+        );
+
+        const initialReadings = await runBleDebugStep("Initial sensor sync", () =>
+          syncInitialSensorReadings(uartSession),
+        );
+        await savePendingSensorReadings(String(registeredDevice.id), initialReadings);
+        moveToConnectedScreen(resolvedDevice, registeredDevice);
+      } finally {
+        uartSession.dispose();
+      }
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "MXIS Charm 연결에 실패했습니다.",
