@@ -16,6 +16,10 @@ import { ProgressRing } from "@/shared/components/ProgressRing";
 
 const ACCENT_TEXT = "#814C27";
 
+// 시연 영상 촬영용으로 Charm 재연결 안내 모달을 잠시 끕니다.
+// 촬영이 끝나면 true로 되돌려 주세요.
+const RECONNECT_PROMPT_ENABLED = false;
+
 type Grade = "EXCELLENT" | "STANDARD" | "NEEDS_ATTENTION";
 
 const GRADE_CONTENT: Record<

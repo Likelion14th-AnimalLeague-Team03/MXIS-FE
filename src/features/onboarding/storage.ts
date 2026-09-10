@@ -29,6 +29,18 @@ export type PrimaryCharmProductLink = {
   linkedAt: string;
 };
 
+function getCurrentUserId() {
+  return useAuthStore.getState().user?.id ?? null;
+}
+
+function getScopedKey(prefix: string, userId: number) {
+  return `${prefix}.${userId}`;
+}
+
+async function removeLegacyKeys() {
+  await AsyncStorage.multiRemove(LEGACY_KEYS);
+}
+
 export async function hasCompletedCharmOnboarding() {
   const value = await AsyncStorage.getItem(getOnboardingKey());
 
@@ -40,17 +52,41 @@ export async function completeCharmOnboarding() {
 }
 
 export async function savePrimaryCharmProductLink(link: PrimaryCharmProductLink) {
-  await AsyncStorage.setItem(PRIMARY_CHARM_PRODUCT_LINK_KEY, JSON.stringify(link));
+  const userId = getCurrentUserId();
+
+  if (userId === null) {
+    return;
+  }
+
+  await AsyncStorage.setItem(
+    getScopedKey(PRIMARY_CHARM_PRODUCT_LINK_KEY_PREFIX, userId),
+    JSON.stringify(link),
+  );
 }
 
 export async function getPrimaryCharmProductLink() {
-  const value = await AsyncStorage.getItem(PRIMARY_CHARM_PRODUCT_LINK_KEY);
+  const userId = getCurrentUserId();
+
+  if (userId === null) {
+    return null;
+  }
+
+  const value = await AsyncStorage.getItem(
+    getScopedKey(PRIMARY_CHARM_PRODUCT_LINK_KEY_PREFIX, userId),
+  );
 
   if (!value) {
     return null;
   }
 
-  return JSON.parse(value) as PrimaryCharmProductLink;
+  try {
+    return JSON.parse(value) as PrimaryCharmProductLink;
+  } catch {
+    await AsyncStorage.removeItem(
+      getScopedKey(PRIMARY_CHARM_PRODUCT_LINK_KEY_PREFIX, userId),
+    );
+    return null;
+  }
 }
 
 export async function savePendingSensorReadings(

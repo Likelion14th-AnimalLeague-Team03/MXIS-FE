@@ -28,6 +28,61 @@ const OVERVIEW_FIELD_BY_RANGE: Record<Range, keyof CareEnvironmentOverview> = {
 
 type Metric = "HUMIDITY" | "TEMP";
 
+/** 최근 7일/30일/1년 바 — 화면 좌우를 꽉 채우는 갈색 바 (Figma: #814C27, h 33) */
+const RANGE_TAB_BAR = {
+  height: 33,
+  backgroundColor: "#814C27",
+  shadowColor: "#000000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.12,
+  shadowRadius: 2,
+  elevation: 2,
+} as const;
+
+/** 온도/습도 세그먼트 선택 항목 그림자 (Figma: 0px 2px 4px rgba(29,33,45,0.08)) */
+const METRIC_TOGGLE_SHADOW = {
+  shadowColor: "#1D212D",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.16,
+  shadowRadius: 2,
+  elevation: 2,
+} as const;
+
+function RangeTabs({
+  range,
+  onSelect,
+}: {
+  range: Range;
+  onSelect: (range: Range) => void;
+}) {
+  return (
+    // ScrollView의 좌우 여백(px-6)을 상쇄해서 화면 끝까지 채웁니다.
+    <View className="-mx-6 mt-4 flex-row" style={RANGE_TAB_BAR}>
+      {RANGES.map((label) => {
+        const selected = range === label;
+
+        return (
+          <Pressable
+            key={label}
+            onPress={() => onSelect(label)}
+            className="flex-1 items-center justify-center"
+          >
+            <Text
+              className={`text-sm ${selected ? "text-white" : "text-white/70"}`}
+              style={{ lineHeight: 20 }}
+            >
+              {label}
+            </Text>
+            {selected ? (
+              <View className="absolute bottom-0 h-0.5 w-16 rounded-full bg-white" />
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 function MetricToggle({
   metric,
   onSelect,
@@ -36,17 +91,22 @@ function MetricToggle({
   onSelect: (metric: Metric) => void;
 }) {
   return (
-    <View className="flex-row rounded-lg bg-concierge-surfaceMuted p-0.5">
+    <View className="h-8 w-[84px] flex-row rounded-lg bg-concierge-surfaceMuted p-0.5">
       {(["TEMP", "HUMIDITY"] as Metric[]).map((option) => {
         const selected = metric === option;
         return (
           <Pressable
             key={option}
             onPress={() => onSelect(option)}
-            className={`rounded-md px-2.5 py-1 ${selected ? "bg-white" : ""}`}
+            className={`h-7 flex-1 items-center justify-center rounded-md ${
+              selected ? "bg-concierge-primary" : ""
+            }`}
+            style={selected ? METRIC_TOGGLE_SHADOW : undefined}
           >
             <Text
-              className={`text-xs ${selected ? "font-semibold text-concierge-text" : "text-concierge-textMuted"}`}
+              className={`text-[13px] ${
+                selected ? "font-semibold text-white" : "text-concierge-text"
+              }`}
             >
               {option === "TEMP" ? "온도" : "습도"}
             </Text>
@@ -145,26 +205,7 @@ export function EnvironmentScreen() {
           <ScreenHeader title="환경 데이터" onBack={() => router.back()} />
         </View>
 
-        <View className="mt-4 flex-row rounded-xl bg-white p-1">
-          {RANGES.map((label) => {
-            const selected = range === label;
-            return (
-              <Pressable
-                key={label}
-                onPress={() => setRange(label)}
-                className={`flex-1 items-center rounded-lg py-2.5 ${
-                  selected ? "bg-concierge-primary" : ""
-                }`}
-              >
-                <Text
-                  className={`text-sm ${selected ? "text-white" : "text-concierge-textMuted"}`}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <RangeTabs range={range} onSelect={setRange} />
 
         <Card className="mt-4 border-0 bg-white px-4 py-4">
           <View className="flex-row items-center justify-between">

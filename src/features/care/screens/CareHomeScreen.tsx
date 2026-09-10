@@ -13,7 +13,17 @@ import { useCareDiagnosisHome } from "@/features/care/hooks/useCare";
 import { useCurrentProduct } from "@/features/product/hooks/useProduct";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
+import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { SentenceList } from "@/shared/components/SentenceList";
+
+/** 케어진단 홈 카드에 공통으로 쓰는 옅은 그림자 */
+const CARD_SHADOW = {
+  shadowColor: "#000000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  elevation: 2,
+} as const;
 
 function StatCard({
   icon,
@@ -29,7 +39,7 @@ function StatCard({
   muted?: boolean;
 }) {
   return (
-    <Card className="w-[47%] border-0 bg-white px-3 py-3">
+    <Card className="w-[47%] border-0 bg-white px-3 py-3" style={CARD_SHADOW}>
       <View className="flex-row items-start gap-1.5">
         {icon}
         <View className="min-w-0 flex-1">
@@ -113,8 +123,11 @@ export function CareHomeScreen() {
           케어진단
         </Text>
 
-        <Card className="mt-4 flex-row items-center gap-4 overflow-hidden border-concierge-borderLight bg-white p-0">
-          <View className="h-[171px] w-[45%] overflow-hidden">
+        <Card
+          className="mt-4 flex-row items-center gap-4 overflow-hidden border-1 border-concierge-primary bg-white p-0"
+          style={CARD_SHADOW}
+        >
+          <View className="h-[108px] w-[45%] overflow-hidden">
             <Image
               source={careHeroBg}
               className="size-full"
@@ -166,7 +179,10 @@ export function CareHomeScreen() {
           </View>
         </Card>
 
-        <Card className="mt-4 border-0 bg-white px-3.5 py-3.5">
+        <Card
+          className="mt-4 border-1 border-concierge-primary bg-white px-3.5 py-3.5"
+          style={CARD_SHADOW}
+        >
           <Text className="text-xs text-concierge-textMuted">현재 컨디션</Text>
           <Text className="mt-1 text-lg font-bold text-concierge-text">
             {diagnosis?.condition?.summary ?? "데이터가 수집되고 있습니다."}
@@ -183,21 +199,6 @@ export function CareHomeScreen() {
           >
             <Text className="text-[11px] font-medium text-concierge-text">
               상태 리포트 보기
-            </Text>
-            <ChevronRightIcon size={5} />
-          </Pressable>
-        </Card>
-
-        <Card className="mt-3 border-0 bg-white px-3.5 py-6">
-          <Text className="text-sm font-semibold text-concierge-text">
-            지금 추천하는 관리를 확인해보세요.
-          </Text>
-          <Pressable
-            onPress={() => router.push("/care/guide")}
-            className="mt-2 flex-row items-center justify-end gap-1"
-          >
-            <Text className="text-[11px] font-medium text-concierge-text">
-              관리 가이드 가기
             </Text>
             <ChevronRightIcon size={5} />
           </Pressable>
@@ -288,6 +289,12 @@ export function CareHomeScreen() {
             muted={environment?.outingCount == null}
           />
         </View>
+
+        <PrimaryButton
+          className="mt-6"
+          label="관리 가이드 보기"
+          onPress={() => router.push("/care/guide")}
+        />
       </ScrollView>
     </SafeAreaView>
   );
