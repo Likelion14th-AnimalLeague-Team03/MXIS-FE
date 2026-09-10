@@ -1,20 +1,11 @@
 import { useState } from "react";
-import {
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { KeyboardAvoidingView, Platform, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import type { z } from "zod";
 
-import kakaoSymbol from "@/features/auth/assets/kakao-symbol.png";
 import { AuthTextField } from "@/features/auth/components/AuthTextField";
-import { useKakaoAuthStore } from "@/features/auth/store/kakaoAuthStore";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { loginSchema } from "@/features/auth/utils/validation";
 import { getAuthenticatedEntryRoute } from "@/features/onboarding/storage";
@@ -23,7 +14,6 @@ import { PrimaryButton } from "@/shared/components/PrimaryButton";
 type LoginErrors = {
   email?: string;
   password?: string;
-  kakao?: string;
 };
 
 function getLoginValidationErrors(error: z.ZodError): LoginErrors {
@@ -41,7 +31,6 @@ function getLoginValidationErrors(error: z.ZodError): LoginErrors {
 export function LoginScreen() {
   const router = useRouter();
   const signIn = useAuthStore((state) => state.signIn);
-  const setKakaoDraft = useKakaoAuthStore((state) => state.setDraft);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<LoginErrors>({});
@@ -79,47 +68,6 @@ export function LoginScreen() {
       });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleKakaoLogin = async () => {
-    setErrors((current) => ({ ...current, kakao: undefined }));
-
-    if (Platform.OS === "web") {
-      setErrors((current) => ({
-        ...current,
-        kakao: "카카오 로그인은 Android Development Build에서 확인할 수 있습니다.",
-      }));
-      return;
-    }
-
-    try {
-      const { getProfile, login: kakaoSdkLogin } = await import(
-        "@react-native-seoul/kakao-login"
-      );
-      const token = await kakaoSdkLogin();
-      const profile = await getProfile();
-
-      if (!profile.email) {
-        setErrors((current) => ({
-          ...current,
-          kakao: "카카오 계정에서 이메일 정보를 불러올 수 없습니다.",
-        }));
-        return;
-      }
-
-      setKakaoDraft({
-        accessToken: token.accessToken,
-        name: profile.name || profile.nickname || "카카오 사용자",
-        email: profile.email,
-        phone: profile.phoneNumber ?? "",
-      });
-      router.push("/auth/kakao-start");
-    } catch {
-      setErrors((current) => ({
-        ...current,
-        kakao: "카카오 계정 인증을 다시 시도해 주세요.",
-      }));
     }
   };
 
@@ -184,36 +132,6 @@ export function LoginScreen() {
               disabled={isSubmitting}
               className="h-[56px] rounded-[10px]"
             />
-
-            <View className="my-5 flex-row items-center justify-center gap-[13px] px-5">
-              <View className="h-px flex-1 bg-[#DDD8D4]" />
-              <Text className="text-[12px] font-medium text-[#94948C]">
-                또는
-              </Text>
-              <View className="h-px flex-1 bg-[#DDD8D4]" />
-            </View>
-
-            <Pressable
-              onPress={handleKakaoLogin}
-              className="h-[56px] flex-row items-center justify-center gap-[10px] rounded-[10px] bg-[#FEE500] px-[18px]"
-            >
-              <Image
-                source={kakaoSymbol}
-                className="h-[16px] w-[18px]"
-                resizeMode="contain"
-              />
-              <Text
-                className="text-[16px] font-semibold text-[#131313]"
-                style={{ letterSpacing: -0.4 }}
-              >
-                카카오로 로그인
-              </Text>
-            </Pressable>
-            {errors.kakao ? (
-              <Text className="mt-2 text-center text-[12px] font-medium text-[#C04737]">
-                {errors.kakao}
-              </Text>
-            ) : null}
           </View>
         </View>
       </KeyboardAvoidingView>

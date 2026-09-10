@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
+import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
 
 function BluetoothMark() {
@@ -69,9 +70,11 @@ export function BluetoothPermissionScreen() {
       <StatusBar style="dark" backgroundColor="#FAF6F1" />
       <View className="flex-1 px-6 pb-6 pt-6">
         <View className="flex-1">
-          <Text className="text-xl font-bold text-concierge-text">
-            Bluetooth 연결을 허용해 주세요.
-          </Text>
+          <ScreenHeader
+            title="Bluetooth 연결을 허용해 주세요."
+            titleClassName="text-lg"
+            onBack={() => router.back()}
+          />
           <Text className="mt-3 text-sm text-concierge-textSecondary">
             가까이 있는 MXIS Charm을 찾고 연결하기 위해 Bluetooth 권한이
             필요합니다.

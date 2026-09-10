@@ -20,5 +20,4 @@ export type HomeSummary = {
   headline?: string | null;
   daysTogether?: number | null;
   upcomingReservation?: UpcomingReservation | null;
-  charmNeedsReconnect?: boolean;
 };

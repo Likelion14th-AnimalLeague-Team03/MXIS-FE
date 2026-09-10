@@ -3,21 +3,11 @@ import { Image, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path, Rect } from "react-native-svg";
 
-import guide2 from "@/features/care/assets/guide2.png";
 import { useCareGuide } from "@/features/care/hooks/useCare";
 import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
 import { Card } from "@/shared/components/Card";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { colors } from "@/shared/styles/colors";
-
-// 서버 가이드가 아직 없을 때 보여줄 기본값이에요.
-const FALLBACK_CARE_STEPS = [
-  "마른 부드러운 천을 준비해주세요.",
-  "결 방향을 따라 부드럽게 닦아주세요.",
-  "강한 힘을 주지 않고 가볍게 닦아주세요.",
-];
-
-const FALLBACK_GUIDE_IMAGE = guide2;
 
 function CheckSquareIcon({
   size = 14,
@@ -69,7 +59,7 @@ export function CareGuideScreen() {
   const { productId } = usePrimaryProductId();
   const { data: guide, isPending, error } = useCareGuide(productId);
 
-  const steps = guide?.steps?.length ? guide.steps : FALLBACK_CARE_STEPS;
+  const steps = guide?.steps ?? [];
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -81,7 +71,7 @@ export function CareGuideScreen() {
         <View className="mt-4 overflow-hidden rounded-2xl">
           <Image
             source={
-              guide?.guideImageUrl ? { uri: guide.guideImageUrl } : FALLBACK_GUIDE_IMAGE
+              guide?.guideImageUrl ? { uri: guide.guideImageUrl } : undefined
             }
             className="w-full"
             style={{ aspectRatio: 338 / 223 }}

@@ -24,10 +24,3 @@ export type SignupRequest = {
   name: string;
   phone?: string;
 };
-
-export type KakaoProfileDraft = {
-  accessToken: string;
-  name: string;
-  email: string;
-  phone: string;
-};

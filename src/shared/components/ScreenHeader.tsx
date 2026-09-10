@@ -8,9 +8,16 @@ type Props = {
   onBack?: () => void;
   right?: ReactNode;
   className?: string;
+  titleClassName?: string;
 };
 
-export function ScreenHeader({ title, onBack, right, className }: Props) {
+export function ScreenHeader({
+  title,
+  onBack,
+  right,
+  className,
+  titleClassName,
+}: Props) {
   return (
     <View className={`flex-row items-center gap-3 ${className ?? ""}`}>
       {onBack ? (
@@ -18,7 +25,9 @@ export function ScreenHeader({ title, onBack, right, className }: Props) {
           <BackChevronIcon />
         </Pressable>
       ) : null}
-      <Text className="text-xl font-bold text-concierge-text">{title}</Text>
+      <Text className={`${titleClassName ?? "text-xl"} font-bold text-concierge-text`}>
+        {title}
+      </Text>
       {right ? <View className="ml-auto">{right}</View> : null}
     </View>
   );

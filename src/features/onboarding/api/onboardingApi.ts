@@ -1,4 +1,4 @@
-import { AxiosError } from "axios";
+﻿import { AxiosError } from "axios";
 
 import { apiClient } from "@/shared/api/client";
 
@@ -54,6 +54,28 @@ export type ProductDeviceLinkResponse = {
   detachedAt?: string | null;
 };
 
+export type SensorReadingUploadItem = {
+  sequence: number;
+  measuredAt: number;
+  temperature: number;
+  humidity: number;
+  maxShock: number;
+  motionCount: number;
+};
+
+type SensorReadingBatchRequestItem = {
+  sequenceNumber: number;
+  temperature: number;
+  humidity: number;
+  maxShockLevel: number;
+  motionCount: number;
+  measuredAt: string;
+};
+
+export type SensorReadingBatchUploadResponse = {
+  ackSequence?: number | null;
+};
+
 type RegisterDeviceRequest = {
   serialNumber: string;
   deviceName?: string;
@@ -68,8 +90,35 @@ function getAuthorizationHeader(accessToken: string, tokenType = "Bearer") {
   };
 }
 
+function getDebugTokenLabel(accessToken: string, tokenType = "Bearer") {
+  if (!accessToken) return "missing";
+
+  return `${tokenType} present`;
+}
+
+function logApiDebugError(
+  label: string,
+  error: unknown,
+  request?: unknown,
+) {
+  if (error instanceof AxiosError) {
+    console.error(`[Charm API] ${label} failed`, {
+      status: error.response?.status,
+      response: error.response?.data,
+      request,
+      message: error.message,
+    });
+    return;
+  }
+
+  console.error(`[Charm API] ${label} failed`, {
+    request,
+    error,
+  });
+}
+
 function isBrokenMessage(message: string) {
-  return message.includes("???") || message.includes("�");
+  return message.includes("???") || message.includes("�") || message.includes("占");
 }
 
 function getApiErrorMessage(error: unknown, fallbackMessage: string) {
@@ -77,7 +126,10 @@ function getApiErrorMessage(error: unknown, fallbackMessage: string) {
     const responseData = error.response?.data as ApiResponse<unknown> | undefined;
     const message = responseData?.error?.message;
 
-    return message && !isBrokenMessage(message) ? message : fallbackMessage;
+    if (message && !isBrokenMessage(message)) return message;
+    return error.response
+      ? `${fallbackMessage} (HTTP ${error.response.status})`
+      : `${fallbackMessage} (서버 응답 없음: ${error.code ?? "네트워크 확인"})`;
   }
 
   if (error instanceof Error) {
@@ -94,6 +146,36 @@ function unwrapApiData<T>(response: ApiResponse<T>, fallbackMessage: string) {
 
   const message = response.error?.message;
   throw new Error(message && !isBrokenMessage(message) ? message : fallbackMessage);
+}
+
+function formatLocalDateTimeFromUnixSeconds(unixSeconds: number) {
+  const date = new Date(unixSeconds * 1000);
+  const pad = (value: number) => String(value).padStart(2, "0");
+
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-")
+    + "T"
+    + [
+      pad(date.getHours()),
+      pad(date.getMinutes()),
+      pad(date.getSeconds()),
+    ].join(":");
+}
+
+function toSensorReadingBatchRequestItem(
+  reading: SensorReadingUploadItem,
+): SensorReadingBatchRequestItem {
+  return {
+    sequenceNumber: reading.sequence,
+    temperature: reading.temperature,
+    humidity: reading.humidity,
+    maxShockLevel: reading.maxShock,
+    motionCount: reading.motionCount,
+    measuredAt: formatLocalDateTimeFromUnixSeconds(reading.measuredAt),
+  };
 }
 
 export async function getConnectionPolicy() {
@@ -115,6 +197,11 @@ export async function registerDevice(
   accessToken: string,
   tokenType?: string,
 ) {
+  console.log("[Charm API] POST /devices request", {
+    request,
+    authorization: getDebugTokenLabel(accessToken, tokenType),
+  });
+
   try {
     const response = await apiClient.post<ApiResponse<DeviceResponse>>(
       "/devices",
@@ -124,15 +211,20 @@ export async function registerDevice(
       },
     );
 
+    console.log("[Charm API] POST /devices response", response.data);
+
     return unwrapApiData(response.data, "MXIS Charm 등록에 실패했습니다.");
   } catch (error) {
-    throw new Error(
-      getApiErrorMessage(error, "MXIS Charm 등록에 실패했습니다."),
-    );
+    logApiDebugError("POST /devices", error, request);
+    throw new Error(getApiErrorMessage(error, "MXIS Charm 등록에 실패했습니다."));
   }
 }
 
 export async function getDevices(accessToken: string, tokenType?: string) {
+  console.log("[Charm API] GET /devices request", {
+    authorization: getDebugTokenLabel(accessToken, tokenType),
+  });
+
   try {
     const response = await apiClient.get<ApiResponse<DeviceResponse[]>>(
       "/devices",
@@ -141,11 +233,12 @@ export async function getDevices(accessToken: string, tokenType?: string) {
       },
     );
 
+    console.log("[Charm API] GET /devices response", response.data);
+
     return unwrapApiData(response.data, "기기 목록을 불러오지 못했습니다.") ?? [];
   } catch (error) {
-    throw new Error(
-      getApiErrorMessage(error, "기기 목록을 불러오지 못했습니다."),
-    );
+    logApiDebugError("GET /devices", error);
+    throw new Error(getApiErrorMessage(error, "기기 목록을 불러오지 못했습니다."));
   }
 }
 
@@ -161,11 +254,9 @@ export async function getOnboardingProducts(
       },
     );
 
-    return unwrapApiData(response.data, "제품 목록을 불러오지 못했습니다.") ?? [];
+    return unwrapApiData(response.data, "?쒗뭹 紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??") ?? [];
   } catch (error) {
-    throw new Error(
-      getApiErrorMessage(error, "제품 목록을 불러오지 못했습니다."),
-    );
+    throw new Error(getApiErrorMessage(error, "?쒗뭹 紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
   }
 }
 
@@ -192,5 +283,62 @@ export async function linkProductDevice(
     throw new Error(
       getApiErrorMessage(error, "제품과 MXIS Charm 연결에 실패했습니다."),
     );
+  }
+}
+
+export async function uploadSensorReadings(
+  backendDeviceId: number,
+  readings: SensorReadingUploadItem[],
+  accessToken: string,
+  tokenType?: string,
+) {
+  const validReadings = readings.filter((reading) => reading.measuredAt > 0);
+
+  if (!validReadings.length) {
+    console.log("[Charm API] POST sensor-readings/batch skipped", {
+      backendDeviceId,
+      reason: "No readings with measuredAt greater than 0.",
+      originalCount: readings.length,
+    });
+
+    return { ackSequence: null };
+  }
+
+  const request = {
+    readings: validReadings.map(toSensorReadingBatchRequestItem),
+  };
+
+  console.log("[Charm API] POST sensor-readings/batch request", {
+    url: `/devices/${backendDeviceId}/sensor-readings/batch`,
+    request,
+  });
+
+  try {
+    const response = await apiClient.post<ApiResponse<SensorReadingBatchUploadResponse> | SensorReadingBatchUploadResponse | null>(
+      `/devices/${backendDeviceId}/sensor-readings/batch`,
+      request,
+      {
+        headers: getAuthorizationHeader(accessToken, tokenType),
+      },
+    );
+
+    console.log("[Charm API] POST sensor-readings/batch response", response.data);
+
+    const body = response.data;
+    if (body == null || (body as unknown) === "") return { ackSequence: null };
+    if (typeof body !== "object" || Array.isArray(body)) throw new Error("서버 응답 형식을 확인할 수 없습니다.");
+    const data = "success" in body
+      ? (body.success && body.data == null ? { ackSequence: null } : unwrapApiData(body, "센서 데이터 업로드에 실패했습니다."))
+      : body;
+    if (data.ackSequence != null && (!Number.isInteger(data.ackSequence) || data.ackSequence < 0 || data.ackSequence > 0xffffffff)) {
+      throw new Error("서버 ACK 번호가 잘못되었습니다. 기기 데이터는 삭제하지 않았습니다.");
+    }
+    return data;
+  } catch (error) {
+    logApiDebugError("POST sensor-readings/batch", error, {
+      backendDeviceId,
+      request,
+    });
+    throw new Error(getApiErrorMessage(error, "센서 데이터 서버 업로드에 실패했습니다."));
   }
 }

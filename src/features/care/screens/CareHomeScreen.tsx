@@ -98,9 +98,7 @@ export function CareHomeScreen() {
             currentProduct?.productImageUrl ??
             null,
           productName:
-            diagnosisProduct?.productName ??
-            currentProduct?.productName ??
-            null,
+            diagnosisProduct?.productName ?? currentProduct?.productName ?? null,
           materialDisplayName:
             diagnosisProduct?.materialDisplayName ??
             currentProduct?.materialDisplayName ??
@@ -142,7 +140,7 @@ export function CareHomeScreen() {
                     ? { uri: product.productImageUrl }
                     : defaultProductImage
                 }
-                className=" size-[130px]"
+                className="mt-5 size-[180px]"
                 resizeMode="contain"
               />
             </View>
@@ -150,7 +148,7 @@ export function CareHomeScreen() {
 
           <View className="min-w-0 flex-1 pr-3">
             <Text
-              className="text-base  font-bold text-concierge-text"
+              className="text-base font-bold text-concierge-text"
               numberOfLines={2}
               adjustsFontSizeToFit
               minimumFontScale={0.78}
