@@ -134,12 +134,14 @@ function StatusPill({
   );
 }
 
-function CharmDeviceCard({
+function CharmDeviceRow({
   device,
   onPress,
+  showDivider,
 }: {
   device: CharmDevice;
   onPress: (device: CharmDevice) => void;
+  showDivider: boolean;
 }) {
   const isFailed = device.status === "failed";
   const visibleStatus = device.status === "idle" ? null : device.status;
@@ -153,9 +155,14 @@ function CharmDeviceCard({
   return (
     <Pressable
       onPress={() => onPress(device)}
-      className={`flex-row items-center gap-2.5 overflow-hidden rounded-xl bg-white px-4 ${
+      className={`flex-row items-center gap-2.5 px-4 ${
         isFailed ? "min-h-[56px] py-2.5" : "h-11 py-2.5"
       }`}
+      style={
+        showDivider
+          ? { borderTopWidth: 1, borderTopColor: "#EFEAE4" }
+          : undefined
+      }
     >
       <View
         className="h-2 w-2 shrink-0 rounded-full"
@@ -181,6 +188,27 @@ function CharmDeviceCard({
 
       {visibleStatus ? <StatusPill status={visibleStatus} /> : null}
     </Pressable>
+  );
+}
+
+function CharmDeviceList({
+  devices,
+  onPressDevice,
+}: {
+  devices: CharmDevice[];
+  onPressDevice: (device: CharmDevice) => void;
+}) {
+  return (
+    <View className="overflow-hidden rounded-xl bg-concierge-surface">
+      {devices.map((device, index) => (
+        <CharmDeviceRow
+          key={device.id}
+          device={device}
+          onPress={onPressDevice}
+          showDivider={index > 0}
+        />
+      ))}
+    </View>
   );
 }
 
@@ -575,13 +603,12 @@ export function CharmScanScreen() {
                   가까운 MXIS Charm을 검색하고 있습니다.
                 </Text>
               ) : null}
-              {devices.map((device) => (
-                <CharmDeviceCard
-                  key={device.id}
-                  device={device}
-                  onPress={handleConnectDevice}
+              {devices.length > 0 ? (
+                <CharmDeviceList
+                  devices={devices}
+                  onPressDevice={handleConnectDevice}
                 />
-              ))}
+              ) : null}
               {errorMessage ? (
                 <Text className="text-center text-xs font-medium text-[#C04737]">
                   {errorMessage}
