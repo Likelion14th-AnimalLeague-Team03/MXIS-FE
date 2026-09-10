@@ -26,6 +26,51 @@ export function isSmartCharmDevice(device: Pick<BleDevice, "serviceUUIDs">, allo
     (device.serviceUUIDs ?? []).some((uuid) => normalizeUuid(uuid) === normalizeUuid(SMART_CHARM_NUS_SERVICE_UUID));
 }
 
+export type CharmScanMode = "service" | "nearby";
+
+export function getCharmScanServiceUuids(mode: CharmScanMode, allowed: string[]) {
+  // Discovery without an advertising filter never bypasses GATT or registration checks.
+  return mode === "nearby" ? null : resolveOrangeScanPolicy(allowed);
+}
+
+export function isVisibleCharmScanCandidate(
+  device: Pick<BleDevice, "serviceUUIDs">,
+  mode: CharmScanMode,
+  allowed: string[],
+) {
+  return mode === "nearby" || isSmartCharmDevice(device, allowed);
+}
+
+export function waitForBluetoothReady(
+  bleManager: Pick<BleManager, "onStateChange">,
+  timeoutMs = 4000,
+) {
+  return new Promise<void>((resolve, reject) => {
+    let settled = false;
+    let subscription: { remove(): void } | undefined;
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      subscription?.remove();
+      if (error) reject(error);
+      else resolve();
+    };
+    const timer = setTimeout(() => finish(new Error("Bluetooth 초기화가 지연되고 있습니다. 다시 검색해 주세요.")), timeoutMs);
+    try {
+      subscription = bleManager.onStateChange((state) => {
+        if (state === "PoweredOn") finish();
+        else if (state === "PoweredOff") finish(new Error("휴대폰의 Bluetooth를 켠 뒤 다시 검색해 주세요."));
+        else if (state === "Unauthorized") finish(new Error("휴대폰 설정에서 Bluetooth 권한을 허용해 주세요."));
+        else if (state === "Unsupported") finish(new Error("이 기기는 Bluetooth LE를 지원하지 않습니다."));
+      }, true);
+      if (settled) subscription.remove();
+    } catch (error) {
+      finish(error instanceof Error ? error : new Error(String(error)));
+    }
+  });
+}
+
 export function resolveOrangeScanPolicy(allowed?: string[]) {
   const uuids = allowed ?? DEFAULT_SMART_CHARM_SERVICE_UUIDS;
   if (!Array.isArray(uuids) || !uuids.every((uuid) => typeof uuid === "string") ||

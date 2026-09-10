@@ -27,9 +27,12 @@ import {
   DEFAULT_SMART_CHARM_SERVICE_UUIDS,
   disconnectSmartCharmConnection,
   getBleDeviceName,
+  getCharmScanServiceUuids,
   getSmartCharmBleManager,
-  isSmartCharmDevice,
+  isVisibleCharmScanCandidate,
   resolveOrangeScanPolicy,
+  waitForBluetoothReady,
+  type CharmScanMode,
 } from "@/features/onboarding/ble/smartCharmBle";
 import { collectSmartCharm, registerSmartCharmBackend } from "@/features/onboarding/ble/smartCharmSync";
 import charmOnboardingDevice from "@/features/onboarding/assets/charm-onboarding-device.png";
@@ -117,9 +120,11 @@ function StatusPill({
 function CharmDeviceCard({
   device,
   onPress,
+  disabled,
 }: {
   device: CharmDevice;
   onPress: (device: CharmDevice) => void;
+  disabled: boolean;
 }) {
   const isFailed = device.status === "failed" || device.status === "setup-failed";
   const visibleStatus = device.status === "idle" ? null : device.status;
@@ -132,10 +137,10 @@ function CharmDeviceCard({
 
   return (
     <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
       onPress={() => onPress(device)}
-      className={`flex-row items-center gap-2.5 overflow-hidden rounded-xl bg-white px-4 ${
-        isFailed ? "min-h-[56px] py-2.5" : "h-11 py-2.5"
-      }`}
+      className="min-h-[60px] flex-row items-center gap-2.5 rounded-xl bg-white px-4 py-2.5"
     >
       <View
         className="h-2 w-2 shrink-0 rounded-full"
@@ -148,6 +153,9 @@ function CharmDeviceCard({
           numberOfLines={1}
         >
           {device.serialNumber}
+        </Text>
+        <Text className="mt-0.5 text-xs text-concierge-textSecondary" numberOfLines={1}>
+          {device.id} · 확인 전
         </Text>
         {isFailed ? (
           <Text
@@ -164,10 +172,10 @@ function CharmDeviceCard({
   );
 }
 
-function SearchBottomActions({ onSearchAgain }: { onSearchAgain: () => void }) {
+function SearchBottomActions({ onSearchAgain, disabled }: { onSearchAgain: () => void; disabled: boolean }) {
   return (
     <View className="gap-2">
-      <SecondaryButton label="다시 검색" onPress={onSearchAgain} />
+      <SecondaryButton label="다시 검색" onPress={onSearchAgain} disabled={disabled} />
       <Link href="/onboarding/connection-help" asChild>
         <Pressable
           hitSlop={12}
@@ -196,6 +204,8 @@ export function CharmScanScreen() {
   const connectingRef = useRef(false);
   const handedOffRef = useRef(false);
   const scanRunRef = useRef(0);
+  const [scanMode, setScanMode] = useState<CharmScanMode>("service");
+  const [isConnecting, setIsConnecting] = useState(false);
   const [scanResultState, setScanResultState] =
     useState<ScanResultState>("scanning");
   const [devices, setDevices] = useState<CharmDevice[]>([]);
@@ -219,19 +229,21 @@ export function CharmScanScreen() {
     return bleManagerRef.current.stopDeviceScan().catch(() => undefined);
   };
 
-  const startScan = async () => {
+  const startScan = async (mode: CharmScanMode = scanMode) => {
     if (!policyReady || connectingRef.current) return;
     const stopped = stopScan();
     const scanRun = scanRunRef.current;
     await stopped;
     if (!mountedRef.current || scanRun !== scanRunRef.current) return;
-    if (policyError) {
+    setScanMode(mode);
+    setDevices([]);
+    if (policyError && mode === "service") {
       setScanResultState("empty");
       setErrorMessage(policyError);
+      console.warn("[Charm BLE] scan blocked by policy", { mode, message: policyError });
       return;
     }
-    setDevices([]);
-    setErrorMessage("");
+    setErrorMessage(policyError);
     setScanResultState("scanning");
 
     const hasPermission = await ensureAndroidBluetoothPermissions().catch(() => false);
@@ -242,35 +254,39 @@ export function CharmScanScreen() {
       return;
     }
 
+    const receivedIds = new Set<string>();
+    const visibleIds = new Set<string>();
     try {
-      const state = await bleManagerRef.current.state();
+      await waitForBluetoothReady(bleManagerRef.current);
       if (!mountedRef.current || scanRun !== scanRunRef.current) return;
-      if (state !== "PoweredOn") throw new Error("휴대폰의 Bluetooth를 켠 뒤 다시 검색해 주세요.");
+      const serviceUuids = getCharmScanServiceUuids(mode, allowedServiceUuids);
+      console.log("[Charm BLE] scan started", { mode, serviceUuids });
       await bleManagerRef.current.startDeviceScan(
-      allowedServiceUuids,
-      { allowDuplicates: false },
-      (error: BleError | null, scannedDevice: BleDevice | null) => {
-        if (!mountedRef.current || scanRun !== scanRunRef.current) return;
-        if (error) {
-          setScanResultState("empty");
-          setErrorMessage("Bluetooth 검색을 시작하지 못했습니다.");
-          stopScan();
-          return;
-        }
-
-        if (!scannedDevice || !isSmartCharmDevice(scannedDevice, allowedServiceUuids)) {
-          return;
-        }
-
-        setScanResultState("found");
-        setDevices((currentDevices) => {
-          if (currentDevices.some((device) => device.id === scannedDevice.id)) {
-            return currentDevices;
+        serviceUuids,
+        { allowDuplicates: true },
+        (error: BleError | null, scannedDevice: BleDevice | null) => {
+          if (!mountedRef.current || scanRun !== scanRunRef.current) return;
+          if (error) {
+            console.warn("[Charm BLE] scan error", { code: error.errorCode, message: error.message });
+            setScanResultState(visibleIds.size ? "found" : "empty");
+            setErrorMessage(`Bluetooth 검색 오류 (${error.errorCode}): ${error.message}`);
+            stopScan();
+            return;
           }
 
-          return [
-            ...currentDevices,
-            {
+          if (!scannedDevice) return;
+          if (!receivedIds.has(scannedDevice.id) && __DEV__) {
+            console.log("[Charm BLE] advertisement", {
+              id: scannedDevice.id, name: getBleDeviceName(scannedDevice),
+              serviceUUIDs: scannedDevice.serviceUUIDs ?? [],
+            });
+          }
+          receivedIds.add(scannedDevice.id);
+          if (!isVisibleCharmScanCandidate(scannedDevice, mode, allowedServiceUuids)) return;
+          visibleIds.add(scannedDevice.id);
+          setScanResultState("found");
+          setDevices((currentDevices) => {
+            const candidate: CharmDevice = {
               id: scannedDevice.id,
               name: getBleDeviceName(scannedDevice),
               serialNumber: getBleDeviceName(scannedDevice), // Display label only; ID command replaces it before registration.
@@ -278,12 +294,15 @@ export function CharmScanScreen() {
               serviceUUIDs: scannedDevice.serviceUUIDs ?? [],
               status: "idle",
               bleDevice: scannedDevice,
-            },
-          ];
-        });
-      },
-    );
-
+            };
+            const index = currentDevices.findIndex((device) => device.id === candidate.id);
+            if (index < 0) return [...currentDevices, candidate];
+            const previous = currentDevices[index];
+            if (previous.name === candidate.name && previous.serviceUUIDs.join(",") === candidate.serviceUUIDs.join(",")) return currentDevices;
+            return currentDevices.map((device, i) => i === index ? candidate : device);
+          });
+        },
+      );
     } catch (error) {
       if (mountedRef.current && scanRun === scanRunRef.current) {
         setScanResultState("empty");
@@ -294,6 +313,7 @@ export function CharmScanScreen() {
     }
     if (!mountedRef.current || scanRun !== scanRunRef.current) return;
     scanTimerRef.current = setTimeout(() => {
+      console.log("[Charm BLE] scan finished", { mode, received: receivedIds.size, visible: visibleIds.size });
       stopScan();
       setScanResultState((current) =>
         current === "found" ? "found" : "empty",
@@ -306,6 +326,7 @@ export function CharmScanScreen() {
     getConnectionPolicy()
       .then((policy) => {
         if (cancelled) return;
+        console.log("[Charm BLE] server scan policy", { allowedServiceUuids: policy.allowedServiceUuids });
         try {
           const uuids = resolveOrangeScanPolicy(policy.allowedServiceUuids);
           setAllowedServiceUuids(uuids);
@@ -408,11 +429,16 @@ export function CharmScanScreen() {
 
   const handleConnectDevice = async (selectedDevice: CharmDevice) => {
     if (connectingRef.current) return;
+    if (!policyReady || policyError) {
+      setErrorMessage(policyError || "서버 검색 정책 확인 중입니다.");
+      return;
+    }
     if (!ownerId || !accessToken) {
       setErrorMessage("로그인 후 참을 연결해 주세요.");
       return;
     }
     connectingRef.current = true;
+    setIsConnecting(true);
     handedOffRef.current = false;
     let stage = "BLE 연결";
     const updateStage = (name: string, status: CharmConnectionStatus = "checking") => {
@@ -421,7 +447,7 @@ export function CharmScanScreen() {
       console.log(`[Charm BLE] ${name}`);
       setDevices((items) => items.map((item) => item.id === selectedDevice.id ? { ...item, status } : item));
     };
-    stopScan();
+    const stopped = stopScan();
     setScanResultState("found");
     setErrorMessage("");
     setDevices((currentDevices) =>
@@ -432,6 +458,7 @@ export function CharmScanScreen() {
     );
 
     try {
+      await stopped;
       const connection = await connectSmartCharm(selectedDevice.id, ownerId, {
         timeoutMs: CONNECT_TIMEOUT_MS,
         onStage: (name) => updateStage(name, name === "BLE 연결" ? "connecting" : "checking"),
@@ -461,6 +488,7 @@ export function CharmScanScreen() {
       );
     } finally {
       connectingRef.current = false;
+      if (mountedRef.current) setIsConnecting(false);
     }
   };
 
@@ -470,66 +498,66 @@ export function CharmScanScreen() {
       <View className="flex-1 px-6 pb-6 pt-6">
         <View className="flex-1">
           <ScreenHeader
-            title="MXIS Charm을 찾고 있어요."
+            title="MXIS Charm 검색"
             titleClassName="text-[19px]"
             onBack={() => router.back()}
           />
-          <Text className="mt-5 text-sm text-concierge-textSecondary">
-            스마트폰 가까이에 두고 잠시만 기다려 주세요.
-          </Text>
+          <View className="mt-4 flex-row border-b border-concierge-border">
+            {(["service", "nearby"] as const).map((mode) => (
+              <Pressable
+                key={mode}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: scanMode === mode, disabled: !policyReady || isConnecting }}
+                disabled={!policyReady || isConnecting}
+                onPress={() => { void startScan(mode); }}
+                className="min-h-[44px] flex-1 items-center justify-center border-b-2 px-2"
+                style={{ borderBottomColor: scanMode === mode ? "#814C27" : "transparent" }}
+              >
+                <Text className="text-sm font-semibold text-concierge-text">
+                  {mode === "service" ? "참 UUID 검색" : "주변 BLE"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
-          <View
-            className={`items-center justify-center overflow-visible ${
-              hasEmptyResult ? "mt-40 mb-20 h-[200px]" : "mt-20 mb-10 h-[180px]"
-            }`}
-          >
+          <View className="h-[132px] items-center justify-center">
             <Image
               source={charmOnboardingDevice}
-              className={
-                hasEmptyResult ? "h-[370px] w-[370px]" : "h-[280px] w-[280px]"
-              }
+              className="h-[128px] w-[128px]"
               resizeMode="contain"
             />
           </View>
 
-          {hasEmptyResult ? (
-            <View className="mt-4 items-center">
-              <Text className="text-center text-lg font-bold text-concierge-primary">
-                연결 가능한 참을 찾을 수 없어요
+          <ScrollView className="flex-1" contentContainerClassName="gap-2 pb-4">
+            {errorMessage ? (
+              <Text accessibilityLiveRegion="polite" className="text-center text-xs font-medium text-[#C04737]">
+                {errorMessage}
               </Text>
-              <Text className="mt-1.5 text-center text-sm font-semibold text-concierge-textSecondary">
-                Charm의 전원이 켜져 있는지 확인해 주세요
+            ) : null}
+            {hasEmptyResult ? (
+              <View className="items-center py-4">
+                <Text className="text-center text-base font-bold text-concierge-primary">
+                  {errorMessage ? "검색을 완료하지 못했어요" : scanMode === "service" ? "광고 UUID가 일치하는 기기가 없어요" : "주변 BLE 기기를 찾지 못했어요"}
+                </Text>
+              </View>
+            ) : null}
+            {scanResultState === "scanning" && devices.length === 0 ? (
+              <Text className="py-4 text-center text-sm text-concierge-textSecondary">
+                {!policyReady ? "검색 정책 확인 중" : scanMode === "service" ? "참 UUID 검색 중" : "주변 BLE 검색 중"}
               </Text>
-              {errorMessage ? (
-                <Text className="mt-2 text-center text-xs font-medium text-[#C04737]">
-                  {errorMessage}
-                </Text>
-              ) : null}
-            </View>
-          ) : (
-            <ScrollView className="mt-4 flex-1" contentContainerClassName="gap-2 pb-4">
-              {scanResultState === "scanning" && devices.length === 0 ? (
-                <Text className="py-4 text-center text-sm text-concierge-textSecondary">
-                  가까운 MXIS Charm을 검색하고 있습니다.
-                </Text>
-              ) : null}
-              {devices.map((device) => (
-                <CharmDeviceCard
-                  key={device.id}
-                  device={device}
-                  onPress={handleConnectDevice}
-                />
-              ))}
-              {errorMessage ? (
-                <Text className="text-center text-xs font-medium text-[#C04737]">
-                  {errorMessage}
-                </Text>
-              ) : null}
-            </ScrollView>
-          )}
+            ) : null}
+            {devices.map((device) => (
+              <CharmDeviceCard
+                key={device.id}
+                device={device}
+                onPress={handleConnectDevice}
+                disabled={isConnecting || Boolean(policyError)}
+              />
+            ))}
+          </ScrollView>
         </View>
 
-        <SearchBottomActions onSearchAgain={startScan} />
+        <SearchBottomActions onSearchAgain={() => { void startScan(); }} disabled={!policyReady || isConnecting} />
       </View>
     </SafeAreaView>
   );

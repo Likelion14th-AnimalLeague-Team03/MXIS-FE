@@ -308,6 +308,59 @@ test("native scan policy requires advertised NUS, never name-only or old UUID", 
   assert.throws(() => native.resolveOrangeScanPolicy([null]));
   assert.deepEqual(native.resolveOrangeScanPolicy(), [uuid]);
 });
+test("nearby mode scans without advertising filter and shows unnamed/non-NUS candidates", () => {
+  const allowed = [p.SMART_CHARM_NUS_SERVICE_UUID];
+  assert.equal(native.getCharmScanServiceUuids("nearby", allowed), null);
+  assert.deepEqual(native.getCharmScanServiceUuids("service", allowed), allowed);
+  for (const device of [{ serviceUUIDs: null }, { serviceUUIDs: [] }, { serviceUUIDs: ["180f"] }]) {
+    assert(native.isVisibleCharmScanCandidate(device, "nearby", allowed));
+    assert(!native.isVisibleCharmScanCandidate(device, "service", allowed));
+  }
+});
+test("nearby diagnostic scan does not turn an incompatible server policy into an allowed connection", () => {
+  const old = ["8A100000-7B2C-4D55-9000-000000000001"];
+  assert.equal(native.getCharmScanServiceUuids("nearby", old), null);
+  assert.throws(() => native.getCharmScanServiceUuids("service", old));
+  assert.throws(() => native.resolveOrangeScanPolicy(old));
+});
+test("missing advertising UUID does not prevent verified GATT connection in nearby mode", async (t) => {
+  t.after(() => native.disconnectSmartCharmConnection());
+  const device = nativeDevice("no-advertising-uuid");
+  device.serviceUUIDs = null;
+  assert(native.isVisibleCharmScanCandidate(device, "nearby", [p.SMART_CHARM_NUS_SERVICE_UUID]));
+  const connection = await native.connectSmartCharm(device.id, owner);
+  assert.equal(connection.serialNumber, serial);
+  assert(device.calls.includes("response:PROFILE"));
+});
+test("Bluetooth readiness waits through Unknown/Resetting and removes listener", async () => {
+  let listener, removed = 0;
+  const ready = native.waitForBluetoothReady({ onStateChange(callback, emitCurrent) {
+    assert(emitCurrent); listener = callback;
+    callback("Unknown"); return { remove() { removed++; } };
+  } }, 100);
+  listener("Resetting"); listener("PoweredOn");
+  await ready;
+  assert.equal(removed, 1);
+});
+test("Bluetooth synchronous ready/off/permission/unsupported states clean up subscriptions", async () => {
+  for (const state of ["PoweredOn", "PoweredOff", "Unauthorized", "Unsupported"]) {
+    let removed = 0;
+    const ready = native.waitForBluetoothReady({ onStateChange(callback) {
+      callback(state); return { remove() { removed++; } };
+    } }, 100);
+    if (state === "PoweredOn") await ready;
+    else await assert.rejects(ready);
+    assert.equal(removed, 1);
+  }
+});
+test("Bluetooth initialization timeout and native error cannot leave pending scans", async () => {
+  let removed = 0;
+  await assert.rejects(native.waitForBluetoothReady({ onStateChange(callback) {
+    callback("Unknown"); return { remove() { removed++; } };
+  } }, 10));
+  assert.equal(removed, 1);
+  await assert.rejects(native.waitForBluetoothReady({ onStateChange() { throw new Error("native failure"); } }, 10));
+});
 test("native discovery rejects arbitrary writable service and wrong NUS properties", async () => {
   const device = { services: async () => [{ uuid: "unrelated" }] };
   await assert.rejects(native.createSmartCharmUartSession(device));

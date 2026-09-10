@@ -7,6 +7,27 @@
 이번 작업은 **프론트 코드 변경**이다. 기존 `onjunku` 브랜치와 분리하며, 펌웨어 및 서버는 변경하지 않았다.
 타입 검사, 자동 테스트, Android JavaScript 번들 생성은 검증했지만 실물 Android/보드 및 실제 서버 연동은 아직 검증하지 않았다.
 
+## 검색 결과가 비어 있을 때
+
+기존 전체 BLE 검색을 엄격한 NUS 광고 UUID 필터로 바꾸면서, **GATT에는 서비스가 있어도 광고에 UUID가 없는 모듈**을 검색하지 못할 수 있는 조건이 생겼다. 실제 보드가 이 조건인지 아직 확정한 것은 아니다. `serviceUUIDs`는 검색 중 보이는 UUID이며 연결 후 서비스 목록과 다르다. [BLE 라이브러리 문서](https://dotintent.github.io/react-native-ble-plx/#deviceserviceuuids)
+
+검색 화면에 두 모드를 제공한다.
+
+| 탭 | 검색 방식 | 연결 조건 |
+| --- | --- | --- |
+| 참 UUID 검색 | NUS 광고 UUID 필터 | NUS GATT/속성, PING/PROFILE/ID 검사 |
+| 주변 BLE | 광고 Service UUID 필터 없이 주변 BLE 후보 표시 | 위와 동일한 검사. 이름/광고만으로 자동 등록하지 않음 |
+
+1. `참 UUID 검색`이 비면 `주변 BLE` 탭을 누른다.
+2. `SmartCharmOBLE` 등 실제 모듈을 선택한다. 같은 이름은 표시된 BLE 식별값으로 구분한다. 목록의 후보는 아직 검증된 참이 아니다.
+3. 주변 검색에서는 보이고 UUID 검색에서는 안 보이면 nRF Connect의 **광고 상세**에서 UUID 포함 여부를 확인한다. 연결 후 GATT 화면만으로 판단하지 않는다.
+4. 빨간 오류에 `서버 검색 정책`이 나오면 서버의 NUS 허용 설정을 확인한다. 이때 주변 BLE 검색은 진단 목적으로 가능하지만, 기기 연결/등록은 허용하지 않는다.
+5. 주변 BLE도 0개라면 권한, Bluetooth 전원, 다른 앱의 기기 연결, 보드 광고를 확인한다. Classic 전용 HC-06은 이 BLE 검색 대상이 아니다.
+
+`Unknown`/`Resetting` 상태는 최대 4초 동안 Bluetooth 초기화를 기다린다. 전원 꺼짐/권한 거부/미지원/초기화 지연은 구분해 표시한다. 큰 빈 결과 이미지를 줄여 오류와 검색 탭이 화면 아래로 밀리지 않게 했다.
+
+앱 로그의 `server scan policy`, `scan blocked by policy`, `scan started`, `scan finished`를 비교한다. 개발 빌드에는 `advertisement`의 이름/ID/광고 UUID도 출력한다. 이 진단 경로는 엄격한 광고 UUID 필터를 기본값에서 제거하거나 서버 정책을 무시하는 변경이 아니다.
+
 ## 1. 현재 지원 하드웨어와 UUID
 
 | 구분 | 현재 대상 |
@@ -32,7 +53,7 @@ NUS UUID는 다른 제품도 사용한다. UUID로 후보를 좁힌 후 `PING`, 
 ```text
 로그인
   -> 검색 정책 확인 + Bluetooth 권한/전원 확인
-  -> NUS Service UUID로 Scan
+  -> NUS Service UUID로 Scan (주변 BLE 탭에서는 광고 필터 없이 후보 검색)
   -> BLE Connect + Service/Characteristic Discovery
   -> 정확한 Notify UUID 구독
   -> PING -> PROFILE -> ID
@@ -97,18 +118,19 @@ NUS UUID는 다른 제품도 사용한다. UUID로 후보를 좁힌 후 `PING`, 
 | `ble/smartCharmBle.ts` | BLE 관리자 공유, 정확한 NUS 검색/구독, ID 재확인, 연결 유지 |
 | `ble/charmOutbox.ts` | 계정/시리얼별 영구 대기열, 충돌 차단, 서버 ACK 보관/확정 |
 | `ble/smartCharmSync.ts` | 수집 -> 영구 저장 -> 서버 업로드 -> ACK 전체 흐름 |
-| `screens/CharmScanScreen.tsx` | UUID 필터, 단계별 오류, 전체 동기화, 서버 등록, 화면 간 연결 전달 |
+| `screens/CharmScanScreen.tsx` | UUID/주변 BLE 검색 모드, 광고 진단 로그, 단계별 오류, 전체 동기화, 서버 등록, 화면 간 연결 전달 |
 | `screens/ProductConfirmScreen.tsx` | 업로드 이후 실제 ACK 호출, 실패 데이터 보관, 재시도/등록 계속 |
 | `api/onboardingApi.ts` | ACK 응답 검증, 서버 응답 없음/HTTP 오류 구분, 토큰 일부 출력 제거 |
 | `src/features/device/screens/DeviceScreen.tsx` | 센서 동기화 버튼, 서버 화면 캐시 갱신, 배터리 미지원, 실제 저장 시각 표시 |
 | `src/providers/AppProvider.tsx` | 로그아웃/계정 변경 시 BLE 종료 |
+| `src/shared/components/SecondaryButton.tsx` | 검색/연결 중 중복 실행 방지를 위한 선택적 disabled 속성 |
 | `scripts/test-charm.cjs`, `package.json` | 자동 테스트와 `test:charm` 실행 항목 |
 
 기존 `storage.ts`의 구버전 전송 대기열은 삭제하지 않았다. 계정/시리얼 근거가 없어 새 대기열로 자동 이전하지 않는다. 업데이트 이후 기기에 다시 연결해 전체 SYNC를 수행한다. 기기에서 이미 사라지고 구버전 앱에만 남은 기록의 복구는 별도 확인이 필요하다.
 
 ## 6. 서버와 합의가 필요한 계약
 
-1. `GET /api/v1/devices/connection-policy`의 `allowedServiceUuids`에 위 NUS Service UUID가 있어야 한다. 서버가 `8A100000...`만 허용하거나 빈 목록을 주면 설정 오류를 표시한다. 정책 API 자체 조회 실패일 때만 코드의 NUS 기본값을 사용한다. 이름 검색으로 우회하지 않는다.
+1. `GET /api/v1/devices/connection-policy`의 `allowedServiceUuids`에 위 NUS Service UUID가 있어야 한다. 서버가 `8A100000...`만 허용하거나 빈 목록을 주면 설정 오류를 표시한다. 주변 BLE 진단 검색은 가능하지만 연결/등록은 차단한다. 정책 API 자체 조회 실패일 때만 코드의 NUS 기본값을 사용한다. 이름 검색으로 등록 정책을 우회하지 않는다.
 2. `POST /api/v1/devices` 및 목록 조회 응답의 `serialNumber`가 `ID` 응답과 정확히 일치해야 한다. 기기 등록 요청의 `macAddress`는 연결용 BLE 식별값일 뿐 제품의 영구 ID가 아니다.
 3. `POST /api/v1/devices/{id}/sensor-readings/batch`는 `(기기, sequence)` 중복 요청을 안전하게 처리해야 한다. 응답이 사라졌을 때 재업로드될 수 있다.
 4. ACK는 해당 기기에 실제 저장 완료된 누적 구간을 의미해야 한다. 프론트는 요청한 업로드 데이터로 그 구간을 재검증한다.
@@ -163,7 +185,7 @@ NUS UUID는 다른 제품도 사용한다. UUID로 후보를 좁힌 후 `PING`, 
 | 검사 | 결과 |
 | --- | --- |
 | `npm run typecheck` | 통과 |
-| `npm run test:charm` | 41개 통과 |
+| `npm run test:charm` | 47개 통과 |
 | `npx expo export --platform android` | Android Hermes JavaScript 번들 및 에셋 생성 통과 |
 | `git diff --check` | 통과 |
 | `npx expo install --check` 온라인 조회 | 기존 패키지 2개 패치 버전 권고. 버전은 변경하지 않음 |
@@ -171,7 +193,7 @@ NUS UUID는 다른 제품도 사용한다. UUID로 후보를 좁힌 후 `PING`, 
 
 테스트는 실제 생산 코드의 순수 프로토콜/세션/대기열/업로드 흐름을 불러오고 BLE, HTTP, 휴대폰 저장소만 대체한다. 실제 펌웨어 로그 `R,150,0,2480,4500,10,0,1FFE`를 CRC 기준으로 사용한다.
 
-41개에는 분할/병합 Notify, 잘못된 CRC/숫자, 20개 SYNC, STATUS와 수신 개수 대조, 누락/중복/충돌, 명령 순서, BUSY, 응답/Write 정지, 끊김, 저장 실패, 다른 계정/기기, HTTP 응답 형식, 시간 0, 미래 ACK, 앱 재시작 뒤 보류 ACK 복구가 포함된다.
+47개에는 분할/병합 Notify, 잘못된 CRC/숫자, 20개 SYNC, STATUS와 수신 개수 대조, 누락/중복/충돌, 명령 순서, BUSY, 응답/Write 정지, 끊김, 저장 실패, 다른 계정/기기, HTTP 응답 형식, 시간 0, 미래 ACK, 앱 재시작 뒤 보류 ACK 복구가 포함된다. 검색 보완 6개는 광고 UUID 없는 후보 검색 및 실제 GATT 검증, 서버 정책 차단 유지, Bluetooth 초기 상태 대기/오류/타임아웃을 검증한다.
 
 Expo 권고: 현재 `expo@54.0.36` -> `~54.0.37`, `expo-constants@18.0.13` -> `~18.0.14`. 이는 기존 lockfile 조합에 대한 권고이며 BLE 변경 과정에서 의존성을 일괄 갱신하지 않았다. Android 번들 성공은 APK 빌드 또는 실물 BLE 성공을 뜻하지 않는다.
 
