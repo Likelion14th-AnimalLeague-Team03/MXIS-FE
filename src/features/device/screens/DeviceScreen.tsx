@@ -33,7 +33,9 @@ import heroBackground from "@/features/device/assets/final/device-hero-bg-final.
 import type { Product } from "@/features/product/types";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { disconnectSmartCharmConnection } from "@/features/onboarding/ble/smartCharmBle";
+import { uploadAndAcknowledgeSmartCharm } from "@/features/onboarding/ble/smartCharmSync";
 import { BatteryIcon } from "@/shared/components/icons/BatteryIcon";
+import { RefreshIcon } from "@/shared/components/icons/RefreshIcon";
 import { InfoIcon } from "@/shared/components/icons/InfoIcon";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
@@ -194,7 +196,6 @@ function formatHumidity(
 
 function formatLastSyncedAt(device: DisplayCharm | null) {
   if (!device) return "-";
-  if (device.connectionStatus === "CONNECTED") return "방금 전";
   if (!device.lastSyncedAt) return "-";
 
   const syncedAt = new Date(device.lastSyncedAt).getTime();
@@ -296,6 +297,8 @@ export function DeviceScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const ownerId = useAuthStore((state) => String(state.user?.id ?? ""));
+  const [syncMessage, setSyncMessage] = useState<{ serial: string; text: string } | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(
     null,
   );
@@ -489,6 +492,24 @@ export function DeviceScreen() {
       }),
     ]);
   };
+
+  const syncMutation = useMutation({
+    mutationFn: async (device: DisplayCharm) => {
+      setSyncMessage(null);
+      setErrorMessage("");
+      return uploadAndAcknowledgeSmartCharm(ownerId, device.serialNumber, device.id);
+    },
+    onSuccess: async (result, device) => {
+      setSyncMessage({ serial: device.serialNumber, text: result.message });
+      await invalidateDeviceQueries();
+      await queryClient.invalidateQueries({ queryKey: ["home"] });
+      await queryClient.invalidateQueries({ queryKey: ["care"] });
+    },
+    onError: (error, device) => setSyncMessage({
+      serial: device.serialNumber,
+      text: error instanceof Error ? error.message : "센서 동기화에 실패했습니다. 받은 데이터는 보관됩니다.",
+    }),
+  });
 
   const primaryProductMutation = useMutation({
     mutationFn: setPrimaryProduct,
@@ -849,7 +870,8 @@ export function DeviceScreen() {
                 </View>
                 {cardCharm ? (
                   <Text className="mt-1 text-[12px] font-normal text-[#3E3E3E]">
-                    배터리: {cardCharm.batteryLevel ?? "-"}%
+                    배터리: {cardCharm.serialNumber.startsWith("SC-OB-")
+                      ? "미지원" : `${cardCharm.batteryLevel ?? "-"}%`}
                   </Text>
                 ) : null}
               </View>
@@ -1018,7 +1040,7 @@ export function DeviceScreen() {
             <Text className="mt-[5px] text-[12px] font-medium text-[#686868]">
               {isSameProductSummary(selectedProduct, selectedProductSummary) &&
               hasConnectedCharm
-                ? "권장 범위로 유지 중이에요"
+                ? "마지막으로 저장된 측정값이에요"
                 : "데이터가 없어요"}
             </Text>
           </View>
@@ -1033,7 +1055,7 @@ export function DeviceScreen() {
               </View>
               <Text className="text-[14px] font-medium text-[#262626]">
                 {hasConnectedCharm
-                  ? `${displayConnectedCharm?.batteryLevel ?? "-"}%`
+                  ? (displayConnectedCharm?.serialNumber.startsWith("SC-OB-") ? "미지원" : `${displayConnectedCharm?.batteryLevel ?? "-"}%`)
                   : "-%"}
               </Text>
             </View>
@@ -1050,6 +1072,30 @@ export function DeviceScreen() {
               </Text>
             </View>
           </View>
+
+          {displayConnectedCharm?.serialNumber.startsWith("SC-OB-") ? (
+            <View className="mt-4 gap-2">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="센서 동기화"
+                accessibilityState={{ disabled: syncMutation.isPending, busy: syncMutation.isPending }}
+                disabled={syncMutation.isPending}
+                onPress={() => syncMutation.mutate(displayConnectedCharm)}
+                className="min-h-[44px] flex-row items-center justify-center gap-2"
+                style={{ opacity: syncMutation.isPending ? 0.5 : 1 }}
+              >
+                <RefreshIcon size={20} />
+                <Text className="text-[14px] font-semibold text-[#262626]">
+                  {syncMutation.isPending ? "동기화 중" : "센서 동기화"}
+                </Text>
+              </Pressable>
+              {syncMessage?.serial === displayConnectedCharm.serialNumber ? (
+                <Text accessibilityLiveRegion="polite" className="text-center text-[12px] text-[#686868]">
+                  {syncMessage.text}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
 
           {visibleError ? (
             <Text className="mt-4 text-center text-[12px] font-medium text-[#C04737]">

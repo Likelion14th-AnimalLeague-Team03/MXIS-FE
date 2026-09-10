@@ -94,7 +94,7 @@ function getAuthorizationHeader(accessToken: string, tokenType = "Bearer") {
 function getDebugTokenLabel(accessToken: string, tokenType = "Bearer") {
   if (!accessToken) return "missing";
 
-  return `${tokenType} ${accessToken.slice(0, 12)}...`;
+  return `${tokenType} present`;
 }
 
 function logApiDebugError(
@@ -127,7 +127,10 @@ function getApiErrorMessage(error: unknown, fallbackMessage: string) {
     const responseData = error.response?.data as ApiResponse<unknown> | undefined;
     const message = responseData?.error?.message;
 
-    return message && !isBrokenMessage(message) ? message : fallbackMessage;
+    if (message && !isBrokenMessage(message)) return message;
+    return error.response
+      ? `${fallbackMessage} (HTTP ${error.response.status})`
+      : `${fallbackMessage} (서버 응답 없음: ${error.code ?? "네트워크 확인"})`;
   }
 
   if (error instanceof Error) {
@@ -183,10 +186,10 @@ export async function getConnectionPolicy() {
       "/devices/connection-policy",
     );
 
-    return unwrapApiData(response.data, "BLE ?곌껐 ?뺤콉??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    return unwrapApiData(response.data, "BLE 연결 정책을 불러오지 못했습니다.");
   } catch (error) {
     throw new Error(
-      getApiErrorMessage(error, "BLE ?곌껐 ?뺤콉??遺덈윭?ㅼ? 紐삵뻽?듬땲??"),
+      getApiErrorMessage(error, "BLE 연결 정책을 불러오지 못했습니다."),
     );
   }
 }
@@ -212,10 +215,10 @@ export async function registerDevice(
 
     console.log("[Charm API] POST /devices response", response.data);
 
-    return unwrapApiData(response.data, "MXIS Charm ?깅줉???ㅽ뙣?덉뒿?덈떎.");
+    return unwrapApiData(response.data, "MXIS Charm 등록에 실패했습니다.");
   } catch (error) {
     logApiDebugError("POST /devices", error, request);
-    throw new Error(getApiErrorMessage(error, "MXIS Charm ?깅줉???ㅽ뙣?덉뒿?덈떎."));
+    throw new Error(getApiErrorMessage(error, "MXIS Charm 등록에 실패했습니다."));
   }
 }
 
@@ -234,10 +237,10 @@ export async function getDevices(accessToken: string, tokenType?: string) {
 
     console.log("[Charm API] GET /devices response", response.data);
 
-    return unwrapApiData(response.data, "湲곌린 紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??") ?? [];
+    return unwrapApiData(response.data, "기기 목록을 불러오지 못했습니다.") ?? [];
   } catch (error) {
     logApiDebugError("GET /devices", error);
-    throw new Error(getApiErrorMessage(error, "湲곌린 紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+    throw new Error(getApiErrorMessage(error, "기기 목록을 불러오지 못했습니다."));
   }
 }
 
@@ -277,10 +280,10 @@ export async function linkProductDevice(
       },
     );
 
-    return unwrapApiData(response.data, "?쒗뭹怨?MXIS Charm ?곌껐???ㅽ뙣?덉뒿?덈떎.");
+    return unwrapApiData(response.data, "제품과 MXIS Charm 연결에 실패했습니다.");
   } catch (error) {
     throw new Error(
-      getApiErrorMessage(error, "?쒗뭹怨?MXIS Charm ?곌껐???ㅽ뙣?덉뒿?덈떎."),
+      getApiErrorMessage(error, "제품과 MXIS Charm 연결에 실패했습니다."),
     );
   }
 }
@@ -313,9 +316,7 @@ export async function uploadSensorReadings(
   });
 
   try {
-    const response = await apiClient.post<
-      ApiResponse<SensorReadingBatchUploadResponse>
-    >(
+    const response = await apiClient.post<ApiResponse<SensorReadingBatchUploadResponse> | SensorReadingBatchUploadResponse | null>(
       `/devices/${backendDeviceId}/sensor-readings/batch`,
       request,
       {
@@ -325,14 +326,21 @@ export async function uploadSensorReadings(
 
     console.log("[Charm API] POST sensor-readings/batch response", response.data);
 
-    return unwrapApiData(response.data, "?쇱꽌 ?곗씠???낅줈?쒖뿉 ?ㅽ뙣?덉뒿?덈떎.");
+    const body = response.data;
+    if (body == null || (body as unknown) === "") return { ackSequence: null };
+    if (typeof body !== "object" || Array.isArray(body)) throw new Error("서버 응답 형식을 확인할 수 없습니다.");
+    const data = "success" in body
+      ? (body.success && body.data == null ? { ackSequence: null } : unwrapApiData(body, "센서 데이터 업로드에 실패했습니다."))
+      : body;
+    if (data.ackSequence != null && (!Number.isInteger(data.ackSequence) || data.ackSequence < 0 || data.ackSequence > 0xffffffff)) {
+      throw new Error("서버 ACK 번호가 잘못되었습니다. 기기 데이터는 삭제하지 않았습니다.");
+    }
+    return data;
   } catch (error) {
     logApiDebugError("POST sensor-readings/batch", error, {
       backendDeviceId,
       request,
     });
-    throw new Error(getApiErrorMessage(error, "?쇱꽌 ?곗씠???낅줈?쒖뿉 ?ㅽ뙣?덉뒿?덈떎."));
+    throw new Error(getApiErrorMessage(error, "센서 데이터 서버 업로드에 실패했습니다."));
   }
 }
-
-

@@ -2,6 +2,14 @@
 
 MXIS React Native frontend built with Expo SDK 54.
 
+## Orange Smart Charm
+
+Current Orange Board BLE integration and the hardware verification checklist:
+[Orange BLE integration](docs/orange-ble-integration.md).
+
+Run the protocol, transport, persistence and upload/ACK tests with `npm run test:charm`.
+Use Node 24 LTS. Real BLE testing requires an Android development build, not Expo Go.
+
 ## Tech Stack
 
 - React Native

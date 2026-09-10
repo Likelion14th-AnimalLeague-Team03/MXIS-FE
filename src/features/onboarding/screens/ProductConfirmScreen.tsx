@@ -1,19 +1,18 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Image, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
 import {
   linkProductDevice,
-  uploadSensorReadings,
 } from "@/features/onboarding/api/onboardingApi";
 import {
-  clearPendingSensorReadings,
-  getPendingSensorReadings,
   savePrimaryCharmProductLink,
 } from "@/features/onboarding/storage";
+import { uploadAndAcknowledgeSmartCharm } from "@/features/onboarding/ble/smartCharmSync";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
@@ -39,6 +38,7 @@ function ProductInfoRow({ label, value }: { label: string; value: string }) {
 
 export function ProductConfirmScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const {
     color = "",
     deviceId = "",
@@ -60,13 +60,33 @@ export function ProductConfirmScreen() {
   }>();
   const accessToken = useAuthStore((state) => state.accessToken);
   const tokenType = useAuthStore((state) => state.tokenType);
+  const ownerId = useAuthStore((state) => String(state.user?.id ?? ""));
   const numericProductId = Number(productId);
   const numericDeviceId = Number(deviceId);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [canContinue, setCanContinue] = useState(false);
+  const submittingRef = useRef(false);
+  const linkedRef = useRef<{ key: string; serial: string } | null>(null);
+  const linkKey = `${ownerId}:${productId}:${deviceId}:${deviceSerial}`;
+
+  const finishRegistration = async () => {
+    if (linkedRef.current?.key !== linkKey) return;
+    const auth = useAuthStore.getState();
+    if (!auth.accessToken || String(auth.user?.id ?? "") !== ownerId) throw new Error("로그인 계정이 변경되었습니다.");
+    await savePrimaryCharmProductLink({
+      charmName: linkedRef.current.serial, productId: String(numericProductId),
+      productName, material, color, productCode, linkedAt: new Date().toISOString(),
+    });
+    router.push({
+      pathname: "/onboarding/notification-permission",
+      params: { productId: String(numericProductId), deviceId: String(numericDeviceId), deviceSerial: linkedRef.current.serial },
+    });
+  };
 
   const handleConfirmProduct = async () => {
-    if (!accessToken) {
+    if (submittingRef.current) return;
+    if (!accessToken || !ownerId) {
       setErrorMessage(
         "로그인 정보가 없어 제품과 Charm을 연결할 수 없습니다.",
       );
@@ -74,8 +94,8 @@ export function ProductConfirmScreen() {
     }
 
     if (
-      !Number.isFinite(numericProductId) ||
-      !Number.isFinite(numericDeviceId) ||
+      !Number.isSafeInteger(numericProductId) || numericProductId <= 0 ||
+      !Number.isSafeInteger(numericDeviceId) || numericDeviceId <= 0 ||
       !deviceSerial
     ) {
       setErrorMessage(
@@ -85,55 +105,31 @@ export function ProductConfirmScreen() {
     }
 
     try {
+      submittingRef.current = true;
       setIsSubmitting(true);
       setErrorMessage("");
 
-      const linkedDevice = await linkProductDevice(
-        numericProductId,
-        numericDeviceId,
-        accessToken,
-        tokenType,
-      );
-      const linkedSerial = linkedDevice.serialNumber || deviceSerial;
-      const pendingReadings = await getPendingSensorReadings(
-        String(numericDeviceId),
-      );
-
-      if (pendingReadings.length) {
-        await uploadSensorReadings(
-          numericDeviceId,
-          pendingReadings,
-          accessToken,
-          tokenType,
-        );
-        await clearPendingSensorReadings(String(numericDeviceId));
+      if (linkedRef.current?.key !== linkKey) {
+        const linkedDevice = await linkProductDevice(numericProductId, numericDeviceId, accessToken, tokenType);
+        if (linkedDevice.serialNumber !== deviceSerial) throw new Error("제품에 연결된 참 ID가 실제 참과 다릅니다.");
+        linkedRef.current = { key: linkKey, serial: linkedDevice.serialNumber };
       }
-
-      await savePrimaryCharmProductLink({
-        charmName: linkedSerial,
-        productId: String(numericProductId),
-        productName,
-        material,
-        color,
-        productCode,
-        linkedAt: new Date().toISOString(),
-      });
-
-      router.push({
-        pathname: "/onboarding/notification-permission",
-        params: {
-          productId: String(numericProductId),
-          deviceId: String(numericDeviceId),
-          deviceSerial: linkedSerial,
-        },
-      });
+      setCanContinue(true);
+      const result = await uploadAndAcknowledgeSmartCharm(ownerId, deviceSerial, numericDeviceId);
+      await queryClient.invalidateQueries({ queryKey: ["device"] });
+      await queryClient.invalidateQueries({ queryKey: ["home"] });
+      await queryClient.invalidateQueries({ queryKey: ["care"] });
+      if (!result.complete) {
+        setErrorMessage(`제품 연결은 완료되었습니다. ${result.message}`);
+        return;
+      }
+      await finishRegistration();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "제품과 MXIS Charm 연결에 실패했습니다.",
+        `${linkedRef.current?.key === linkKey ? "제품 연결은 완료되었습니다. 센서 동기화 대기: " : "제품 연결 실패: "}${error instanceof Error ? error.message : "다시 시도해 주세요."}`,
       );
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -192,10 +188,15 @@ export function ProductConfirmScreen() {
             </Text>
           ) : null}
           <PrimaryButton
-            label={isSubmitting ? "연결 중입니다" : "네, 이 제품과 연결할게요"}
+            label={isSubmitting ? "동기화 중입니다" : canContinue ? "센서 동기화 다시 시도" : "네, 이 제품과 연결할게요"}
             onPress={handleConfirmProduct}
             disabled={isSubmitting}
           />
+          {canContinue && !isSubmitting ? (
+            <SecondaryButton label="동기화는 나중에 하고 등록 계속" onPress={() => {
+              void finishRegistration().catch((error) => setErrorMessage(error instanceof Error ? error.message : "등록 상태를 저장하지 못했습니다."));
+            }} />
+          ) : null}
           <SecondaryButton
             label="다른 제품 선택"
             onPress={() => router.back()}

@@ -1,5 +1,7 @@
 # Smart Charm Frontend BLE Flow
 
+> 2026-09-10: 아래 본문은 이전 하드웨어/프론트 흐름의 기록입니다. 현재 Orange Board BLE 구현, UUID, 전체 SYNC, 서버 ACK 처리와 검증 순서는 [Orange BLE 연동 변경 및 검증](orange-ble-integration.md)을 기준으로 확인하세요. 아래 `8A1000xx` Characteristic 및 기존 수집 흐름을 현재 Orange 코드에 적용하지 마세요.
+
 > 목적
 >
 > MXIS FE에서 Smart Charm 온보딩 시 Bluetooth 연결, DeviceId 확인, 센서 데이터 수신, Backend 업로드, ACK 처리까지 어떤 구조로 구현했는지 백엔드와 공유하기 위한 문서이다.
