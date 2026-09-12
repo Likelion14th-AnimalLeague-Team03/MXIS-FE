@@ -65,7 +65,6 @@ export function ProductConfirmScreen() {
   const numericDeviceId = Number(deviceId);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [canContinue, setCanContinue] = useState(false);
   const submittingRef = useRef(false);
   const linkedRef = useRef<{ key: string; serial: string } | null>(null);
   const linkKey = `${ownerId}:${productId}:${deviceId}:${deviceSerial}`;
@@ -82,6 +81,32 @@ export function ProductConfirmScreen() {
       pathname: "/onboarding/notification-permission",
       params: { productId: String(numericProductId), deviceId: String(numericDeviceId), deviceSerial: linkedRef.current.serial },
     });
+  };
+
+  const syncSensorReadingsInBackground = () => {
+    void uploadAndAcknowledgeSmartCharm(
+      ownerId,
+      deviceSerial,
+      numericDeviceId,
+    )
+      .then((result) => {
+        console.log("[Charm Sync] onboarding background sync complete", result);
+      })
+      .catch((error: unknown) => {
+        console.warn(
+          "[Charm Sync] onboarding background sync deferred; readings remain saved",
+          error instanceof Error ? error.message : error,
+        );
+      })
+      .finally(() => {
+        void Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["device"] }),
+          queryClient.invalidateQueries({ queryKey: ["home"] }),
+          queryClient.invalidateQueries({ queryKey: ["care"] }),
+        ]).catch((error: unknown) => {
+          console.warn("[Charm Sync] query refresh deferred", error);
+        });
+      });
   };
 
   const handleConfirmProduct = async () => {
@@ -114,19 +139,11 @@ export function ProductConfirmScreen() {
         if (linkedDevice.serialNumber !== deviceSerial) throw new Error("제품에 연결된 참 ID가 실제 참과 다릅니다.");
         linkedRef.current = { key: linkKey, serial: linkedDevice.serialNumber };
       }
-      setCanContinue(true);
-      const result = await uploadAndAcknowledgeSmartCharm(ownerId, deviceSerial, numericDeviceId);
-      await queryClient.invalidateQueries({ queryKey: ["device"] });
-      await queryClient.invalidateQueries({ queryKey: ["home"] });
-      await queryClient.invalidateQueries({ queryKey: ["care"] });
-      if (!result.complete) {
-        setErrorMessage(`제품 연결은 완료되었습니다. ${result.message}`);
-        return;
-      }
       await finishRegistration();
+      syncSensorReadingsInBackground();
     } catch (error) {
       setErrorMessage(
-        `${linkedRef.current?.key === linkKey ? "제품 연결은 완료되었습니다. 센서 동기화 대기: " : "제품 연결 실패: "}${error instanceof Error ? error.message : "다시 시도해 주세요."}`,
+        `${linkedRef.current?.key === linkKey ? "제품 연결 후 등록 정보 저장 실패: " : "제품 연결 실패: "}${error instanceof Error ? error.message : "다시 시도해 주세요."}`,
       );
     } finally {
       submittingRef.current = false;
@@ -188,15 +205,10 @@ export function ProductConfirmScreen() {
             </Text>
           ) : null}
           <PrimaryButton
-            label={isSubmitting ? "동기화 중입니다" : canContinue ? "센서 동기화 다시 시도" : "네, 이 제품과 연결할게요"}
+            label={isSubmitting ? "제품과 연결 중입니다" : "네, 이 제품과 연결할게요"}
             onPress={handleConfirmProduct}
             disabled={isSubmitting}
           />
-          {canContinue && !isSubmitting ? (
-            <SecondaryButton label="동기화는 나중에 하고 등록 계속" onPress={() => {
-              void finishRegistration().catch((error) => setErrorMessage(error instanceof Error ? error.message : "등록 상태를 저장하지 못했습니다."));
-            }} />
-          ) : null}
           <SecondaryButton
             label="다른 제품 선택"
             onPress={() => router.back()}

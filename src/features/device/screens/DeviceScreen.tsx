@@ -557,10 +557,12 @@ export function DeviceScreen() {
   const hasConnectedCharm = Boolean(displayConnectedCharm);
   /** 목록은 기본 3개까지만 보여주고, 아래 화살표로 전체 + 참추가를 펼쳐요. */
   const COLLAPSED_CHARM_COUNT = 3;
-  const visibleCharms = charmListExpanded
-    ? displayCharms
-    : displayCharms.slice(0, COLLAPSED_CHARM_COUNT);
-  const showAddCharmRow = charmListExpanded || displayCharms.length === 0;
+  const hasHiddenCharmRows = displayCharms.length + 1 >= 4;
+  const visibleCharms =
+    hasHiddenCharmRows && !charmListExpanded
+      ? displayCharms.slice(0, COLLAPSED_CHARM_COUNT)
+      : displayCharms;
+  const showAddCharmRow = !hasHiddenCharmRows || charmListExpanded;
   const imageModalCharm =
     displayCharms.find((charm) => charm.id === imageModalCharmId) ?? null;
   const isPendingCharmLinked = Boolean(
@@ -712,6 +714,7 @@ export function DeviceScreen() {
     onSuccess: async () => {
       setDisconnectModalVisible(false);
       setCharmExpanded(false);
+      setCharmListExpanded(false);
       setErrorMessage("");
       await invalidateDeviceQueries();
     },
@@ -747,12 +750,14 @@ export function DeviceScreen() {
     setSelectedProductId(products[nextIndex].id);
     setPendingDeviceId(null);
     setCharmExpanded(false);
+    setCharmListExpanded(false);
   };
 
   const handleSelectProduct = (productId: number) => {
     setSelectedProductId(productId);
     setPendingDeviceId(null);
     setCharmExpanded(false);
+    setCharmListExpanded(false);
   };
 
   const handleSetPrimaryProduct = () => {
@@ -1019,7 +1024,10 @@ export function DeviceScreen() {
             </View>
 
             <Pressable
-              onPress={() => setCharmExpanded((prev) => !prev)}
+              onPress={() => {
+                setCharmListExpanded(false);
+                setCharmExpanded((prev) => !prev);
+              }}
               className="items-center pb-[6px]"
             >
               <Chevron expanded={charmExpanded} />
@@ -1128,16 +1136,18 @@ export function DeviceScreen() {
                     </Pressable>
                   ) : null}
                 </View>
-                <Pressable
-                  onPress={() => setCharmListExpanded((prev) => !prev)}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    charmListExpanded ? "참 목록 접기" : "참 목록 더 보기"
-                  }
-                  className="mt-1.5 items-center"
-                >
-                  <Chevron expanded={charmListExpanded} />
-                </Pressable>
+                {hasHiddenCharmRows ? (
+                  <Pressable
+                    onPress={() => setCharmListExpanded((prev) => !prev)}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      charmListExpanded ? "참 목록 접기" : "참 목록 더 보기"
+                    }
+                    className="mt-1.5 items-center"
+                  >
+                    <Chevron expanded={charmListExpanded} />
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
           </View>

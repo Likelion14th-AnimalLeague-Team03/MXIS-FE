@@ -68,7 +68,7 @@ export function base64ToBytes(value: string) {
 }
 
 export function encodeCommand(command: string) {
-  if (!/^[A-Z]+(?: [0-9]+)?$/.test(command) || command.length > 31) {
+  if (!/^(?:[A-Z]+(?: [0-9]+)?|LIVE (?:ON|OFF))$/.test(command) || command.length > 31) {
     throw new Error("잘못된 UART 명령입니다.");
   }
   const bytes = Uint8Array.from(command + "\n", (char) => char.charCodeAt(0));

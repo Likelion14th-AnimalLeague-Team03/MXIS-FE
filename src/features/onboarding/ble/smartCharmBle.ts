@@ -1,6 +1,10 @@
-import { BleManager, type Device as BleDevice } from "react-native-ble-plx";
+import { BleManager, type BleError, type Device as BleDevice } from "react-native-ble-plx";
 import {
-  DEFAULT_SMART_CHARM_SERVICE_UUIDS, normalizeUuid,
+  DEFAULT_SMART_CHARM_SERVICE_UUIDS,
+  normalizeUuid,
+  SMART_CHARM_NUS_NOTIFY_CHARACTERISTIC_UUID,
+  SMART_CHARM_NUS_SERVICE_UUID,
+  SMART_CHARM_NUS_WRITE_CHARACTERISTIC_UUID,
 } from "./smartCharmProtocol";
 import { createUartSession, type SmartCharmUartSession } from "./smartCharmUartSession";
 
@@ -29,6 +33,39 @@ export function hasSmartCharmName(device: Pick<BleDevice, "localName" | "name">)
 }
 
 export type CharmScanMode = "service" | "nearby";
+
+export type SmartCharmConnectionStage =
+  | "BLE 연결 중"
+  | "서비스 검색 중"
+  | "Notify 구독 중"
+  | "PING 확인 중"
+  | "기기 정보 확인 중";
+
+export function getBleErrorDetails(error: unknown) {
+  const bleError = error as Partial<BleError> | null | undefined;
+  return {
+    errorCode: bleError?.errorCode ?? null,
+    message: error instanceof Error ? error.message : String(error),
+    reason: bleError?.reason ?? null,
+    attErrorCode: bleError?.attErrorCode ?? null,
+    androidErrorCode: bleError?.androidErrorCode ?? null,
+  };
+}
+
+function logBleFailure(stage: string, error: unknown) {
+  console.error(`[Charm BLE] ${stage} failed`, getBleErrorDetails(error));
+}
+
+function connectionErrorForUser(error: unknown) {
+  const details = getBleErrorDetails(error);
+  const message = `${details.message} ${details.reason ?? ""}`;
+  if (details.errorCode === 200 || /already connected|connection failed|133|busy/i.test(message)) {
+    return new Error("참에 연결할 수 없습니다. nRF Connect 등 다른 앱의 연결을 종료하고 다시 시도해 주세요.");
+  }
+  return error instanceof Error ? error : new Error(details.message);
+}
+
+const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export function getCharmScanServiceUuids(mode: CharmScanMode, allowed: string[]) {
   if (mode === "nearby") return null;
@@ -101,30 +138,90 @@ export async function createSmartCharmUartSession(
     resolveOrangeScanPolicy(allowedServiceUuids).map(normalizeUuid),
   );
   const services = await device.services();
-  const matches = services.filter((item) => allowed.has(normalizeUuid(item.uuid)));
-  if (matches.length !== 1) throw new Error("센서 통신 경로를 하나로 확인할 수 없습니다. Bluetooth 설정을 확인해 주세요.");
-  const service = matches[0];
-  const characteristics = await device.characteristicsForService(service.uuid);
-  const writes = characteristics.filter((item) => item.isWritableWithResponse || item.isWritableWithoutResponse);
-  const notifications = characteristics.filter((item) => item.isNotifiable);
-  if (writes.length !== 1 || notifications.length !== 1) {
-    throw new Error("센서의 쓰기·수신 경로를 확인할 수 없습니다. Bluetooth 속성을 확인해 주세요.");
+  services.forEach((service) => console.log("[Charm BLE] service discovered:", service.uuid));
+
+  const nusUuid = normalizeUuid(SMART_CHARM_NUS_SERVICE_UUID);
+  const orderedServices = [
+    ...services.filter((service) => normalizeUuid(service.uuid) === nusUuid),
+    ...services.filter((service) => normalizeUuid(service.uuid) !== nusUuid && allowed.has(normalizeUuid(service.uuid))),
+    ...services.filter((service) => normalizeUuid(service.uuid) !== nusUuid && !allowed.has(normalizeUuid(service.uuid))),
+  ];
+  const routes: Array<{
+    service: Awaited<ReturnType<BleDevice["services"]>>[number];
+    write: Awaited<ReturnType<BleDevice["characteristicsForService"]>>[number];
+    notify: Awaited<ReturnType<BleDevice["characteristicsForService"]>>[number];
+  }> = [];
+
+  for (const service of orderedServices) {
+    const characteristics = await device.characteristicsForService(service.uuid);
+    characteristics.forEach((characteristic) => console.log("[Charm BLE] characteristic discovered:", {
+      serviceUuid: service.uuid,
+      uuid: characteristic.uuid,
+      isWritableWithResponse: characteristic.isWritableWithResponse,
+      isWritableWithoutResponse: characteristic.isWritableWithoutResponse,
+      isNotifiable: characteristic.isNotifiable,
+      isIndicatable: characteristic.isIndicatable,
+    }));
+    const writes = characteristics.filter((item) => item.isWritableWithResponse || item.isWritableWithoutResponse);
+    const notifications = characteristics.filter((item) => item.isNotifiable);
+    const preferredWrite = writes.find((item) => normalizeUuid(item.uuid) === normalizeUuid(SMART_CHARM_NUS_WRITE_CHARACTERISTIC_UUID));
+    const preferredNotify = notifications.find((item) => normalizeUuid(item.uuid) === normalizeUuid(SMART_CHARM_NUS_NOTIFY_CHARACTERISTIC_UUID));
+    const write = preferredWrite ?? (writes.length === 1 ? writes[0] : undefined);
+    const notify = preferredNotify ?? (notifications.length === 1 ? notifications[0] : undefined);
+    if (write && notify) {
+      const route = { service, write, notify };
+      if (normalizeUuid(service.uuid) === nusUuid && preferredWrite && preferredNotify) {
+        routes.unshift(route);
+        break;
+      }
+      routes.push(route);
+    }
   }
-  const write = writes[0];
-  const notify = notifications[0];
+
+  if (!routes.length) throw new Error("센서의 Nordic UART 쓰기·Notify 경로를 찾을 수 없습니다.");
+  const { service, write, notify } = routes[0];
+  console.log("[Charm BLE] UART route selected:", {
+    serviceUuid: service.uuid,
+    writeUuid: write.uuid,
+    notifyUuid: notify.uuid,
+  });
+
   return createUartSession({
-    write: (value) => write.isWritableWithResponse
-      ? device.writeCharacteristicWithResponseForService(service.uuid, write.uuid, value)
-      : device.writeCharacteristicWithoutResponseForService(service.uuid, write.uuid, value),
+    write: async (value) => {
+      if (write.isWritableWithResponse) {
+        try {
+          return await device.writeCharacteristicWithResponseForService(service.uuid, write.uuid, value);
+        } catch (error) {
+          logBleFailure("Write With Response", error);
+          if (!write.isWritableWithoutResponse) throw error;
+          console.warn("[Charm BLE] retrying with Write Without Response");
+        }
+      }
+      return device.writeCharacteristicWithoutResponseForService(service.uuid, write.uuid, value);
+    },
     subscribe: (onValue, onError) => {
+      console.log("[Charm BLE] notify subscription requested");
+      let active = true;
       const subscription = device.monitorCharacteristicForService(service.uuid, notify.uuid, (error, item) => {
-        if (error) onError(new Error(error.message));
+        if (!active) return;
+        if (error) {
+          logBleFailure("Notify", error);
+          onError(error);
+        }
         else if (item?.value != null) onValue(item.value);
       });
-      return () => subscription.remove();
+      return () => {
+        active = false;
+        subscription.remove();
+      };
     },
     onDisconnect: (onError) => {
-      const subscription = device.onDisconnected((error) => onError(new Error(error?.message ?? "참과의 연결이 끊어졌습니다.")));
+      const subscription = device.onDisconnected((error) => {
+        if (error) {
+          logBleFailure("연결 종료", error);
+          onError(error);
+        } else onError(new Error("참과의 연결이 끊어졌습니다."));
+      });
       return () => subscription.remove();
     },
   });
@@ -144,7 +241,7 @@ let generation = 0;
 export async function connectSmartCharm(
   deviceId: string,
   ownerId: string,
-  options: { expectedSerial?: string; timeoutMs?: number; allowedServiceUuids?: string[]; onStage?: (stage: string) => void } = {},
+  options: { expectedSerial?: string; timeoutMs?: number; allowedServiceUuids?: string[]; notifySettleMs?: number; onStage?: (stage: SmartCharmConnectionStage) => void } = {},
 ) {
   if (!ownerId) throw new Error("로그인 계정 확인이 필요합니다.");
   if (connecting) throw new Error("다른 참 연결이 진행 중입니다.");
@@ -158,30 +255,50 @@ export async function connectSmartCharm(
   try {
     await disconnectSmartCharmConnection();
     const attempt = generation;
-    const stage = (value: string) => {
+    const stage = (value: SmartCharmConnectionStage) => {
       if (attempt !== generation) throw new Error("참 연결 작업이 취소되었습니다.");
       options.onStage?.(value);
     };
-    stage("BLE 연결");
-    device = await getSmartCharmBleManager().connectToDevice(deviceId, { timeout: options.timeoutMs ?? 10000 });
-    stage("서비스 검색");
-    await device.discoverAllServicesAndCharacteristics();
-    stage("UART 구독");
+    const runStage = async <T,>(label: string, uiStage: SmartCharmConnectionStage, action: () => Promise<T>) => {
+      stage(uiStage);
+      console.log(`[Charm BLE] ${label} start`);
+      try {
+        const result = await action();
+        console.log(`[Charm BLE] ${label} success`);
+        return result;
+      } catch (error) {
+        logBleFailure(label, error);
+        throw label === "BLE 연결" ? connectionErrorForUser(error) : error;
+      }
+    };
+    device = await runStage("BLE 연결", "BLE 연결 중", () =>
+      getSmartCharmBleManager().connectToDevice(deviceId, { timeout: options.timeoutMs ?? 10000 }));
+    await runStage("서비스 검색", "서비스 검색 중", () => device!.discoverAllServicesAndCharacteristics());
     const allowedServiceUuids = resolveOrangeScanPolicy(options.allowedServiceUuids);
-    session = await createSmartCharmUartSession(device, allowedServiceUuids);
-    stage("PING 확인");
-    await session.ping();
-    stage("PROFILE 확인");
-    await session.verifyProfile();
-    stage("DeviceId 확인");
-    const serialNumber = await session.readDeviceId();
+    session = await runStage("Notify 구독", "Notify 구독 중", async () => {
+      const uartSession = await createSmartCharmUartSession(device!, allowedServiceUuids);
+      await wait(options.notifySettleMs ?? 150);
+      console.log("[Charm BLE] notify subscription ready");
+      return uartSession;
+    });
+    await runStage("PING 확인", "PING 확인 중", () => session!.ping());
+    await runStage("PROFILE 확인", "기기 정보 확인 중", () => session!.verifyProfile());
+    const serialNumber = await runStage("DeviceId 확인", "기기 정보 확인 중", () => session!.readDeviceId());
     if (options.expectedSerial && serialNumber !== options.expectedSerial) throw new Error("다른 참에 연결되었습니다. ACK를 보내지 않았습니다.");
-    stage("기기 확인 완료");
     connection = { device, session, serialNumber, ownerId, allowedServiceUuids };
     return connection;
   } catch (error) {
-    session?.dispose();
-    await device?.cancelConnection().catch(() => undefined);
+    console.error("[Charm BLE] connection failed:", getBleErrorDetails(error));
+    try {
+      session?.dispose();
+    } catch (cleanupError) {
+      console.warn("[Charm BLE] session cleanup failed", getBleErrorDetails(cleanupError));
+    }
+    try {
+      await device?.cancelConnection();
+    } catch (cleanupError) {
+      console.warn("[Charm BLE] connection cleanup failed", getBleErrorDetails(cleanupError));
+    }
     throw error;
   } finally {
     connecting = false;
