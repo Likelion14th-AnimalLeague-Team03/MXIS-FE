@@ -108,6 +108,12 @@ export function HomeScreen() {
       : productState === "NEEDS_UPDATE"
         ? "새로운 케어 데이터를 기다리고 있어요."
         : "오늘의 케어 상태를 확인해 보세요.");
+  const isCharmConnectionHeadline = headline
+    .trim()
+    .startsWith("정확한 케어 상태를 확인하려면");
+  const displayedHeadline = isCharmConnectionHeadline
+    ? headline.replace(/\s*Charm/, "\nCharm")
+    : headline;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -116,8 +122,14 @@ export function HomeScreen() {
           <Text className="text-[15px] font-semibold text-[#747270]">
             안녕하세요, {home?.userName ?? "고객"}님!
           </Text>
-          <Text className="mt-1 text-2xl font-bold text-concierge-text">
-            {headline}
+          <Text
+            className="mt-1 font-bold text-concierge-text"
+            style={{
+              fontSize: isCharmConnectionHeadline ? 14 : 24,
+              lineHeight: isCharmConnectionHeadline ? 20 : 32,
+            }}
+          >
+            {displayedHeadline}
           </Text>
         </View>
 
