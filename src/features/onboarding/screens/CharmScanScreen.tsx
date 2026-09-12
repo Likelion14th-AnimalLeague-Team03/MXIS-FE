@@ -132,26 +132,14 @@ function StatusPill({
 }) {
   const isFailed = status === "ble-failed" || status === "setup-failed" || status === "server-failed";
   const color = isFailed ? "#A51F21" : "#814C27";
-  const labels: Record<Exclude<CharmConnectionStatus, "idle">, string> = {
-    "ble-connecting": "연결 중",
-    "service-discovering": "기기 확인",
-    "notify-subscribing": "기기 확인",
-    "ping-checking": "기기 확인",
-    "device-verifying": "기기 확인",
-    syncing: "데이터 수신",
-    registering: "서버 등록",
-    "ble-failed": "연결 실패",
-    "setup-failed": "연결 실패",
-    "server-failed": "연결 실패",
-  };
-  const label = labels[status];
+  const label = isFailed ? "연결 실패" : "연결 중";
 
   return (
     <View
-      className="h-6 shrink-0 items-center justify-center rounded-full border px-2.5"
+      className="min-h-6 shrink-0 items-center justify-center rounded-full border px-2 py-0.5"
       style={{ borderColor: color }}
     >
-      <Text className="text-xs font-medium" style={{ color, lineHeight: 18 }}>
+      <Text className="text-[10px] font-medium" style={{ color, lineHeight: 16 }}>
         {label}
       </Text>
     </View>
@@ -174,7 +162,7 @@ function CharmDeviceCard({
   const dotColor =
     isFailed
       ? "#A51F21"
-      : device.status === "ble-connecting"
+      : device.status !== "idle"
         ? "#E4AB7C"
         : "#898989";
 
@@ -197,14 +185,6 @@ function CharmDeviceCard({
         >
           {device.serialNumber}
         </Text>
-        {isFailed ? (
-          <Text
-            className="mt-0.5 text-sm font-medium text-concierge-textSecondary"
-            numberOfLines={2}
-          >
-            연결 실패했습니다. 다시 시도해주세요.
-          </Text>
-        ) : null}
       </View>
 
       {visibleStatus ? <StatusPill status={visibleStatus} /> : null}
