@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   Image,
   type ImageSourcePropType,
@@ -10,45 +9,16 @@ import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import {
-  getOnboardingProducts,
-  type OnboardingProductResponse,
-} from "@/features/onboarding/api/onboardingApi";
-import { useAuthStore } from "@/features/auth/store/authStore";
+import { useOnboardingProducts } from "@/features/onboarding/hooks/useOnboardingProducts";
+import type { OnboardingProduct } from "@/features/onboarding/types";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { CheckmarkCircleIcon } from "@/shared/components/icons/CheckmarkCircleIcon";
-
-type OnboardingProduct = {
-  id: string;
-  productId: number;
-  name: string;
-  material: string;
-  color: string;
-  productCode: string;
-  modelCode?: string;
-  productImageUrl?: string | null;
-};
 
 function getProductImageSource(
   product: OnboardingProduct,
 ): ImageSourcePropType | null {
   return product.productImageUrl ? { uri: product.productImageUrl } : null;
-}
-
-function mapApiProductToOnboardingProduct(
-  product: OnboardingProductResponse,
-): OnboardingProduct {
-  return {
-    id: String(product.productId),
-    productId: product.productId,
-    name: product.productName,
-    material: product.materialDisplayName,
-    color: product.color ?? "",
-    productCode: product.dppCode || product.modelCode || "",
-    modelCode: product.modelCode ?? undefined,
-    productImageUrl: product.productImageUrl,
-  };
 }
 
 function SelectionControl({ selected }: { selected: boolean }) {
@@ -127,56 +97,14 @@ export function ProductSelectScreen() {
     deviceId?: string;
     deviceSerial?: string;
   }>();
-  const accessToken = useAuthStore((state) => state.accessToken);
-  const tokenType = useAuthStore((state) => state.tokenType);
-  const [products, setProducts] = useState<OnboardingProduct[]>([]);
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadProducts() {
-      if (!accessToken) {
-        setErrorMessage("로그인 정보가 없어 제품 목록을 불러올 수 없습니다.");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        setErrorMessage("");
-        const response = await getOnboardingProducts(accessToken, tokenType);
-        const nextProducts = response.map(mapApiProductToOnboardingProduct);
-
-        if (!mounted) return;
-
-        setProducts(nextProducts);
-        setSelectedProductId(nextProducts[0]?.id ?? "");
-      } catch (error) {
-        if (!mounted) return;
-
-        setProducts([]);
-        setSelectedProductId("");
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "제품 목록을 불러오지 못했습니다.",
-        );
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadProducts();
-
-    return () => {
-      mounted = false;
-    };
-  }, [accessToken, tokenType]);
+  const {
+    errorMessage,
+    isLoading,
+    products,
+    selectedProductId,
+    selectProduct,
+    setErrorMessage,
+  } = useOnboardingProducts();
 
   const handleConnectProduct = () => {
     const selectedProduct = products.find(
@@ -257,7 +185,7 @@ export function ProductSelectScreen() {
                 key={product.id}
                 product={product}
                 selected={product.id === selectedProductId}
-                onPress={() => setSelectedProductId(product.id)}
+                onPress={() => selectProduct(product.id)}
               />
             ))}
           </View>

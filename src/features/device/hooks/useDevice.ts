@@ -2,11 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { getDeviceManagementSummary } from "@/features/device/api/deviceApi";
+import { deviceQueryKeys } from "@/features/device/queryKeys";
 import type { Product } from "@/features/product/types";
-
-export const deviceQueryKeys = {
-  summary: ["device", "summary"] as const,
-};
 
 export function useDeviceManagementSummary() {
   const accessToken = useAuthStore((state) => state.accessToken);

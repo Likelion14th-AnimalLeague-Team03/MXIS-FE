@@ -8,17 +8,13 @@ import updateIcon from "@/features/home/assets/update.png";
 import { useHomeSummary } from "@/features/home/hooks/useHome";
 import type { HomeSummary } from "@/features/home/types";
 import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
-import { formatDateShort } from "@/features/reservation/format";
 import { formatLocalTime, parseLocalDate } from "@/shared/api/localTime";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { ProgressRing } from "@/shared/components/ProgressRing";
+import { formatDateShort } from "@/shared/utils/dateFormat";
 
 const ACCENT_TEXT = "#814C27";
-
-// 시연 영상 촬영용으로 Charm 재연결 안내 모달을 잠시 끕니다.
-// 촬영이 끝나면 true로 되돌려 주세요.
-const RECONNECT_PROMPT_ENABLED = false;
 
 type Grade = "EXCELLENT" | "STANDARD" | "NEEDS_ATTENTION";
 
@@ -119,9 +115,12 @@ export function HomeScreen() {
   const { data: home, isPending } = useHomeSummary(productId);
 
   const productState = home?.productState ?? "COLLECTING";
-  const score = home?.score ?? 0;
-  const isNormal = productState === "NORMAL";
-  const grade = isNormal ? toGrade(score) : null;
+  // 서버가 score를 null로 주는 경우가 있어서 0점으로 떨어뜨리지 않고 등급을 비웁니다.
+  // (0으로 두면 데이터가 없는데도 Needs Attention 0%가 떠요.)
+  const gradeView =
+    productState === "NORMAL" && home?.score != null
+      ? { grade: toGrade(home.score), score: home.score }
+      : null;
   const upcomingReservation = home?.upcomingReservation ?? null;
 
   const headline =
@@ -175,12 +174,12 @@ export function HomeScreen() {
           <Card className="mt-4 flex-row items-center justify-between border-0 bg-white px-5 py-6 pr-10">
             <View className="flex-1 pr-6">
               <Text className="text-sm text-concierge-text">제품상태</Text>
-              {grade ? (
+              {gradeView ? (
                 <Text
                   className="mt-1 text-xl font-bold"
-                  style={{ color: GRADE_CONTENT[grade].color }}
+                  style={{ color: GRADE_CONTENT[gradeView.grade].color }}
                 >
-                  {GRADE_CONTENT[grade].label}
+                  {GRADE_CONTENT[gradeView.grade].label}
                 </Text>
               ) : (
                 <Text className="mt-1 text-xl font-bold text-concierge-text">
@@ -192,17 +191,17 @@ export function HomeScreen() {
                 </Text>
               )}
               <Text className="mt-1 max-w-[180px] text-sm text-concierge-text">
-                {grade
-                  ? GRADE_CONTENT[grade].description
+                {gradeView
+                  ? GRADE_CONTENT[gradeView.grade].description
                   : productState === "COLLECTING"
                     ? "정확한 상태 분석을 위해 환경 데이터를 모으고 있어요."
                     : "최근 측정 데이터가 없어요."}
               </Text>
             </View>
-            {grade ? (
+            {gradeView ? (
               <ProgressRing
-                percent={score}
-                color={GRADE_CONTENT[grade].color}
+                percent={gradeView.score}
+                color={GRADE_CONTENT[gradeView.grade].color}
                 size={60}
               />
             ) : productState === "COLLECTING" ? (

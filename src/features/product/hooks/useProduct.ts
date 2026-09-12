@@ -3,12 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { useDeviceManagementSummary } from "@/features/device/hooks/useDevice";
 import { getPrimaryProduct, getProducts } from "@/features/product/api/productApi";
+import { productQueryKeys } from "@/features/product/queryKeys";
 import type { Product } from "@/features/product/types";
-
-export const productQueryKeys = {
-  primary: ["products", "primary"] as const,
-  list: ["products", "list"] as const,
-};
 
 /** 대표 제품 — 등록된 제품이 있어도 isPrimary가 지정되지 않았으면 null이 올 수 있어요. */
 export function usePrimaryProduct() {

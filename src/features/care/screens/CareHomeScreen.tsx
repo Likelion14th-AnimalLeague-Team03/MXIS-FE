@@ -1,74 +1,13 @@
 import { useRouter } from "expo-router";
-import { type ReactNode } from "react";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import defaultProductImage from "@/features/care/assets/bag3.png";
-import careHeroBg from "@/features/care/assets/care-hero.png";
-import outIcon from "@/features/care/assets/out.png";
-import popIcon from "@/features/care/assets/pop.png";
-import temperatureIcon from "@/features/care/assets/temperature.png";
-import waterIcon from "@/features/care/assets/water.png";
+import { CareConditionSummary } from "@/features/care/components/CareConditionSummary";
+import { CareEnvironmentSummary } from "@/features/care/components/CareEnvironmentSummary";
+import { CareProductCard } from "@/features/care/components/CareProductCard";
 import { useCareDiagnosisHome } from "@/features/care/hooks/useCare";
 import { useCurrentProduct } from "@/features/product/hooks/useProduct";
-import { Card } from "@/shared/components/Card";
-import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
-import { SentenceList } from "@/shared/components/SentenceList";
-
-/** 케어진단 홈 카드에 공통으로 쓰는 옅은 그림자 */
-const CARD_SHADOW = {
-  shadowColor: "#000000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.06,
-  shadowRadius: 8,
-  elevation: 2,
-} as const;
-
-function StatCard({
-  icon,
-  label,
-  caption,
-  value,
-  muted = false,
-}: {
-  icon: ReactNode;
-  label: string;
-  caption?: string;
-  value: string;
-  muted?: boolean;
-}) {
-  return (
-    <Card className="w-[47%] border-0 bg-white px-3 py-3" style={CARD_SHADOW}>
-      <View className="flex-row items-start gap-1.5">
-        {icon}
-        <View className="min-w-0 flex-1">
-          <Text className="text-base font-semibold text-concierge-text">
-            {label}
-          </Text>
-          {caption ? (
-            <Text className="mt-0.5 text-[8px] text-concierge-textMuted">
-              {caption}
-            </Text>
-          ) : null}
-          <Text
-            className={
-              muted
-                ? "mt-3 text-base font-semibold text-concierge-accentMuted"
-                : "mt-3 text-2xl font-bold text-concierge-text"
-            }
-          >
-            {value}
-          </Text>
-        </View>
-      </View>
-    </Card>
-  );
-}
-
-function getTextValue(value: string | null | undefined, fallback: string) {
-  return value?.trim() || fallback;
-}
 
 export function CareHomeScreen() {
   const router = useRouter();
@@ -92,7 +31,6 @@ export function CareHomeScreen() {
   const product =
     diagnosisProduct || currentProduct
       ? {
-          productId: diagnosisProduct?.productId ?? currentProduct?.id ?? 0,
           productImageUrl:
             diagnosisProduct?.productImageUrl ??
             currentProduct?.productImageUrl ??
@@ -109,7 +47,6 @@ export function CareHomeScreen() {
   const environment = diagnosis?.environment30d;
   const hasData =
     environment?.avgTemperature != null || environment?.avgHumidity != null;
-
   const blockedReason = !isAuthenticated
     ? "로그인이 필요해요. 다시 로그인해 주세요."
     : hasNoProduct
@@ -123,172 +60,29 @@ export function CareHomeScreen() {
           케어진단
         </Text>
 
-        <Card
-          className="mt-4 flex-row items-center gap-4 overflow-hidden border-1 border-concierge-primary bg-white p-0"
-          style={CARD_SHADOW}
-        >
-          <View className="h-[108px] w-[45%] overflow-hidden">
-            <Image
-              source={careHeroBg}
-              className="size-full"
-              resizeMode="cover"
-            />
-            <View className="absolute inset-0 items-center justify-center">
-              <Image
-                source={
-                  product?.productImageUrl
-                    ? { uri: product.productImageUrl }
-                    : defaultProductImage
-                }
-                className="mt-5 size-[180px]"
-                resizeMode="contain"
-              />
-            </View>
-          </View>
-
-          <View className="min-w-0 flex-1 pr-3">
-            <Text
-              className="text-base font-bold text-concierge-text"
-              numberOfLines={2}
-              adjustsFontSizeToFit
-              minimumFontScale={0.78}
-              allowFontScaling={false}
-            >
-              {getTextValue(
-                product?.productName,
-                isPending ? "불러오는 중" : "등록된 제품 없음",
-              )}
-            </Text>
-            <Text
-              className="mt-1 text-[11px] text-concierge-textMuted"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.8}
-              allowFontScaling={false}
-            >
-              {[product?.materialDisplayName?.trim(), product?.color?.trim()]
-                .filter(Boolean)
-                .join(" · ") || "-"}
-            </Text>
-            <Text className="mt-2 text-xs font-medium text-concierge-text">
-              함께한 외출{" "}
-              {diagnosis?.totalOutingCount != null
-                ? `${diagnosis.totalOutingCount}회`
-                : "-회"}
-            </Text>
-          </View>
-        </Card>
-
-        <Card
-          className="mt-4 border-1 border-concierge-primary bg-white px-3.5 py-3.5"
-          style={CARD_SHADOW}
-        >
-          <Text className="text-xs text-concierge-textMuted">현재 컨디션</Text>
-          <Text className="mt-1 text-lg font-bold text-concierge-text">
-            {diagnosis?.condition?.summary ?? "데이터가 수집되고 있습니다."}
-          </Text>
-          <SentenceList
-            className="mt-1"
-            text={diagnosis?.condition?.description}
-            fallback="정확한 진단을 위해 환경 데이터를 모으고 있어요."
-            textClassName="text-[11px] text-concierge-textMuted"
-          />
-          <Pressable
-            onPress={() => router.push("/care/report")}
-            className="mt-2 flex-row items-center justify-end gap-1"
-          >
-            <Text className="text-[11px] font-medium text-concierge-text">
-              상태 리포트 보기
-            </Text>
-            <ChevronRightIcon size={5} />
-          </Pressable>
-        </Card>
+        <CareProductCard
+          color={product?.color}
+          isPending={isPending}
+          materialDisplayName={product?.materialDisplayName}
+          outingCount={diagnosis?.totalOutingCount}
+          productImageUrl={product?.productImageUrl}
+          productName={product?.productName}
+        />
+        <CareConditionSummary
+          description={diagnosis?.condition?.description}
+          onOpenReport={() => router.push("/care/report")}
+          summary={diagnosis?.condition?.summary}
+        />
 
         {blockedReason ? (
           <Text className="mt-3 text-xs text-[#C04737]">{blockedReason}</Text>
         ) : null}
 
-        <Pressable
-          onPress={() => router.push("/care/environment")}
-          className="mx-2 mt-6 flex-row items-center justify-between"
-        >
-          <View>
-            <Text className="text-2xl font-semibold text-concierge-text">
-              환경 요약
-            </Text>
-            <Text className="mt-1 text-[13px] text-concierge-textMuted">
-              {hasData
-                ? "최근 30일 동안의 평균이에요"
-                : "데이터가 충분히 쌓이면 확인할 수 있어요"}
-            </Text>
-          </View>
-          <ChevronRightIcon size={9} />
-        </Pressable>
-
-        <View className="mt-3 flex-row flex-wrap justify-between gap-y-3">
-          <StatCard
-            icon={
-              <Image
-                source={temperatureIcon}
-                className="mt-1.5 size-[18px]"
-                resizeMode="contain"
-              />
-            }
-            label="온도"
-            caption={environment?.temperatureDescription ?? undefined}
-            value={
-              environment?.avgTemperature != null
-                ? `${Math.round(environment.avgTemperature)}℃`
-                : "-℃"
-            }
-            muted={environment?.avgTemperature == null}
-          />
-          <StatCard
-            icon={
-              <Image
-                source={waterIcon}
-                className="mt-1.5 size-[18px]"
-                resizeMode="contain"
-              />
-            }
-            label="습도"
-            caption={environment?.humidityDescription ?? undefined}
-            value={
-              environment?.avgHumidity != null
-                ? `${Math.round(environment.avgHumidity)} %`
-                : "- %"
-            }
-            muted={environment?.avgHumidity == null}
-          />
-          <StatCard
-            icon={
-              <Image
-                source={popIcon}
-                className="mt-1.5 size-[18px]"
-                resizeMode="contain"
-              />
-            }
-            label="충격"
-            value={environment?.shockLevelLabel ?? "수집중"}
-            muted={!environment?.shockLevelLabel}
-          />
-          <StatCard
-            icon={
-              <Image
-                source={outIcon}
-                className="mt-1.5 size-[18px]"
-                resizeMode="contain"
-              />
-            }
-            label="최근 이동"
-            value={
-              environment?.outingCount != null
-                ? `${environment.outingCount}회`
-                : "수집중"
-            }
-            muted={environment?.outingCount == null}
-          />
-        </View>
+        <CareEnvironmentSummary
+          environment={environment}
+          hasData={hasData}
+          onOpen={() => router.push("/care/environment")}
+        />
 
         <PrimaryButton
           className="mt-6"

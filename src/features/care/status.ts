@@ -23,6 +23,13 @@
 
 export type CareLevel = "PENDING" | "SAFE" | "CAUTION" | "DANGER";
 
+/** OpenAPI: CareReportResponse.conditionGrade — 서버가 판정한 컨디션 등급 */
+export type CareConditionGrade =
+  | "STABLE"
+  | "BALANCED"
+  | "LIGHT_CARE"
+  | "EXPERT_CHECK";
+
 export const TEMPERATURE_RANGE = {
   safeMin: 18,
   safeMax: 22,
@@ -88,21 +95,36 @@ export function resolveWorstLevel(...levels: CareLevel[]): CareLevel {
   );
 }
 
+/** 서버 4단계 등급 → 화면 3단계 등급 매핑 */
+const GRADE_LEVEL: Record<CareConditionGrade, CareLevel> = {
+  STABLE: "SAFE",
+  BALANCED: "SAFE",
+  LIGHT_CARE: "CAUTION",
+  EXPERT_CHECK: "DANGER",
+};
+
 /**
  * 컨디션 등급 판정.
  *
- * 서버 응답에 등급 필드가 아직 없어서, 요약 문구의 키워드를 우선 사용하고
- * 키워드가 없으면 온·습도 등급 중 더 나쁜 쪽으로 판정합니다.
+ * 1) 서버가 내려준 conditionGrade가 있으면 그대로 씁니다. (단일 출처)
+ * 2) 없으면 요약 문구의 키워드로 판정합니다.
+ * 3) 그것도 없으면 온·습도 등급 중 더 나쁜 쪽으로 판정합니다.
  */
 export function resolveConditionLevel({
+  grade,
   summary,
   temperatureLevel,
   humidityLevel,
 }: {
+  grade?: CareConditionGrade | null;
   summary?: string | null;
   temperatureLevel: CareLevel;
   humidityLevel: CareLevel;
 }): CareLevel {
+  if (grade && grade in GRADE_LEVEL) {
+    return GRADE_LEVEL[grade];
+  }
+
   if (summary) {
     if (summary.includes("위험")) return "DANGER";
     if (summary.includes("주의")) return "CAUTION";

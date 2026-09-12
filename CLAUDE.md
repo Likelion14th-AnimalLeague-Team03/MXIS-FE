@@ -18,10 +18,9 @@ npm run android
 ## Architecture
 
 - `app/` is the Expo Router route layer.
-- `src/features/` contains feature-specific code.
-- `src/shared/` contains reusable UI, hooks, utilities, API setup, storage, types, constants, and styles.
+- `src/features/` contains feature-specific API, components, hooks, screens, types, and utilities.
+- `src/shared/` contains cross-feature UI, API setup, assets, utilities, and styles.
 - `src/providers/` contains global app providers.
-- `src/routes/` contains route constants and navigation-related helpers.
 
 ## Conventions
 

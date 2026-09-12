@@ -1,3 +1,5 @@
+import type { CareConditionGrade } from "@/features/care/status";
+
 /** OpenAPI: ScreenProductSummary */
 export type CareProductSummary = {
   productId: number;
@@ -38,6 +40,15 @@ export type CareReportScreen = {
   careNeeded?: boolean | null;
   careCycleMonths?: number | null;
   nextCareRecommendedAt?: string | null;
+};
+
+/** OpenAPI: CareReportResponse — 서버가 판정한 conditionGrade를 갖고 있는 유일한 응답 */
+export type LatestCareReport = {
+  conditionGrade?: CareConditionGrade | null;
+  conditionSummary?: string | null;
+  conditionDescription?: string | null;
+  recommendationText?: string | null;
+  createdAt?: string | null;
 };
 
 /** OpenAPI: MetricPoint */

@@ -3,6 +3,7 @@ import {
   SMART_CHARM_PROFILE, SyncCollector, UartLineDecoder,
   type CharmStatus, type CharmSyncResult, type SensorReadingDto,
 } from "./smartCharmProtocol";
+import { logCharmDebug } from "../utils/charmLogger";
 
 export type UartTransport = {
   write: (value: string) => Promise<unknown>;
@@ -63,9 +64,9 @@ export function createUartSession(
   function receive(value: string) {
     if (closed) return;
     try {
-      console.log("[Charm BLE] notification raw base64:", value);
+      logCharmDebug("[Charm BLE] notification raw base64:", value);
       for (const line of decoder.push(base64ToBytes(value))) {
-        console.log("[Charm BLE] notification decoded:", line);
+        logCharmDebug("[Charm BLE] notification decoded:", line);
         if (line.startsWith("R,")) readingHandler?.(parseSensorReadingLine(line));
         // A response is routed only to the one command currently on the wire.
         const active = pending;
@@ -118,7 +119,7 @@ export function createUartSession(
     });
     try {
       // Register before writing: some devices notify before the GATT write resolves.
-      console.log(`[Charm BLE] write ${command}`);
+      logCharmDebug(`[Charm BLE] write ${command}`);
       const [line] = await Promise.race([
         Promise.all([response, Promise.resolve().then(() => transport.write(encoded))]),
         cancelled,
@@ -175,13 +176,13 @@ export function createUartSession(
       const line = await command("PROFILE", (value) => value.startsWith("PROFILE,"), timings.command, true);
       if (line === "ERR,COMMAND") return;
       if (line !== SMART_CHARM_PROFILE) throw new Error("지원하지 않는 참 펌웨어입니다. Orange UART v1이 필요합니다.");
-      console.log("[Charm BLE] PROFILE verified");
+      logCharmDebug("[Charm BLE] PROFILE verified");
     }),
     readDeviceId: () => enqueue(async () => {
       const line = await command("ID", (value) => value.startsWith("ID,"));
       if (!/^ID,SC-OB-[0-9]{6}$/.test(line)) throw new Error("참의 고유 ID 형식을 확인할 수 없습니다.");
       const serialNumber = line.slice(3);
-      console.log("[Charm BLE] DeviceId verified", serialNumber);
+      logCharmDebug("[Charm BLE] DeviceId verified", serialNumber);
       return serialNumber;
     }),
     setTime: (seconds: number) => enqueue(async () => {
@@ -199,7 +200,7 @@ export function createUartSession(
     stop: () => enqueue(() => command("STOP", (line) => line === "SYNC_STOPPED")),
     setLive: (enabled: boolean) => enqueue(async () => {
       const command = `LIVE ${enabled ? "ON" : "OFF"}`;
-      console.log(`[Charm BLE] write ${command}`);
+      logCharmDebug(`[Charm BLE] write ${command}`);
       await transport.write(encodeCommand(command));
     }),
     syncReadings: (): Promise<CharmSyncResult> => enqueue(async () => {
@@ -232,7 +233,7 @@ export function createUartSession(
       const expectedAtSnapshot = before.pending + result.through - before.latest;
       const recordsDroppedBeforeSnapshot = expectedAtSnapshot - result.readings.length;
       const expectedAfterPending = before.pending + createdDuringSync - droppedDuringSync;
-      console.log("[Charm BLE] SYNC state verified", {
+      logCharmDebug("[Charm BLE] SYNC state verified", {
         before,
         through: result.through,
         received: result.readings.length,

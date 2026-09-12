@@ -2,11 +2,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ActivityIndicator, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { formatDateDot, toReservationDateTime } from "@/features/reservation/format";
+import { toReservationDateTime } from "@/features/reservation/format";
 import { useReservation } from "@/features/reservation/hooks/useReservation";
 import { CheckmarkCircleIcon } from "@/shared/components/icons/CheckmarkCircleIcon";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
+import { formatDateDot } from "@/shared/utils/dateFormat";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (

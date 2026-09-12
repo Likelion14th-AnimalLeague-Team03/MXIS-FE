@@ -7,6 +7,7 @@ import {
   SMART_CHARM_NUS_WRITE_CHARACTERISTIC_UUID,
 } from "./smartCharmProtocol";
 import { createUartSession, type SmartCharmUartSession } from "./smartCharmUartSession";
+import { logCharmDebug } from "../utils/charmLogger";
 
 export * from "./smartCharmProtocol";
 export type { SmartCharmUartSession } from "./smartCharmUartSession";
@@ -138,7 +139,7 @@ export async function createSmartCharmUartSession(
     resolveOrangeScanPolicy(allowedServiceUuids).map(normalizeUuid),
   );
   const services = await device.services();
-  services.forEach((service) => console.log("[Charm BLE] service discovered:", service.uuid));
+  services.forEach((service) => logCharmDebug("[Charm BLE] service discovered:", service.uuid));
 
   const nusUuid = normalizeUuid(SMART_CHARM_NUS_SERVICE_UUID);
   const orderedServices = [
@@ -154,7 +155,7 @@ export async function createSmartCharmUartSession(
 
   for (const service of orderedServices) {
     const characteristics = await device.characteristicsForService(service.uuid);
-    characteristics.forEach((characteristic) => console.log("[Charm BLE] characteristic discovered:", {
+    characteristics.forEach((characteristic) => logCharmDebug("[Charm BLE] characteristic discovered:", {
       serviceUuid: service.uuid,
       uuid: characteristic.uuid,
       isWritableWithResponse: characteristic.isWritableWithResponse,
@@ -180,7 +181,7 @@ export async function createSmartCharmUartSession(
 
   if (!routes.length) throw new Error("센서의 Nordic UART 쓰기·Notify 경로를 찾을 수 없습니다.");
   const { service, write, notify } = routes[0];
-  console.log("[Charm BLE] UART route selected:", {
+  logCharmDebug("[Charm BLE] UART route selected:", {
     serviceUuid: service.uuid,
     writeUuid: write.uuid,
     notifyUuid: notify.uuid,
@@ -200,7 +201,7 @@ export async function createSmartCharmUartSession(
       return device.writeCharacteristicWithoutResponseForService(service.uuid, write.uuid, value);
     },
     subscribe: (onValue, onError) => {
-      console.log("[Charm BLE] notify subscription requested");
+      logCharmDebug("[Charm BLE] notify subscription requested");
       let active = true;
       const subscription = device.monitorCharacteristicForService(service.uuid, notify.uuid, (error, item) => {
         if (!active) return;
@@ -261,10 +262,10 @@ export async function connectSmartCharm(
     };
     const runStage = async <T,>(label: string, uiStage: SmartCharmConnectionStage, action: () => Promise<T>) => {
       stage(uiStage);
-      console.log(`[Charm BLE] ${label} start`);
+      logCharmDebug(`[Charm BLE] ${label} start`);
       try {
         const result = await action();
-        console.log(`[Charm BLE] ${label} success`);
+        logCharmDebug(`[Charm BLE] ${label} success`);
         return result;
       } catch (error) {
         logBleFailure(label, error);
@@ -278,7 +279,7 @@ export async function connectSmartCharm(
     session = await runStage("Notify 구독", "Notify 구독 중", async () => {
       const uartSession = await createSmartCharmUartSession(device!, allowedServiceUuids);
       await wait(options.notifySettleMs ?? 150);
-      console.log("[Charm BLE] notify subscription ready");
+      logCharmDebug("[Charm BLE] notify subscription ready");
       return uartSession;
     });
     await runStage("PING 확인", "PING 확인 중", () => session!.ping());

@@ -54,8 +54,7 @@ BLE features use `react-native-ble-plx`, so they require an Expo Development Bui
 
 ```text
 app/                  Expo Router entry and route files
-src/features/         Feature-based app modules
-src/shared/           Shared components, hooks, utils, api, storage, styles
-src/routes/           Route constants and navigation-related helpers
+src/features/         Feature modules (api, components, hooks, screens, types)
+src/shared/           Cross-feature components, API helpers, assets, and utilities
 src/providers/        App-level providers
 ```

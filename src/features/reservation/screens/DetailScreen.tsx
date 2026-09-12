@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useCurrentProduct, useProducts } from "@/features/product/hooks/useProduct";
 import productThumb from "@/features/reservation/assets/product-thumb-small.png";
 import { RESERVATION_STATUS_LABEL } from "@/features/reservation/constants";
-import { formatDateShort, toReservationDateTime } from "@/features/reservation/format";
+import { toReservationDateTime } from "@/features/reservation/format";
 import {
   useActiveReservation,
   useCancelReservation,
@@ -15,6 +15,7 @@ import {
 import { AlertModal } from "@/shared/components/AlertModal";
 import { Card } from "@/shared/components/Card";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
+import { formatDateShort } from "@/shared/utils/dateFormat";
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
