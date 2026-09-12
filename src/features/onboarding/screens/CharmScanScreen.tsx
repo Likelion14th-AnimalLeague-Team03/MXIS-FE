@@ -26,19 +26,32 @@ import {
   connectSmartCharm,
   DEFAULT_SMART_CHARM_SERVICE_UUIDS,
   disconnectSmartCharmConnection,
+  getBleErrorDetails,
   getBleDeviceName,
   getCharmScanServiceUuids,
   getSmartCharmBleManager,
   isVisibleCharmScanCandidate,
   resolveOrangeScanPolicy,
   waitForBluetoothReady,
+  type SmartCharmConnectionStage,
 } from "@/features/onboarding/ble/smartCharmBle";
 import { collectSmartCharm, registerSmartCharmBackend } from "@/features/onboarding/ble/smartCharmSync";
 import charmOnboardingDevice from "@/features/onboarding/assets/charm-onboarding-device.png";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
 
-type CharmConnectionStatus = "idle" | "connecting" | "checking" | "syncing" | "registering" | "failed" | "setup-failed";
+type CharmConnectionStatus =
+  | "idle"
+  | "ble-connecting"
+  | "service-discovering"
+  | "notify-subscribing"
+  | "ping-checking"
+  | "device-verifying"
+  | "syncing"
+  | "registering"
+  | "ble-failed"
+  | "setup-failed"
+  | "server-failed";
 type ScanResultState = "scanning" | "found" | "empty";
 
 type CharmDevice = {
@@ -48,6 +61,7 @@ type CharmDevice = {
   macAddress?: string;
   serviceUUIDs: string[];
   status: CharmConnectionStatus;
+  errorMessage?: string;
   bleDevice: BleDevice;
 };
 
@@ -56,6 +70,22 @@ const CONNECT_TIMEOUT_MS = 10000;
 
 function getDebugErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "알 수 없는 오류";
+}
+
+function getConnectionStatus(stage: SmartCharmConnectionStage): CharmConnectionStatus {
+  return {
+    "BLE 연결 중": "ble-connecting",
+    "서비스 검색 중": "service-discovering",
+    "Notify 구독 중": "notify-subscribing",
+    "PING 확인 중": "ping-checking",
+    "기기 정보 확인 중": "device-verifying",
+  }[stage] as CharmConnectionStatus;
+}
+
+function getFailureStatus(stage: string): CharmConnectionStatus {
+  if (["BLE 연결 중", "서비스 검색 중", "Notify 구독 중", "PING 확인 중"].includes(stage)) return "ble-failed";
+  if (stage === "서버 등록 중") return "server-failed";
+  return "setup-failed";
 }
 
 async function runBleDebugStep<T>(
@@ -100,16 +130,16 @@ function StatusPill({
 }: {
   status: Exclude<CharmConnectionStatus, "idle">;
 }) {
-  const isFailed = status === "failed" || status === "setup-failed";
+  const isFailed = status === "ble-failed" || status === "setup-failed" || status === "server-failed";
   const color = isFailed ? "#A51F21" : "#814C27";
-  const label = { connecting: "연결 중", checking: "기기 확인", syncing: "데이터 수신", registering: "서버 등록", failed: "연결 실패", "setup-failed": "연결 실패" }[status];
+  const label = isFailed ? "연결 실패" : "연결 중";
 
   return (
     <View
-      className="h-6 shrink-0 items-center justify-center rounded-full border px-2.5"
+      className="min-h-6 shrink-0 items-center justify-center rounded-full border px-2 py-0.5"
       style={{ borderColor: color }}
     >
-      <Text className="text-xs font-medium" style={{ color, lineHeight: 18 }}>
+      <Text className="text-[10px] font-medium" style={{ color, lineHeight: 16 }}>
         {label}
       </Text>
     </View>
@@ -127,12 +157,12 @@ function CharmDeviceCard({
   disabled: boolean;
   isLast: boolean;
 }) {
-  const isFailed = device.status === "failed" || device.status === "setup-failed";
+  const isFailed = device.status === "ble-failed" || device.status === "setup-failed" || device.status === "server-failed";
   const visibleStatus = device.status === "idle" ? null : device.status;
   const dotColor =
     isFailed
       ? "#A51F21"
-      : device.status === "connecting"
+      : device.status !== "idle"
         ? "#E4AB7C"
         : "#898989";
 
@@ -155,14 +185,6 @@ function CharmDeviceCard({
         >
           {device.serialNumber}
         </Text>
-        {isFailed ? (
-          <Text
-            className="mt-0.5 text-sm font-medium text-concierge-textSecondary"
-            numberOfLines={2}
-          >
-            연결 실패했습니다. 다시 시도해주세요.
-          </Text>
-        ) : null}
       </View>
 
       {visibleStatus ? <StatusPill status={visibleStatus} /> : null}
@@ -256,7 +278,7 @@ export function CharmScanScreen() {
         (error: BleError | null, scannedDevice: BleDevice | null) => {
           if (!mountedRef.current || scanRun !== scanRunRef.current) return;
           if (error) {
-            console.warn("[Charm BLE] scan error", { code: error.errorCode, message: error.message });
+            console.warn("[Charm BLE] scan error", getBleErrorDetails(error));
             setScanResultState(visibleIds.size ? "found" : "empty");
             setErrorMessage(`Bluetooth 검색 오류 (${error.errorCode}): ${error.message}`);
             stopScan();
@@ -294,6 +316,7 @@ export function CharmScanScreen() {
       );
     } catch (error) {
       if (mountedRef.current && scanRun === scanRunRef.current) {
+        console.error("[Charm BLE] scan start failed", getBleErrorDetails(error));
         setScanResultState("empty");
         setErrorMessage(getDebugErrorMessage(error));
         stopScan();
@@ -432,12 +455,11 @@ export function CharmScanScreen() {
     connectingRef.current = true;
     setIsConnecting(true);
     handedOffRef.current = false;
-    let stage = "BLE 연결";
-    const updateStage = (name: string, status: CharmConnectionStatus = "checking") => {
+    let stage = "BLE 연결 중";
+    const updateStage = (name: string, status: CharmConnectionStatus) => {
       if (!mountedRef.current || String(useAuthStore.getState().user?.id ?? "") !== ownerId) throw new Error("연결 작업이 취소되었습니다.");
       stage = name;
-      console.log(`[Charm BLE] ${name}`);
-      setDevices((items) => items.map((item) => item.id === selectedDevice.id ? { ...item, status } : item));
+      setDevices((items) => items.map((item) => item.id === selectedDevice.id ? { ...item, status, errorMessage: undefined } : item));
     };
     const stopped = stopScan();
     setScanResultState("found");
@@ -445,7 +467,8 @@ export function CharmScanScreen() {
     setDevices((currentDevices) =>
       currentDevices.map((device) => ({
         ...device,
-        status: device.id === selectedDevice.id ? "connecting" : "idle",
+        status: device.id === selectedDevice.id ? "ble-connecting" : "idle",
+        errorMessage: undefined,
       })),
     );
 
@@ -454,29 +477,36 @@ export function CharmScanScreen() {
       const connection = await connectSmartCharm(selectedDevice.id, ownerId, {
         timeoutMs: CONNECT_TIMEOUT_MS,
         allowedServiceUuids,
-        onStage: (name) => updateStage(name, name === "BLE 연결" ? "connecting" : "checking"),
+        onStage: (name) => updateStage(name, getConnectionStatus(name)),
       });
       const resolvedDevice = { ...selectedDevice, serialNumber: connection.serialNumber };
-      updateStage("시간 설정 및 전체 센서 수신", "syncing");
+      updateStage("센서 데이터 동기화 중", "syncing");
       const sync = await collectSmartCharm(connection);
       console.log("[Charm BLE] SYNC verified", { count: sync.readings.length, through: sync.through, dropped: sync.after.dropped });
-      updateStage("서버 기기 등록", "registering");
+      updateStage("서버 등록 중", "registering");
       const registeredDevice = await runBleDebugStep("서버 기기 등록", () => registerConnectedDevice(resolvedDevice, connection.serialNumber));
       if (registeredDevice.serialNumber !== connection.serialNumber) throw new Error("서버가 반환한 참 ID가 실제 기기와 다릅니다.");
       await registerSmartCharmBackend(ownerId, connection.serialNumber, registeredDevice.id);
+      updateStage("실시간 센서 수신 시작 중", "syncing");
+      console.log("[Charm BLE] LIVE ON start");
+      await connection.session.setLive(true);
+      console.log("[Charm BLE] LIVE ON success");
       await queryClient.invalidateQueries({ queryKey: ["device"] });
-      updateStage("등록 완료", "registering");
       handedOffRef.current = true;
       moveToConnectedScreen(resolvedDevice, registeredDevice);
     } catch (error) {
       if (!mountedRef.current) return;
-      setErrorMessage(
-        `${stage}: ${getDebugErrorMessage(error)}`,
-      );
+      console.error("[Charm BLE] setup failed:", { stage, error });
+      const userErrorMessage = getDebugErrorMessage(error).includes("다른 앱의 연결")
+        ? "다른 Bluetooth 앱의 연결을 종료하고 다시 시도해 주세요."
+        : "참 연결에 실패했습니다. 다시 시도해 주세요.";
+      setErrorMessage(userErrorMessage);
+      const failureStatus = getFailureStatus(stage);
       setDevices((currentDevices) =>
         currentDevices.map((device) => ({
           ...device,
-          status: device.id === selectedDevice.id ? (stage === "BLE 연결" ? "failed" : "setup-failed") : "idle",
+          status: device.id === selectedDevice.id ? failureStatus : "idle",
+          errorMessage: device.id === selectedDevice.id ? userErrorMessage : undefined,
         })),
       );
     } finally {
@@ -509,7 +539,7 @@ export function CharmScanScreen() {
           </View>
 
           <ScrollView className="flex-1" contentContainerClassName="pb-4">
-            {errorMessage && devices.length === 0 ? (
+            {errorMessage ? (
               <Text accessibilityLiveRegion="polite" className="mb-2 text-center text-xs font-medium text-[#C04737]">
                 {errorMessage}
               </Text>

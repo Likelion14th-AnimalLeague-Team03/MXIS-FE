@@ -100,9 +100,12 @@ function logApiDebugError(
   label: string,
   error: unknown,
   request?: unknown,
+  level: "error" | "warn" = "error",
 ) {
+  const log = level === "warn" ? console.warn : console.error;
+
   if (error instanceof AxiosError) {
-    console.error(`[Charm API] ${label} failed`, {
+    log(`[Charm API] ${label} failed`, {
       status: error.response?.status,
       response: error.response?.data,
       request,
@@ -111,7 +114,7 @@ function logApiDebugError(
     return;
   }
 
-  console.error(`[Charm API] ${label} failed`, {
+  log(`[Charm API] ${label} failed`, {
     request,
     error,
   });
@@ -338,7 +341,7 @@ export async function uploadSensorReadings(
     logApiDebugError("POST sensor-readings/batch", error, {
       backendDeviceId,
       request,
-    });
+    }, "warn");
     throw new Error(getApiErrorMessage(error, "센서 데이터 서버 업로드에 실패했습니다."));
   }
 }

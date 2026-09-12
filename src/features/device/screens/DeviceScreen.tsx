@@ -37,6 +37,7 @@ import { uploadAndAcknowledgeSmartCharm } from "@/features/onboarding/ble/smartC
 import { BatteryIcon } from "@/shared/components/icons/BatteryIcon";
 import { RefreshIcon } from "@/shared/components/icons/RefreshIcon";
 import { InfoIcon } from "@/shared/components/icons/InfoIcon";
+import { PlusIcon } from "@/shared/components/icons/PlusIcon";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
 
@@ -219,6 +220,25 @@ function Pill({ label }: { label: string }) {
   );
 }
 
+function CharmConnectionPill({ connected }: { connected: boolean }) {
+  return (
+    <View
+      className={`h-[18px] min-w-[58px] items-center justify-center rounded-full px-2 ${
+        connected ? "bg-[#E1F7E7]" : "bg-[#814C27]"
+      }`}
+    >
+      <Text
+        className={`text-[11px] font-medium ${
+          connected ? "text-[#269247]" : "text-white"
+        }`}
+        style={{ lineHeight: 15 }}
+      >
+        {connected ? "연결됨" : "연결 해제됨"}
+      </Text>
+    </View>
+  );
+}
+
 function Chevron({ expanded }: { expanded?: boolean }) {
   return (
     <View className="h-6 w-6 items-center justify-center">
@@ -304,6 +324,7 @@ export function DeviceScreen() {
   );
   const [pendingDeviceId, setPendingDeviceId] = useState<number | null>(null);
   const [charmExpanded, setCharmExpanded] = useState(false);
+  const [charmListExpanded, setCharmListExpanded] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [disconnectModalVisible, setDisconnectModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -383,6 +404,12 @@ export function DeviceScreen() {
     image: getCharmImage(device),
     link: productDeviceLinks.find((link) => link.deviceId === device.id),
   }));
+  const hasHiddenCharmRows = displayCharms.length + 1 >= 4;
+  const visibleCharms =
+    hasHiddenCharmRows && !charmListExpanded
+      ? displayCharms.slice(0, 3)
+      : displayCharms;
+  const showAddCharmRow = !hasHiddenCharmRows || charmListExpanded;
   const primaryDeviceLink =
     productDeviceLinks.find((link) => link.role === "PRIMARY_SENSOR") ??
     productDeviceLinks[0] ??
@@ -577,6 +604,7 @@ export function DeviceScreen() {
     onSuccess: async () => {
       setDisconnectModalVisible(false);
       setCharmExpanded(false);
+      setCharmListExpanded(false);
       setErrorMessage("");
       await invalidateDeviceQueries();
     },
@@ -612,12 +640,14 @@ export function DeviceScreen() {
     setSelectedProductId(products[nextIndex].id);
     setPendingDeviceId(null);
     setCharmExpanded(false);
+    setCharmListExpanded(false);
   };
 
   const handleSelectProduct = (productId: number) => {
     setSelectedProductId(productId);
     setPendingDeviceId(null);
     setCharmExpanded(false);
+    setCharmListExpanded(false);
   };
 
   const handleSetPrimaryProduct = () => {
@@ -830,145 +860,84 @@ export function DeviceScreen() {
             </Text>
           </Pressable>
 
-          <View className="mt-[26px] overflow-hidden rounded-[12px] bg-white">
-            <View className="min-h-[84px] flex-row items-center px-4 py-3">
-              <View
-                className="h-[61px] w-[61px] items-center justify-center overflow-hidden rounded-full border bg-white"
-                style={{ borderColor: "#E4E1DD" }}
-              >
-                {cardCharm?.image ? (
-                  <Image
-                    source={cardCharm.image}
-                    resizeMode="contain"
-                    style={{ height: 52, width: 52 }}
-                  />
-                ) : (
-                  <Text className="text-[10px] font-medium text-[#898989]">
-                    참
-                  </Text>
-                )}
-              </View>
-              <View className="ml-2 mr-2 flex-1">
-                <View className="flex-row items-center gap-[6px]">
-                  <View
-                    className="h-2 w-2 rounded-full"
-                    style={{
-                      backgroundColor: hasConnectedCharm
-                        ? "#71EBA3"
-                        : "#898989",
-                    }}
-                  />
-                  <Text
-                    className="text-[12px] font-semibold text-[#121212]"
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.78}
-                    allowFontScaling={false}
-                  >
-                    {cardCharm?.serialNumber ?? "연결된 참 없음"}
-                  </Text>
+          <View className="mt-[26px] overflow-hidden rounded-[12px]">
+            <View className="h-[99px] bg-white px-[15px] pt-4">
+              <View className="flex-row items-start">
+                <View
+                  className="h-[55px] w-[55px] items-center justify-center overflow-hidden rounded-full border bg-white"
+                  style={{ borderColor: "#898989" }}
+                >
+                  {cardCharm?.image ? (
+                    <Image
+                      source={cardCharm.image}
+                      resizeMode="contain"
+                      style={{ height: 52, width: 52 }}
+                    />
+                  ) : (
+                    <Text className="text-[10px] font-medium text-[#898989]">
+                      참
+                    </Text>
+                  )}
                 </View>
-                {cardCharm ? (
-                  <Text className="mt-1 text-[12px] font-normal text-[#3E3E3E]">
-                    배터리: {cardCharm.serialNumber.startsWith("SC-OB-")
-                      ? "미지원" : `${cardCharm.batteryLevel ?? "-"}%`}
-                  </Text>
-                ) : null}
+                <View className="ml-[5px] mr-2 flex-1 pt-0.5">
+                  <View className="flex-row items-center gap-[6px]">
+                    <View
+                      className="h-2 w-2 rounded-full"
+                      style={{
+                        backgroundColor: hasConnectedCharm
+                          ? "#71EBA3"
+                          : "#898989",
+                      }}
+                    />
+                    <Text
+                      className="text-[14px] font-semibold text-[#121212]"
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.78}
+                      allowFontScaling={false}
+                    >
+                      {cardCharm?.serialNumber ?? "연결된 참 없음"}
+                    </Text>
+                  </View>
+                  {cardCharm ? (
+                    <Text className="mt-[10px] text-[8px] font-normal text-[#3E3E3E]">
+                      배터리: {cardCharm.serialNumber.startsWith("SC-OB-")
+                        ? "-" : `${cardCharm.batteryLevel ?? "-"}%`}
+                    </Text>
+                  ) : null}
+                </View>
+                <View className="pt-0.5">
+                  <CharmConnectionPill connected={hasConnectedCharm} />
+                </View>
               </View>
-              <Pill label={hasConnectedCharm ? "연결됨" : "연결 해제됨"} />
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={charmExpanded ? "참 목록 접기" : "참 목록 펼치기"}
+                onPress={() => {
+                  setCharmListExpanded(false);
+                  setCharmExpanded((prev) => !prev);
+                }}
+                className="absolute bottom-0 left-0 right-0 h-7 items-center justify-center"
+              >
+                <Chevron expanded={charmExpanded} />
+              </Pressable>
             </View>
 
-            <Pressable
-              onPress={() => setCharmExpanded((prev) => !prev)}
-              className="items-center pb-[6px]"
-            >
-              <Chevron expanded={charmExpanded} />
-            </Pressable>
-
             {charmExpanded ? (
-              <View className="bg-[#E4DDD5] px-[18px] pb-5 pt-2">
-                <Text className="text-[16px] font-semibold text-[#121212]">
-                  보유중인 참
-                </Text>
-
-                <ScrollView
-                  horizontal
-                  className="mt-3"
-                  contentContainerStyle={{
-                    gap: 19,
-                    minWidth: "100%",
-                    paddingRight: 4,
-                  }}
-                  showsHorizontalScrollIndicator={false}
-                >
-                  {displayCharms.map((charm) => {
-                    const selected = charm.id === pendingCharm?.id;
-                    const linked = charm.id === connectedDeviceId;
-
-                    return (
-                      <Pressable
-                        key={charm.id}
-                        onPress={() => setPendingDeviceId(charm.id)}
-                        className="shrink-0 items-center"
-                      >
-                        <View className="h-[85px] w-[85px] items-center justify-center overflow-hidden rounded-full border border-[#898989] bg-white">
-                          {charm.image ? (
-                            <Image
-                              source={charm.image}
-                              resizeMode="contain"
-                              style={{ height: 82, width: 82 }}
-                            />
-                          ) : (
-                            <Text className="text-[12px] font-medium text-[#898989]">
-                              이미지 없음
-                            </Text>
-                          )}
-                          {selected ? (
-                            <View className="absolute inset-0 items-center justify-center bg-black/35">
-                              <Text className="text-[12px] font-semibold text-white">
-                                선택
-                              </Text>
-                            </View>
-                          ) : null}
-                        </View>
-                        <Text className="mt-1 text-[14px] font-semibold text-[#121212]">
-                          {charm.serialNumber}
-                        </Text>
-                        {linked ? (
-                          <View className="mt-1 rounded-[10px] bg-[#E1F7E7] px-2 py-[2px]">
-                            <Text className="text-[11px] font-medium text-[#269247]">
-                              연결중
-                            </Text>
-                          </View>
-                        ) : null}
-                      </Pressable>
-                    );
-                  })}
-
-                  <Pressable
-                    onPress={handleAddCharm}
-                    className="h-[85px] w-[85px] shrink-0 items-center justify-center rounded-full border border-[#898989] bg-[#C3C3C3]"
-                  >
-                    <Text className="text-[32px] font-light text-white">+</Text>
-                  </Pressable>
-                </ScrollView>
-
-                <View className="mt-5 gap-3">
-                  <Text
-                    className="text-[12px] font-medium text-[#898989]"
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.8}
-                  >
-                    선택한 참을 가방에 연결해주세요
+              <View className="bg-[#E4DDD5] px-5 pb-1 pt-[14px]">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-[12px] font-semibold text-[#121212]">
+                    보유중인 참
                   </Text>
-                  <View className="flex-row justify-end gap-2">
+                  <View className="flex-row items-center gap-2">
                     <Pressable
                       onPress={() => setDeleteModalVisible(true)}
                       disabled={!pendingCharm || deleteMutation.isPending}
-                      className="h-7 min-w-[62px] items-center justify-center rounded-[6px] bg-white px-2.5"
+                      className="h-7 min-w-[50px] items-center justify-center rounded-[6px] bg-white px-2.5"
+                      style={{ opacity: !pendingCharm || deleteMutation.isPending ? 0.5 : 1 }}
                     >
-                      <Text className="text-[12px] font-medium text-[#A51F21]">
+                      <Text className="text-[8px] font-medium text-[#A51F21]">
                         참 삭제
                       </Text>
                     </Pressable>
@@ -976,9 +945,10 @@ export function DeviceScreen() {
                       <Pressable
                         onPress={() => setDisconnectModalVisible(true)}
                         disabled={disconnectMutation.isPending}
-                        className="h-7 min-w-[68px] items-center justify-center rounded-[6px] bg-[#814C27] px-2.5"
+                        className="h-7 min-w-[50px] items-center justify-center rounded-[6px] bg-[#814C27] px-2.5"
+                        style={{ opacity: disconnectMutation.isPending ? 0.5 : 1 }}
                       >
-                        <Text className="text-[12px] font-medium text-white">
+                        <Text className="text-[8px] font-medium text-white">
                           연결 해제
                         </Text>
                       </Pressable>
@@ -990,15 +960,98 @@ export function DeviceScreen() {
                           !selectedProduct ||
                           connectMutation.isPending
                         }
-                        className="h-7 min-w-[62px] items-center justify-center rounded-[6px] bg-[#814C27] px-2.5"
+                        className="h-7 min-w-[50px] items-center justify-center rounded-[6px] bg-[#814C27] px-2.5"
+                        style={{ opacity: !pendingCharm || !selectedProduct || connectMutation.isPending ? 0.5 : 1 }}
                       >
-                        <Text className="text-[12px] font-medium text-white">
-                          참 연결
+                        <Text className="text-[8px] font-medium text-white">
+                          연결
                         </Text>
                       </Pressable>
                     )}
                   </View>
                 </View>
+
+                <View className="mt-[13px]">
+                  {visibleCharms.map((charm) => {
+                    const selected = charm.id === pendingCharm?.id;
+                    const linked = charm.id === connectedDeviceId;
+
+                    return (
+                      <Pressable
+                        key={charm.id}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        onPress={() => setPendingDeviceId(charm.id)}
+                        className="h-11 flex-row items-center border-b border-[#C3C3C3] px-1"
+                      >
+                        <View
+                          className="h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-full border bg-white"
+                          style={{ borderColor: selected ? "#814C27" : "#898989" }}
+                        >
+                          {charm.image ? (
+                            <Image
+                              source={charm.image}
+                              resizeMode="contain"
+                              style={{ height: 28, width: 28 }}
+                            />
+                          ) : (
+                            <Text className="text-[9px] font-medium text-[#898989]">참</Text>
+                          )}
+                        </View>
+                        <Text
+                          className={`ml-3 flex-1 text-[10px] font-semibold ${
+                            linked
+                              ? "text-[#989898]"
+                              : selected
+                                ? "text-[#121212]"
+                                : "text-[#3E3E3E]"
+                          }`}
+                          numberOfLines={1}
+                        >
+                          {charm.serialNumber}
+                        </Text>
+                        {linked ? (
+                          <View className="h-[18px] min-w-[52px] items-center justify-center rounded-full bg-[#E1F7E7] px-2">
+                            <Text className="text-[11px] font-medium text-[#269247]">
+                              연결중
+                            </Text>
+                          </View>
+                        ) : null}
+                      </Pressable>
+                    );
+                  })}
+
+                  {showAddCharmRow ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="참 추가"
+                      onPress={handleAddCharm}
+                      className="h-11 flex-row items-center px-1"
+                    >
+                      <View className="h-[30px] w-[30px] items-center justify-center rounded-full border border-[#898989] bg-[#F2F2F2]">
+                        <PlusIcon size={18} color="#898989" />
+                      </View>
+                      <Text className="ml-3 text-[12px] font-semibold text-[#121212]">
+                        참추가
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                {hasHiddenCharmRows ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      charmListExpanded
+                        ? "보유한 참 간단히 보기"
+                        : "보유한 참 전체 보기"
+                    }
+                    onPress={() => setCharmListExpanded((prev) => !prev)}
+                    className="h-10 items-center justify-center"
+                  >
+                    <Chevron expanded={charmListExpanded} />
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
           </View>

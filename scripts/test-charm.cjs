@@ -101,7 +101,7 @@ test("Base64 agrees with Node for every length and rejects malformed payloads", 
   for (const bad of ["a", "a===", "Zg==\n", "Zh==", "@@==", "A".repeat(8196)]) assert.throws(() => p.base64ToBytes(bad));
 });
 test("commands have exactly one LF and reject injection/oversized writes", () => {
-  for (const c of ["PING", "PROFILE", "ID", "STATUS", "TIME 4294967295", "SYNC", "ACK 4294967295"]) assert.equal(Buffer.from(p.base64ToBytes(p.encodeCommand(c))).toString(), c + "\n");
+  for (const c of ["PING", "PROFILE", "ID", "STATUS", "TIME 4294967295", "SYNC", "ACK 4294967295", "LIVE ON", "LIVE OFF"]) assert.equal(Buffer.from(p.base64ToBytes(p.encodeCommand(c))).toString(), c + "\n");
   for (const c of ["PING\nACK 2", "ACK -1", "time 1", "A".repeat(32)]) assert.throws(() => p.encodeCommand(c));
 });
 test("UART joins all split positions, including CR/LF and multiple lines", () => {
@@ -152,6 +152,15 @@ test("unrelated PONG cannot satisfy ID and BUSY retries stay in queue", async (t
   const [id] = await Promise.all([h.session.readDeviceId(), h.session.ping()]);
   assert.equal(id, serial); assert.deepEqual(h.writes, ["ID", "ID", "PING"]);
 });
+test("INVALID_FRAME retries the same command without closing the session", async (t) => {
+  let attempts = 0;
+  const h = radio(t, (command, emit) => {
+    if (command === "ID" && attempts++ === 0) emit("ERR,INVALID_FRAME\r\n");
+    else emit(`ID,${serial}\r\n`);
+  });
+  assert.equal(await h.session.readDeviceId(), serial);
+  assert.deepEqual(h.writes, ["ID", "ID"]);
+});
 test("PROFILE, ID and TIME must match exact contract", async (t) => {
   for (const [method, reply, args] of [["verifyProfile", "PROFILE,OTHER,1", []], ["readDeviceId", "ID,SmartCharm", []], ["setTime", "TIME,ACCEPTED,5", [6]]]) {
     const h = radio(t, (_, emit) => emit(reply + "\r\n"));
@@ -173,6 +182,12 @@ test("DIAG, BATTERY and STOP responses are parsed exactly", async (t) => {
   assert.equal(await h.session.getBattery(), null);
   assert.equal(await h.session.stop(), "SYNC_STOPPED");
 });
+test("LIVE commands are queued as write-only commands", async (t) => {
+  const h = radio(t, async () => {});
+  await h.session.setLive(true);
+  await h.session.setLive(false);
+  assert.deepEqual(h.writes, ["LIVE ON", "LIVE OFF"]);
+});
 test("full SYNC holds command queue and handles END plus live R in same Notify", async (t) => {
   let statusCalls = 0;
   const captured = [];
@@ -185,6 +200,35 @@ test("full SYNC holds command queue and handles END plus live R in same Notify",
   const [result] = await Promise.all([h.session.syncReadings(), h.session.ping()]);
   assert.equal(result.readings.length, 2); assert.equal(captured.length, 3);
   assert.deepEqual(h.writes, ["STATUS", "SYNC", "STATUS", "PING"]);
+});
+test("SYNC retries INVALID_FRAME and keeps its STATUS snapshot consistent", async (t) => {
+  let syncAttempts = 0;
+  const h = radio(t, (command, emit) => {
+    if (command === "STATUS") emit("STATUS,1,1,0,0,1800000000,0\r\n");
+    else if (syncAttempts++ === 0) emit("ERR,INVALID_FRAME\r\n");
+    else emit(`SYNC_BEGIN,1,1\r\n${frame(reading(1))}\r\nSYNC_END,1,1,1\r\n`);
+  });
+  const result = await h.session.syncReadings();
+  assert.equal(result.readings.length, 1);
+  assert.deepEqual(h.writes, ["STATUS", "SYNC", "SYNC", "STATUS"]);
+});
+test("SYNC accepts a new reading that overflows the full ring buffer", async (t) => {
+  let statusCalls = 0;
+  const syncFrames = Array.from({ length: 20 }, (_, index) => frame(reading(2614 + index))).join("\r\n");
+  const h = radio(t, (command, emit) => {
+    if (command === "STATUS") {
+      emit((statusCalls++ === 0
+        ? "STATUS,20,2633,92,2608,1800000000,0"
+        : "STATUS,20,2634,92,2609,1800000010,0") + "\r\n");
+    } else {
+      emit(`SYNC_BEGIN,20,2633\r\n${syncFrames}\r\nSYNC_END,20,2633,20\r\n${frame(reading(2634))}\r\n`, 20);
+    }
+  });
+  const result = await h.session.syncReadings();
+  assert.equal(result.readings.length, 20);
+  assert.equal(result.through, 2633);
+  assert.equal(result.after.latest, 2634);
+  assert.equal(result.after.dropped, 2609);
 });
 test("SYNC rejects overflow or external ACK changes", async (t) => {
   for (const after of ["STATUS,1,1,0,1,0,0", "STATUS,0,1,1,0,0,0"]) {
@@ -426,6 +470,48 @@ test("native discovery uses the measured UART service and characteristic propert
   session.dispose();
   assert(removed);
 });
+test("native discovery prioritizes exact NUS UUIDs and falls back to write without response", async (t) => {
+  let listener;
+  const calls = [];
+  const fallbackService = "12345678-1234-1234-1234-1234567890AB";
+  const device = {
+    services: async () => [{ uuid: fallbackService }, { uuid: p.SMART_CHARM_NUS_SERVICE_UUID.toLowerCase() }],
+    characteristicsForService: async (service) => service === fallbackService ? [
+      { uuid: "fallback-write", isWritableWithoutResponse: true },
+      { uuid: "fallback-notify", isNotifiable: true },
+    ] : [
+      { uuid: p.SMART_CHARM_NUS_NOTIFY_CHARACTERISTIC_UUID.toLowerCase(), isNotifiable: true },
+      { uuid: p.SMART_CHARM_NUS_WRITE_CHARACTERISTIC_UUID.toLowerCase(), isWritableWithResponse: true, isWritableWithoutResponse: true },
+    ],
+    monitorCharacteristicForService: (service, characteristic, callback) => {
+      assert.equal(service, p.SMART_CHARM_NUS_SERVICE_UUID.toLowerCase());
+      assert.equal(characteristic, p.SMART_CHARM_NUS_NOTIFY_CHARACTERISTIC_UUID.toLowerCase());
+      listener = callback;
+      return { remove() {} };
+    },
+    onDisconnected: () => ({ remove() {} }),
+    writeCharacteristicWithResponseForService: async () => {
+      calls.push("with-response");
+      throw Object.assign(new Error("GATT write rejected"), { errorCode: 401, reason: "test" });
+    },
+    writeCharacteristicWithoutResponseForService: async (_, __, value) => {
+      calls.push("without-response");
+      const command = Buffer.from(p.base64ToBytes(value)).toString().trim();
+      if (command === "PING") listener(null, { value: p.bytesToBase64(bytes("PONG\r\n")) });
+    },
+  };
+  const session = await native.createSmartCharmUartSession(device);
+  t.after(() => session.dispose());
+  assert.equal(await session.ping(), "PONG");
+  assert.deepEqual(calls, ["with-response", "without-response"]);
+});
+test("BleError details preserve native diagnostic fields", () => {
+  assert.deepEqual(native.getBleErrorDetails(Object.assign(new Error("failed"), {
+    errorCode: 200, reason: "busy", attErrorCode: 14, androidErrorCode: 133,
+  })), {
+    errorCode: 200, message: "failed", reason: "busy", attErrorCode: 14, androidErrorCode: 133,
+  });
+});
 function nativeDevice(id, deviceSerial = serial, withResponse = true) {
   let listener;
   const calls = [];
@@ -517,6 +603,7 @@ async function workflow(t, { readings = [reading(1), reading(2)], uploadError, a
   const latest = readings.at(-1)?.sequence ?? 0;
   const connection = { ownerId: owner, serialNumber: serial, device: { id: "radio-1" }, session: {
     setReadingHandler(handler) { this.handler = handler; },
+    async setLive(enabled) { events.push(`live:${enabled ? "on" : "off"}`); },
     async setTime() { events.push("time"); },
     async syncReadings() { return { ...snapshot(liveReadings, lastAck), through: latest, before: status(latest, lastAck), after: status(latest, lastAck) }; },
     async acknowledge(value) {
@@ -550,7 +637,9 @@ test("workflow uploads full batch then persists proof, ACKs, confirms and remove
   const w = await workflow(t);
   const result = await w.coordinator.uploadAndAcknowledgeSmartCharm(owner, serial, 28);
   assert(result.complete);
+  assert(w.events.indexOf("live:off") < w.events.lastIndexOf("time"));
   assert(w.events.indexOf("upload:1,2") < w.events.indexOf("ack:2"));
+  assert.equal(w.events.at(-1), "live:on");
   assert.equal((await w.coordinator.charmOutbox.read(owner, serial)).readings.length, 0);
 });
 test("workflow network failure and no-ACK success keep data and send no ACK", async (t) => {
@@ -559,6 +648,7 @@ test("workflow network failure and no-ACK success keep data and send no ACK", as
     if (options.uploadError || options.ack === 100) await assert.rejects(w.coordinator.uploadAndAcknowledgeSmartCharm(owner, serial, 28));
     else assert(!(await w.coordinator.uploadAndAcknowledgeSmartCharm(owner, serial, 28)).complete);
     assert(!w.events.some((e) => e.startsWith("ack:")));
+    assert.equal(w.events.at(-1), "live:on");
     assert.equal((await w.coordinator.charmOutbox.read(owner, serial)).readings.length, 2);
   }
 });
