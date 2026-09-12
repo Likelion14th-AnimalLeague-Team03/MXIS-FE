@@ -50,6 +50,29 @@ function toGrade(score: number) {
   return "NEEDS_ATTENTION" as const;
 }
 
+function splitHeadline(headline: string) {
+  const text = headline.trim();
+  const lineBreakIndex = text.search(/[\r\n]/);
+  const sentenceEndIndex = text.search(/[.!?。！？]/);
+  const splitIndex =
+    lineBreakIndex >= 0
+      ? lineBreakIndex
+      : sentenceEndIndex >= 0
+        ? sentenceEndIndex + 1
+        : -1;
+
+  if (splitIndex < 0) {
+    return { primary: text, secondary: null };
+  }
+
+  const primary = text.slice(0, splitIndex).trim();
+  const secondary = text.slice(splitIndex).trim();
+
+  return secondary
+    ? { primary, secondary }
+    : { primary: text, secondary: null };
+}
+
 function UpcomingReservationCard({
   reservation,
   onPressDetail,
@@ -108,16 +131,10 @@ export function HomeScreen() {
       : productState === "NEEDS_UPDATE"
         ? "새로운 케어 데이터를 기다리고 있어요."
         : "오늘의 케어 상태를 확인해 보세요.");
-  const secondaryHeadlineMarker = "정확한 케어 상태를 확인하려면";
-  const secondaryHeadlineIndex = headline.indexOf(secondaryHeadlineMarker);
-  const primaryHeadline =
-    secondaryHeadlineIndex >= 0
-      ? headline.slice(0, secondaryHeadlineIndex).trim()
-      : headline;
-  const secondaryHeadline =
-    secondaryHeadlineIndex >= 0
-      ? headline.slice(secondaryHeadlineIndex).trim()
-      : null;
+  const {
+    primary: primaryHeadline,
+    secondary: secondaryHeadline,
+  } = splitHeadline(headline);
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
