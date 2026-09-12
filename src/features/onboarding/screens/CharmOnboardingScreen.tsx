@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import charmOnboardingDevice from "@/features/onboarding/assets/charm-onboarding-device.png";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
+import { SecondaryButton } from "@/shared/components/SecondaryButton";
 
 function CharmDevicePreview() {
   return (

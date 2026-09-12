@@ -5,8 +5,13 @@ import { getDevices } from "@/features/device/api/deviceApi";
 import type { SensorReadingUploadItem } from "@/features/onboarding/api/onboardingApi";
 
 const CHARM_ONBOARDING_COMPLETED_PREFIX = "mxis.onboarding.charm.completed";
-const PRIMARY_CHARM_PRODUCT_LINK_KEY = "mxis.onboarding.primaryCharmProductLink";
+const PRIMARY_CHARM_PRODUCT_LINK_KEY_PREFIX =
+  "mxis.onboarding.primaryCharmProductLink";
 const PENDING_SENSOR_READINGS_PREFIX = "mxis.onboarding.pendingSensorReadings";
+const LEGACY_KEYS = [
+  CHARM_ONBOARDING_COMPLETED_PREFIX,
+  PRIMARY_CHARM_PRODUCT_LINK_KEY_PREFIX,
+];
 
 function getOnboardingKey() {
   const userId = useAuthStore.getState().user?.id;
