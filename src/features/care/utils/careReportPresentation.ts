@@ -1,4 +1,5 @@
 import {
+  type CareConditionGrade,
   resolveConditionLevel,
   resolveHumidityLevel,
   resolveTemperatureLevel,
@@ -12,18 +13,24 @@ const MISSING_VALUE = "ㅡ";
 export function createCareReportPresentation(
   report: CareReportScreen | undefined,
   isPending: boolean,
+  /** 서버가 판정한 등급 — 있으면 온·습도 기반 자체 판정보다 우선합니다. */
+  conditionGrade?: CareConditionGrade | null,
 ) {
   const environment = report?.environment30d;
   const temperatureLevel = resolveTemperatureLevel(environment?.avgTemperature);
   const humidityLevel = resolveHumidityLevel(environment?.avgHumidity);
   const conditionLevel = resolveConditionLevel({
+    grade: conditionGrade,
     summary: report?.condition?.summary,
     temperatureLevel,
     humidityLevel,
   });
   const hasTemperature = environment?.avgTemperature != null;
   const hasHumidity = environment?.avgHumidity != null;
-  const needsCare = conditionLevel === "CAUTION" || conditionLevel === "DANGER";
+  // 케어 필요 여부도 서버 판단(careNeeded)을 먼저 믿고, 없을 때만 등급으로 추론해요.
+  const needsCare =
+    report?.careNeeded ??
+    (conditionLevel === "CAUTION" || conditionLevel === "DANGER");
 
   return {
     conditionDetail:

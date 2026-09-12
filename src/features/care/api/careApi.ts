@@ -3,6 +3,7 @@ import type {
   CareEnvironmentOverview,
   CareGuide,
   CareReportScreen,
+  LatestCareReport,
 } from "@/features/care/types";
 import {
   type ApiResponse,
@@ -34,6 +35,22 @@ export async function getCareReport(productId: number) {
 
     return unwrapApiData(response.data, "상태 리포트를 불러오지 못했습니다.");
   }, "상태 리포트를 불러오는 데 실패했습니다.");
+}
+
+/**
+ * GET /products/{productId}/care-reports/latest
+ *
+ * 화면용 리포트(`/care/.../report`)에는 등급 필드가 없어서,
+ * 등급은 서버가 판정해 둔 이 응답의 conditionGrade를 씁니다.
+ */
+export async function getLatestCareReport(productId: number) {
+  return withApiError(async () => {
+    const response = await apiClient.get<ApiResponse<LatestCareReport>>(
+      `/products/${productId}/care-reports/latest`,
+    );
+
+    return unwrapApiData(response.data, "케어 리포트를 불러오지 못했습니다.");
+  }, "케어 리포트를 불러오는 데 실패했습니다.");
 }
 
 /** GET /care/products/{productId}/environment/overview */

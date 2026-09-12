@@ -5,6 +5,7 @@ import {
   getCareEnvironmentOverview,
   getCareGuide,
   getCareReport,
+  getLatestCareReport,
 } from "@/features/care/api/careApi";
 import { careQueryKeys } from "@/features/care/queryKeys";
 
@@ -23,6 +24,15 @@ export function useCareReport(productId: number | null) {
   return useQuery({
     queryKey: careQueryKeys.report(productId),
     queryFn: () => getCareReport(productId as number),
+    enabled: productId !== null,
+    staleTime: CARE_STALE_TIME,
+  });
+}
+
+export function useLatestCareReport(productId: number | null) {
+  return useQuery({
+    queryKey: careQueryKeys.latestReport(productId),
+    queryFn: () => getLatestCareReport(productId as number),
     enabled: productId !== null,
     staleTime: CARE_STALE_TIME,
   });

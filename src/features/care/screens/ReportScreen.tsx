@@ -8,7 +8,7 @@ import {
 } from "@/features/care/components/CareConditionOverview";
 import { CareRecommendationCard } from "@/features/care/components/CareRecommendationCard";
 import { CareReportDetails } from "@/features/care/components/CareReportDetails";
-import { useCareReport } from "@/features/care/hooks/useCare";
+import { useCareReport, useLatestCareReport } from "@/features/care/hooks/useCare";
 import { createCareReportPresentation } from "@/features/care/utils/careReportPresentation";
 import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
 import { useReservationStore } from "@/features/reservation/store";
@@ -19,11 +19,16 @@ export function ReportScreen() {
   const router = useRouter();
   const { productId } = usePrimaryProductId();
   const { data: report, isPending, error } = useCareReport(productId);
+  const { data: latestReport } = useLatestCareReport(productId);
   const setPendingCareType = useReservationStore(
     (state) => state.setPendingCareType,
   );
   const resetDraft = useReservationStore((state) => state.resetDraft);
-  const presentation = createCareReportPresentation(report, isPending);
+  const presentation = createCareReportPresentation(
+    report,
+    isPending,
+    latestReport?.conditionGrade,
+  );
 
   const goToCareInput = (careType: ReservationType) => {
     setPendingCareType(careType);

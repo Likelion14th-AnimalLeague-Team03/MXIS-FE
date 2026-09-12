@@ -29,12 +29,18 @@ export function CareProductCard({
       className="mt-4 flex-row items-center gap-4 overflow-hidden border-1 border-concierge-primary bg-white p-0"
       style={CARE_CARD_SHADOW}
     >
-      <View className="h-[108px] w-[45%] overflow-hidden">
-        <Image source={careHeroBackground} className="size-full" resizeMode="cover" />
+      <View className="h-[108px] w-[30%] overflow-hidden">
+        <Image
+          source={careHeroBackground}
+          className="size-full"
+          resizeMode="cover"
+        />
         <View className="absolute inset-0 items-center justify-center">
           <Image
-            source={productImageUrl ? { uri: productImageUrl } : defaultProductImage}
-            className="mt-5 size-[180px]"
+            source={
+              productImageUrl ? { uri: productImageUrl } : defaultProductImage
+            }
+            className=" size-[120px]"
             resizeMode="contain"
           />
         </View>
