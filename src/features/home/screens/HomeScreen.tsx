@@ -108,12 +108,16 @@ export function HomeScreen() {
       : productState === "NEEDS_UPDATE"
         ? "새로운 케어 데이터를 기다리고 있어요."
         : "오늘의 케어 상태를 확인해 보세요.");
-  const isCharmConnectionHeadline = headline
-    .trim()
-    .startsWith("정확한 케어 상태를 확인하려면");
-  const displayedHeadline = isCharmConnectionHeadline
-    ? headline.replace(/\s*Charm/, "\nCharm")
-    : headline;
+  const secondaryHeadlineMarker = "정확한 케어 상태를 확인하려면";
+  const secondaryHeadlineIndex = headline.indexOf(secondaryHeadlineMarker);
+  const primaryHeadline =
+    secondaryHeadlineIndex >= 0
+      ? headline.slice(0, secondaryHeadlineIndex).trim()
+      : headline;
+  const secondaryHeadline =
+    secondaryHeadlineIndex >= 0
+      ? headline.slice(secondaryHeadlineIndex).trim()
+      : null;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -122,15 +126,17 @@ export function HomeScreen() {
           <Text className="text-[15px] font-semibold text-[#747270]">
             안녕하세요, {home?.userName ?? "고객"}님!
           </Text>
-          <Text
-            className="mt-1 font-bold text-concierge-text"
-            style={{
-              fontSize: isCharmConnectionHeadline ? 14 : 24,
-              lineHeight: isCharmConnectionHeadline ? 20 : 32,
-            }}
-          >
-            {displayedHeadline}
+          <Text className="mt-1 text-2xl font-bold text-concierge-text">
+            {primaryHeadline}
           </Text>
+          {secondaryHeadline ? (
+            <Text
+              className="mt-1 font-bold text-concierge-text"
+              style={{ fontSize: 14, lineHeight: 20 }}
+            >
+              {secondaryHeadline}
+            </Text>
+          ) : null}
         </View>
 
         <View className="mt-4 items-center px-6">
