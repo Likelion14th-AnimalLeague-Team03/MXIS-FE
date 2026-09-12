@@ -8,17 +8,13 @@ import updateIcon from "@/features/home/assets/update.png";
 import { useHomeSummary } from "@/features/home/hooks/useHome";
 import type { HomeSummary } from "@/features/home/types";
 import { usePrimaryProductId } from "@/features/product/hooks/useProduct";
-import { formatDateShort } from "@/features/reservation/format";
 import { formatLocalTime, parseLocalDate } from "@/shared/api/localTime";
 import { Card } from "@/shared/components/Card";
 import { ChevronRightIcon } from "@/shared/components/icons/ChevronRightIcon";
 import { ProgressRing } from "@/shared/components/ProgressRing";
+import { formatDateShort } from "@/shared/utils/dateFormat";
 
 const ACCENT_TEXT = "#814C27";
-
-// 시연 영상 촬영용으로 Charm 재연결 안내 모달을 잠시 끕니다.
-// 촬영이 끝나면 true로 되돌려 주세요.
-const RECONNECT_PROMPT_ENABLED = false;
 
 type Grade = "EXCELLENT" | "STANDARD" | "NEEDS_ATTENTION";
 

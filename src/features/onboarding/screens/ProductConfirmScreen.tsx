@@ -6,6 +6,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { careQueryKeys } from "@/features/care/queryKeys";
+import { deviceQueryKeys } from "@/features/device/queryKeys";
+import { homeQueryKeys } from "@/features/home/queryKeys";
 import {
   linkProductDevice,
 } from "@/features/onboarding/api/onboardingApi";
@@ -13,6 +16,7 @@ import {
   savePrimaryCharmProductLink,
 } from "@/features/onboarding/storage";
 import { uploadAndAcknowledgeSmartCharm } from "@/features/onboarding/ble/smartCharmSync";
+import { logCharmDebug } from "@/features/onboarding/utils/charmLogger";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 import { SecondaryButton } from "@/shared/components/SecondaryButton";
@@ -90,7 +94,7 @@ export function ProductConfirmScreen() {
       numericDeviceId,
     )
       .then((result) => {
-        console.log("[Charm Sync] onboarding background sync complete", result);
+        logCharmDebug("[Charm Sync] onboarding background sync complete", result);
       })
       .catch((error: unknown) => {
         console.warn(
@@ -100,9 +104,9 @@ export function ProductConfirmScreen() {
       })
       .finally(() => {
         void Promise.all([
-          queryClient.invalidateQueries({ queryKey: ["device"] }),
-          queryClient.invalidateQueries({ queryKey: ["home"] }),
-          queryClient.invalidateQueries({ queryKey: ["care"] }),
+          queryClient.invalidateQueries({ queryKey: deviceQueryKeys.all }),
+          queryClient.invalidateQueries({ queryKey: homeQueryKeys.all }),
+          queryClient.invalidateQueries({ queryKey: careQueryKeys.all }),
         ]).catch((error: unknown) => {
           console.warn("[Charm Sync] query refresh deferred", error);
         });

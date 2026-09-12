@@ -21,6 +21,40 @@ type AuthState = {
   signOut: () => Promise<void>;
 };
 
+type AuthSessionState = Pick<
+  AuthState,
+  "accessToken" | "refreshTokenValue" | "tokenType" | "user" | "status"
+>;
+
+const GUEST_AUTH_STATE: AuthSessionState = {
+  accessToken: null,
+  refreshTokenValue: null,
+  tokenType: "Bearer",
+  user: null,
+  status: "guest",
+};
+
+function toAuthTokens(response: AuthTokens): AuthTokens {
+  return {
+    accessToken: response.accessToken,
+    refreshToken: response.refreshToken,
+    tokenType: response.tokenType,
+  };
+}
+
+function toAuthenticatedState(
+  tokens: AuthTokens,
+  user: UserProfile,
+): AuthSessionState {
+  return {
+    accessToken: tokens.accessToken,
+    refreshTokenValue: tokens.refreshToken,
+    tokenType: tokens.tokenType,
+    user,
+    status: "authenticated",
+  };
+}
+
 async function saveTokens(tokens: AuthTokens) {
   await AsyncStorage.setItem(AUTH_TOKENS_KEY, JSON.stringify(tokens));
 }
@@ -53,23 +87,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signIn: async (request) => {
     const response = await login(request);
-    const tokens: AuthTokens = {
-      accessToken: response.accessToken,
-      refreshToken: response.refreshToken,
-      tokenType: response.tokenType,
-    };
+    const tokens = toAuthTokens(response);
     await saveTokens(tokens);
 
     // 계정이 바뀌었을 수 있으니 이전 사용자의 쿼리 캐시를 먼저 버립니다.
     resetQueryCache();
 
-    set({
-      accessToken: tokens.accessToken,
-      refreshTokenValue: tokens.refreshToken,
-      tokenType: tokens.tokenType,
-      user: response.user,
-      status: "authenticated",
-    });
+    set(toAuthenticatedState(tokens, response.user));
   },
 
   restoreSession: async () => {
@@ -84,32 +108,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     try {
       const response = await refreshToken(storedTokens.refreshToken);
-      const tokens: AuthTokens = {
-        accessToken: response.accessToken,
-        refreshToken: response.refreshToken,
-        tokenType: response.tokenType,
-      };
+      const tokens = toAuthTokens(response);
       await saveTokens(tokens);
 
-      set({
-        accessToken: tokens.accessToken,
-        refreshTokenValue: tokens.refreshToken,
-        tokenType: tokens.tokenType,
-        user: response.user,
-        status: "authenticated",
-      });
+      set(toAuthenticatedState(tokens, response.user));
 
       return true;
     } catch {
       await removeTokens();
       resetQueryCache();
-      set({
-        accessToken: null,
-        refreshTokenValue: null,
-        tokenType: "Bearer",
-        user: null,
-        status: "guest",
-      });
+      set(GUEST_AUTH_STATE);
 
       return false;
     }
@@ -126,13 +134,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     resetQueryCache();
 
-    set({
-      accessToken: null,
-      refreshTokenValue: null,
-      tokenType: "Bearer",
-      user: null,
-      status: "guest",
-    });
+    set(GUEST_AUTH_STATE);
   },
 }));
 
@@ -150,20 +152,10 @@ registerAuthSession({
 
     try {
       const response = await refreshToken(stored);
-      const tokens: AuthTokens = {
-        accessToken: response.accessToken,
-        refreshToken: response.refreshToken,
-        tokenType: response.tokenType,
-      };
+      const tokens = toAuthTokens(response);
       await saveTokens(tokens);
 
-      useAuthStore.setState({
-        accessToken: tokens.accessToken,
-        refreshTokenValue: tokens.refreshToken,
-        tokenType: tokens.tokenType,
-        user: response.user,
-        status: "authenticated",
-      });
+      useAuthStore.setState(toAuthenticatedState(tokens, response.user));
 
       return tokens.accessToken;
     } catch {
@@ -175,12 +167,6 @@ registerAuthSession({
 
     resetQueryCache();
 
-    useAuthStore.setState({
-      accessToken: null,
-      refreshTokenValue: null,
-      tokenType: "Bearer",
-      user: null,
-      status: "guest",
-    });
+    useAuthStore.setState(GUEST_AUTH_STATE);
   },
 });

@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { uploadSensorReadings } from "@/features/onboarding/api/onboardingApi";
+import { logCharmDebug } from "../utils/charmLogger";
 import { CharmOutbox } from "./charmOutbox";
 import { connectSmartCharm, getSmartCharmConnection, type SmartCharmConnection } from "./smartCharmBle";
 
@@ -41,10 +42,10 @@ async function flushCapture(connection: SmartCharmConnection) {
 }
 
 async function runCollectStage<T>(stage: string, action: () => Promise<T>) {
-  console.log(`[Charm BLE] ${stage} start`);
+  logCharmDebug(`[Charm BLE] ${stage} start`);
   try {
     const result = await action();
-    console.log(`[Charm BLE] ${stage} success`);
+    logCharmDebug(`[Charm BLE] ${stage} success`);
     return result;
   } catch (error) {
     console.warn(`[Charm BLE] ${stage} failed`, error);
@@ -66,7 +67,7 @@ export async function collectSmartCharm(connection: SmartCharmConnection) {
       assertOwner(ownerId);
       await charmOutbox.saveSync(ownerId, serialNumber, sync);
     });
-    console.log("[Charm BLE] collect complete", {
+    logCharmDebug("[Charm BLE] collect complete", {
       count: sync.readings.length,
       through: sync.through,
     });
@@ -99,10 +100,10 @@ export async function uploadAndAcknowledgeSmartCharm(ownerId: string, serial: st
     sessionToResume = session;
     captureReadings(connection);
 
-    console.log("[Charm BLE] LIVE OFF before sync start");
+    logCharmDebug("[Charm BLE] LIVE OFF before sync start");
     await session.setLive(false);
     await wait(LIVE_PAUSE_SETTLE_MS);
-    console.log("[Charm BLE] LIVE OFF before sync success");
+    logCharmDebug("[Charm BLE] LIVE OFF before sync success");
 
     // Persisted server proof survives a disconnect or process death before ACK confirmation.
     if (box.pendingAck !== null) {
@@ -137,9 +138,9 @@ export async function uploadAndAcknowledgeSmartCharm(ownerId: string, serial: st
   } finally {
     if (sessionToResume && !sessionToResume.isClosed) {
       try {
-        console.log("[Charm BLE] LIVE ON after sync start");
+        logCharmDebug("[Charm BLE] LIVE ON after sync start");
         await sessionToResume.setLive(true);
-        console.log("[Charm BLE] LIVE ON after sync success");
+        logCharmDebug("[Charm BLE] LIVE ON after sync success");
       } catch (error) {
         console.warn("[Charm BLE] LIVE ON restore failed", error);
       }

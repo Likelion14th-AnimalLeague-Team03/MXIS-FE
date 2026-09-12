@@ -1,11 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { getHomeSummary } from "@/features/home/api/homeApi";
-
-export const homeQueryKeys = {
-  summary: (productId: number | null) =>
-    ["home", "summary", productId] as const,
-};
+import { homeQueryKeys } from "@/features/home/queryKeys";
 
 export function useHomeSummary(productId: number | null) {
   return useQuery({

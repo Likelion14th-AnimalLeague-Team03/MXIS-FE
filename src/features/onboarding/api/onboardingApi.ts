@@ -1,17 +1,9 @@
 ﻿import { AxiosError } from "axios";
 
+import type { Device, ProductDeviceLink } from "@/features/device/types";
+import type { ApiResponse } from "@/shared/api/apiResponse";
 import { apiClient } from "@/shared/api/client";
-
-type ApiErrorBody = {
-  code: string;
-  message: string;
-};
-
-type ApiResponse<T> = {
-  success: boolean;
-  data?: T | null;
-  error?: ApiErrorBody | null;
-};
+import { logCharmDebug } from "../utils/charmLogger";
 
 export type ConnectionPolicyResponse = {
   allowedServiceUuids: string[];
@@ -19,18 +11,7 @@ export type ConnectionPolicyResponse = {
   connectTimeoutSeconds: number;
 };
 
-export type DeviceResponse = {
-  id: number;
-  serialNumber: string;
-  deviceName: string;
-  macAddress?: string | null;
-  firmwareVersion?: string | null;
-  deviceImageUrl?: string | null;
-  batteryLevel?: number | null;
-  connectionStatus: "CONNECTED" | "DISCONNECTED" | "SYNCING" | "ERROR" | string;
-  lastSyncedAt?: string | null;
-  registeredAt: string;
-};
+export type DeviceResponse = Device;
 
 export type OnboardingProductResponse = {
   productId: number;
@@ -44,15 +25,7 @@ export type OnboardingProductResponse = {
   isPrimary: boolean;
 };
 
-export type ProductDeviceLinkResponse = {
-  id: number;
-  deviceId: number;
-  serialNumber: string;
-  deviceName: string;
-  role: "PRIMARY_SENSOR" | "SECONDARY" | string;
-  attachedAt: string;
-  detachedAt?: string | null;
-};
+export type ProductDeviceLinkResponse = ProductDeviceLink;
 
 export type SensorReadingUploadItem = {
   sequence: number;
@@ -200,7 +173,7 @@ export async function registerDevice(
   accessToken: string,
   tokenType?: string,
 ) {
-  console.log("[Charm API] POST /devices request", {
+  logCharmDebug("[Charm API] POST /devices request", {
     request,
     authorization: getDebugTokenLabel(accessToken, tokenType),
   });
@@ -214,7 +187,7 @@ export async function registerDevice(
       },
     );
 
-    console.log("[Charm API] POST /devices response", response.data);
+    logCharmDebug("[Charm API] POST /devices response", response.data);
 
     return unwrapApiData(response.data, "MXIS Charm 등록에 실패했습니다.");
   } catch (error) {
@@ -224,7 +197,7 @@ export async function registerDevice(
 }
 
 export async function getDevices(accessToken: string, tokenType?: string) {
-  console.log("[Charm API] GET /devices request", {
+  logCharmDebug("[Charm API] GET /devices request", {
     authorization: getDebugTokenLabel(accessToken, tokenType),
   });
 
@@ -236,7 +209,7 @@ export async function getDevices(accessToken: string, tokenType?: string) {
       },
     );
 
-    console.log("[Charm API] GET /devices response", response.data);
+    logCharmDebug("[Charm API] GET /devices response", response.data);
 
     return unwrapApiData(response.data, "기기 목록을 불러오지 못했습니다.") ?? [];
   } catch (error) {
@@ -298,7 +271,7 @@ export async function uploadSensorReadings(
   const validReadings = readings.filter((reading) => reading.measuredAt > 0);
 
   if (!validReadings.length) {
-    console.log("[Charm API] POST sensor-readings/batch skipped", {
+    logCharmDebug("[Charm API] POST sensor-readings/batch skipped", {
       backendDeviceId,
       reason: "No readings with measuredAt greater than 0.",
       originalCount: readings.length,
@@ -311,7 +284,7 @@ export async function uploadSensorReadings(
     readings: validReadings.map(toSensorReadingBatchRequestItem),
   };
 
-  console.log("[Charm API] POST sensor-readings/batch request", {
+  logCharmDebug("[Charm API] POST sensor-readings/batch request", {
     url: `/devices/${backendDeviceId}/sensor-readings/batch`,
     request,
   });
@@ -325,7 +298,7 @@ export async function uploadSensorReadings(
       },
     );
 
-    console.log("[Charm API] POST sensor-readings/batch response", response.data);
+    logCharmDebug("[Charm API] POST sensor-readings/batch response", response.data);
 
     const body = response.data;
     if (body == null || (body as unknown) === "") return { ackSequence: null };

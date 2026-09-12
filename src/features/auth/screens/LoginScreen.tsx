@@ -8,7 +8,7 @@ import type { z } from "zod";
 import { AuthTextField } from "@/features/auth/components/AuthTextField";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { loginSchema } from "@/features/auth/utils/validation";
-import { getAuthenticatedEntryRoute } from "@/features/onboarding/storage";
+import { getAuthenticatedEntryRoute } from "@/features/onboarding/services/getAuthenticatedEntryRoute";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 
 type LoginErrors = {

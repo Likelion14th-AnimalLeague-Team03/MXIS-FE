@@ -14,7 +14,6 @@ import { useCareDiagnosisHome } from "@/features/care/hooks/useCare";
 import { useManagedPrimaryProduct } from "@/features/device/hooks/useDevice";
 import productPhoto from "@/features/reservation/assets/product-mcm-aren-shopper.png";
 import { DEFAULT_SERVICE_TYPE } from "@/features/reservation/constants";
-import { formatDateShort } from "@/features/reservation/format";
 import { useCreateReservation } from "@/features/reservation/hooks/useReservation";
 import { useReservationStore } from "@/features/reservation/store";
 import { formatLocalDate, toLocalTimeString } from "@/shared/api/localTime";
@@ -24,6 +23,7 @@ import { WarningIcon } from "@/shared/components/icons/WarningIcon";
 import { NoticeModal } from "@/shared/components/NoticeModal";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
+import { formatDateShort } from "@/shared/utils/dateFormat";
 
 function SelectRow({
   label,

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { homeQueryKeys } from "@/features/home/queryKeys";
 import {
   cancelReservation,
   createReservation,
@@ -10,6 +11,7 @@ import {
   getStores,
   updateReservation,
 } from "@/features/reservation/api/reservationApi";
+import { reservationQueryKeys } from "@/features/reservation/queryKeys";
 import type {
   ReservationCreateRequest,
   ReservationStatus,
@@ -17,14 +19,6 @@ import type {
   ReservationType,
   ReservationUpdateRequest,
 } from "@/features/reservation/types";
-
-export const reservationQueryKeys = {
-  stores: (lat?: number, lng?: number) => ["stores", lat ?? null, lng ?? null] as const,
-  availableTimes: (storeId: number | null, date: string | null) =>
-    ["stores", storeId, "available-times", date] as const,
-  list: (status?: ReservationStatus) => ["reservations", status ?? "ALL"] as const,
-  detail: (id: number | null) => ["reservations", id] as const,
-};
 
 /** 진행 중으로 볼 상태 — 취소·완료된 예약은 예약 현황에서 제외해요. */
 const ACTIVE_STATUSES: ReservationStatus[] = ["PENDING_APPROVAL", "CONFIRMED"];
@@ -106,9 +100,9 @@ function useInvalidateReservations() {
 
   return async (id?: number) => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["reservations"] }),
+      queryClient.invalidateQueries({ queryKey: reservationQueryKeys.all }),
       // 홈 화면의 "다가오는 예약" 카드도 같이 갱신해요.
-      queryClient.invalidateQueries({ queryKey: ["home"] }),
+      queryClient.invalidateQueries({ queryKey: homeQueryKeys.all }),
       id != null
         ? queryClient.invalidateQueries({
             queryKey: reservationQueryKeys.detail(id),

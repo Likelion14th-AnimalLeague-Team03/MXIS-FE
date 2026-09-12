@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 
 import mxisLogo from "@/features/splash/assets/mxis-logo.png";
 import { useAuthStore } from "@/features/auth/store/authStore";
-import { getAuthenticatedEntryRoute } from "@/features/onboarding/storage";
+import { getAuthenticatedEntryRoute } from "@/features/onboarding/services/getAuthenticatedEntryRoute";
 
 const SPLASH_DURATION_MS = 1600;
 

@@ -1,3 +1,9 @@
+import type {
+  Device,
+  DeviceManagementSummary,
+  ProductDeviceLink,
+  ProductDeviceManagementSummary,
+} from "@/features/device/types";
 import type { Product } from "@/features/product/types";
 import {
   type ApiResponse,
@@ -6,114 +12,6 @@ import {
   withApiError,
 } from "@/shared/api/apiResponse";
 import { apiClient } from "@/shared/api/client";
-
-export type DeviceConnectionStatus =
-  | "CONNECTED"
-  | "DISCONNECTED"
-  | "SYNCING"
-  | "ERROR"
-  | string;
-
-export type Device = {
-  id: number;
-  serialNumber: string;
-  deviceName: string;
-  macAddress?: string | null;
-  firmwareVersion?: string | null;
-  deviceImageUrl?: string | null;
-  batteryLevel?: number | null;
-  connectionStatus: DeviceConnectionStatus;
-  lastSyncedAt?: string | null;
-  registeredAt: string;
-};
-
-export type ProductDeviceLink = {
-  id: number;
-  deviceId: number;
-  serialNumber: string;
-  deviceName: string;
-  role: "PRIMARY_SENSOR" | "SECONDARY" | string;
-  attachedAt: string;
-  detachedAt?: string | null;
-};
-
-export type DeviceManagementSummary = {
-  products: Array<{
-    productId: number;
-    productImageUrl?: string | null;
-  }>;
-  primaryProduct: {
-    productId: number;
-    productImageUrl?: string | null;
-    productName: string;
-    materialId?: string | null;
-    materialDisplayName?: string | null;
-    color?: string | null;
-    modelCode?: string | null;
-    dppCode?: string | null;
-  } | null;
-  totalOutingCount: number | null;
-  primaryDevice: {
-    deviceId: number;
-    serialNumber: string;
-    deviceName?: string | null;
-    deviceImageUrl?: string | null;
-    connectionStatus?: DeviceConnectionStatus | null;
-    batteryLevel?: number | null;
-    lastSyncedAt?: string | null;
-  } | null;
-  currentEnvironment: {
-    temperature?: number | null;
-    humidity?: number | null;
-    measuredAt?: string | null;
-  } | null;
-};
-
-export type ProductDeviceManagementSummary = {
-  product: {
-    productId?: number;
-    id?: number;
-    productImageUrl?: string | null;
-    productName: string;
-    materialId?: string | null;
-    materialDisplayName?: string | null;
-    materialName?: string | null;
-    color?: string | null;
-    modelCode?: string | null;
-    dppCode?: string | null;
-    productCode?: string | null;
-    isPrimary?: boolean;
-    primary?: boolean;
-  } | null;
-  currentEnvironment: {
-    temperature?: number | null;
-    humidity?: number | null;
-    measuredAt?: string | null;
-  } | null;
-  totalOutingCount: number | null;
-  primaryDevice: {
-    deviceId: number;
-    serialNumber: string;
-    deviceName?: string | null;
-    deviceImageUrl?: string | null;
-    connectionStatus?: DeviceConnectionStatus | null;
-    batteryLevel?: number | null;
-    lastSyncedAt?: string | null;
-  } | null;
-  connectedDevices?: Array<{
-    deviceId: number;
-    serialNumber: string;
-    deviceName?: string | null;
-    deviceImageUrl?: string | null;
-    role?: "PRIMARY_SENSOR" | "SECONDARY" | string;
-    connectionStatus?: DeviceConnectionStatus | null;
-    batteryLevel?: number | null;
-    lastSyncedAt?: string | null;
-  }> | null;
-  outingCount?: number | string | null;
-  totalOutings?: number | string | null;
-  totalOutingSessions?: number | string | null;
-};
 
 export async function getDeviceManagementSummary() {
   return withApiError(async () => {
