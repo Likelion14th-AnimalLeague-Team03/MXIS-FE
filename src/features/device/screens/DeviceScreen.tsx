@@ -261,6 +261,54 @@ function Chevron({ expanded }: { expanded?: boolean }) {
   );
 }
 
+function CharmImageModal({
+  charm,
+  onClose,
+}: {
+  charm: DisplayCharm | null;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      transparent
+      visible={charm !== null}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="참 이미지 닫기"
+        onPress={onClose}
+        className="flex-1 items-center justify-center bg-black/55 px-6"
+      >
+        <View className="w-full max-w-[300px] items-center rounded-[20px] bg-white px-6 py-7">
+          {charm?.image ? (
+            <Image
+              source={charm.image}
+              resizeMode="contain"
+              style={{ height: 240, width: 240 }}
+            />
+          ) : (
+            <View className="h-[240px] w-[240px] items-center justify-center">
+              <Text className="text-[13px] font-medium text-[#898989]">
+                이미지가 없습니다.
+              </Text>
+            </View>
+          )}
+          {charm ? (
+            <Text className="mt-4 text-[16px] font-semibold text-[#121212]">
+              {charm.serialNumber}
+            </Text>
+          ) : null}
+          <Text className="mt-2 text-[12px] font-medium text-[#898989]">
+            화면을 누르면 닫혀요
+          </Text>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
 function ConfirmModal({
   visible,
   title,
@@ -325,6 +373,9 @@ export function DeviceScreen() {
   const [pendingDeviceId, setPendingDeviceId] = useState<number | null>(null);
   const [charmExpanded, setCharmExpanded] = useState(false);
   const [charmListExpanded, setCharmListExpanded] = useState(false);
+  const [imageModalCharmId, setImageModalCharmId] = useState<number | null>(
+    null,
+  );
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [disconnectModalVisible, setDisconnectModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -410,6 +461,8 @@ export function DeviceScreen() {
       ? displayCharms.slice(0, 3)
       : displayCharms;
   const showAddCharmRow = !hasHiddenCharmRows || charmListExpanded;
+  const imageModalCharm =
+    displayCharms.find((charm) => charm.id === imageModalCharmId) ?? null;
   const primaryDeviceLink =
     productDeviceLinks.find((link) => link.role === "PRIMARY_SENSOR") ??
     productDeviceLinks[0] ??
@@ -984,7 +1037,13 @@ export function DeviceScreen() {
                         onPress={() => setPendingDeviceId(charm.id)}
                         className="h-11 flex-row items-center border-b border-[#C3C3C3] px-1"
                       >
-                        <View
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`${charm.serialNumber} 이미지 크게 보기`}
+                          accessibilityHint="길게 누르면 이미지가 확대됩니다."
+                          delayLongPress={350}
+                          onPress={() => setPendingDeviceId(charm.id)}
+                          onLongPress={() => setImageModalCharmId(charm.id)}
                           className="h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-full border bg-white"
                           style={{ borderColor: selected ? "#814C27" : "#898989" }}
                         >
@@ -997,7 +1056,7 @@ export function DeviceScreen() {
                           ) : (
                             <Text className="text-[9px] font-medium text-[#898989]">참</Text>
                           )}
-                        </View>
+                        </Pressable>
                         <Text
                           className={`ml-3 flex-1 text-[10px] font-semibold ${
                             linked
@@ -1157,6 +1216,11 @@ export function DeviceScreen() {
           ) : null}
         </View>
       </ScrollView>
+
+      <CharmImageModal
+        charm={imageModalCharm}
+        onClose={() => setImageModalCharmId(null)}
+      />
 
       <ConfirmModal
         visible={deleteModalVisible}
