@@ -9,6 +9,12 @@ import {
   getProducts,
 } from "@/features/device/api/deviceApi";
 import { deviceQueryKeys } from "@/features/device/queryKeys";
+import type { Device, ProductDeviceLink } from "@/features/device/types";
+import type { Product } from "@/features/product/types";
+
+const EMPTY_DEVICES: Device[] = [];
+const EMPTY_PRODUCT_DEVICE_LINKS: ProductDeviceLink[] = [];
+const EMPTY_PRODUCTS: Product[] = [];
 
 export function useDeviceManagementQueries(productId: number | null) {
   const queryClient = useQueryClient();
@@ -61,15 +67,18 @@ export function useDeviceManagementQueries(productId: number | null) {
   };
 
   return {
-    devices: devicesQuery.data ?? [],
+    devices: devicesQuery.data ?? EMPTY_DEVICES,
+    hasLoadedDevices: devicesQuery.isSuccess,
+    hasLoadedProductDeviceLinks: productDevicesQuery.isSuccess,
     invalidateDeviceQueries,
     isLoading:
       productsQuery.isPending ||
       devicesQuery.isPending ||
       summaryQuery.isPending ||
       productSummaryQuery.isPending,
-    productDeviceLinks: productDevicesQuery.data ?? [],
-    products: productsQuery.data ?? [],
+    productDeviceLinks:
+      productDevicesQuery.data ?? EMPTY_PRODUCT_DEVICE_LINKS,
+    products: productsQuery.data ?? EMPTY_PRODUCTS,
     productSummary: productSummaryQuery.data ?? null,
     queryError:
       productsQuery.error ??

@@ -13,6 +13,7 @@ import {
   getProductImage,
 } from "@/features/device/utils/deviceDisplay";
 import { useDeviceManagementMutations } from "./useDeviceManagementMutations";
+import { useDeviceMutationOverlay } from "./useDeviceMutationOverlay";
 import { useDeviceManagementQueries } from "./useDeviceManagementQueries";
 
 function createSummaryCharm(
@@ -49,6 +50,8 @@ export function useDeviceManagement() {
 
   const {
     devices,
+    hasLoadedDevices,
+    hasLoadedProductDeviceLinks,
     invalidateDeviceQueries,
     isLoading,
     productDeviceLinks,
@@ -91,25 +94,53 @@ export function useDeviceManagement() {
         selectedProduct.id === primarySummary?.primaryProduct?.productId),
   );
 
+  const {
+    markDeviceConnected,
+    markDeviceDeleted,
+    markDeviceDisconnected,
+    pendingDeletedDeviceIds,
+    pendingDisconnectedDeviceIds,
+  } = useDeviceMutationOverlay({
+    devices,
+    hasLoadedDevices,
+    hasLoadedProductDeviceLinks,
+    productDeviceLinks,
+    selectedProductId: selectedProductIdForDisplay,
+  });
+
   const displayCharms = useMemo<DisplayCharm[]>(
     () =>
-      devices.map((device) => ({
-        ...device,
-        image: getCharmImage(device),
-        link: productDeviceLinks.find((link) => link.deviceId === device.id),
-      })),
-    [devices, productDeviceLinks],
+      devices
+        .filter((device) => !pendingDeletedDeviceIds.includes(device.id))
+        .map((device) => ({
+          ...device,
+          image: getCharmImage(device),
+          link: productDeviceLinks.find((link) => link.deviceId === device.id),
+        })),
+    [devices, pendingDeletedDeviceIds, productDeviceLinks],
   );
   const imageModalCharm =
     displayCharms.find((charm) => charm.id === imageModalCharmId) ?? null;
   const primaryDeviceLink =
-    productDeviceLinks.find((link) => link.role === "PRIMARY_SENSOR") ??
-    productDeviceLinks[0] ??
+    productDeviceLinks.find(
+      (link) =>
+        link.role === "PRIMARY_SENSOR" &&
+        !pendingDisconnectedDeviceIds.includes(link.deviceId),
+    ) ??
+    productDeviceLinks.find(
+      (link) => !pendingDisconnectedDeviceIds.includes(link.deviceId),
+    ) ??
     null;
   const connectedCharm =
     displayCharms.find((device) => device.id === primaryDeviceLink?.deviceId) ??
     null;
-  const summaryPrimaryDevice = selectedProductSummary?.primaryDevice ?? null;
+  const rawSummaryPrimaryDevice = selectedProductSummary?.primaryDevice ?? null;
+  const summaryPrimaryDevice =
+    rawSummaryPrimaryDevice &&
+    !pendingDeletedDeviceIds.includes(rawSummaryPrimaryDevice.deviceId) &&
+    !pendingDisconnectedDeviceIds.includes(rawSummaryPrimaryDevice.deviceId)
+      ? rawSummaryPrimaryDevice
+      : null;
   const displayConnectedCharm = useMemo(
     () =>
       connectedCharm ??
@@ -195,15 +226,29 @@ export function useDeviceManagement() {
   } = useDeviceManagementMutations({
     ownerId,
     productDeviceLinks,
+    selectedProductId: selectedProductIdForDisplay,
     invalidateDeviceQueries,
-    onDeleteSuccess: () => {
-      setDeleteModalVisible(false);
-      setPendingDeviceId(null);
+    onConnectSuccess: ({ productId, deviceId }) => {
+      markDeviceConnected(productId, deviceId);
     },
-    onDisconnectSuccess: () => {
+    onDeleteSuccess: (device) => {
+      setDeleteModalVisible(false);
+      setImageModalCharmId(null);
+      markDeviceDeleted(device.id);
+      setLastCharmByProductId((current) =>
+        Object.fromEntries(
+          Object.entries(current).filter(([, charm]) => charm.id !== device.id),
+        ),
+      );
+      const nextCharm =
+        displayCharms.find((charm) => charm.id !== device.id) ?? null;
+      setPendingDeviceId(nextCharm?.id ?? null);
+    },
+    onDisconnectSuccess: ({ productId, device }) => {
       setDisconnectModalVisible(false);
       setCharmExpanded(false);
       setCharmListExpanded(false);
+      markDeviceDisconnected(productId, device.id);
     },
   });
 

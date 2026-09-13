@@ -17,15 +17,30 @@ import { uploadAndAcknowledgeSmartCharm } from "@/features/onboarding/ble/smartC
 type Options = {
   ownerId: string;
   productDeviceLinks: ProductDeviceLink[];
+  selectedProductId: number | null;
   invalidateDeviceQueries: () => Promise<void>;
-  onDeleteSuccess: () => void;
-  onDisconnectSuccess: () => void;
+  onConnectSuccess: (variables: { productId: number; deviceId: number }) => void;
+  onDeleteSuccess: (device: DisplayCharm) => void;
+  onDisconnectSuccess: (variables: {
+    productId: number;
+    device: DisplayCharm;
+  }) => void;
 };
+
+async function disconnectLocalCharm(macAddress?: string | null) {
+  try {
+    await disconnectSmartCharmConnection(macAddress);
+  } catch (error) {
+    console.warn("Failed to clean up local Smart Charm connection.", error);
+  }
+}
 
 export function useDeviceManagementMutations({
   ownerId,
   productDeviceLinks,
+  selectedProductId,
   invalidateDeviceQueries,
+  onConnectSuccess,
   onDeleteSuccess,
   onDisconnectSuccess,
 }: Options) {
@@ -74,6 +89,9 @@ export function useDeviceManagementMutations({
   });
 
   const connectMutation = useMutation({
+    onMutate: () => {
+      setErrorMessage("");
+    },
     mutationFn: async ({
       productId,
       deviceId,
@@ -104,10 +122,11 @@ export function useDeviceManagementMutations({
         role: "PRIMARY_SENSOR",
       });
     },
-    onSuccess: async () => {
+    onSuccess: (_result, variables) => {
+      onConnectSuccess(variables);
       setErrorMessage("");
-      await invalidateDeviceQueries();
     },
+    onSettled: invalidateDeviceQueries,
     onError: (error) =>
       setErrorMessage(
         error instanceof Error ? error.message : "참 연결에 실패했습니다.",
@@ -115,6 +134,9 @@ export function useDeviceManagementMutations({
   });
 
   const disconnectMutation = useMutation({
+    onMutate: () => {
+      setErrorMessage("");
+    },
     mutationFn: async ({
       productId,
       device,
@@ -123,13 +145,13 @@ export function useDeviceManagementMutations({
       device: DisplayCharm;
     }) => {
       await disconnectProductDevice({ productId, deviceId: device.id });
-      await disconnectSmartCharmConnection(device.macAddress);
+      await disconnectLocalCharm(device.macAddress);
     },
-    onSuccess: async () => {
-      onDisconnectSuccess();
+    onSuccess: (_result, variables) => {
+      onDisconnectSuccess(variables);
       setErrorMessage("");
-      await invalidateDeviceQueries();
     },
+    onSettled: invalidateDeviceQueries,
     onError: (error) =>
       setErrorMessage(
         error instanceof Error
@@ -139,15 +161,29 @@ export function useDeviceManagementMutations({
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (device: DisplayCharm) => {
-      await deleteDevice(device.id);
-      await disconnectSmartCharmConnection(device.macAddress);
-    },
-    onSuccess: async () => {
-      onDeleteSuccess();
+    onMutate: () => {
       setErrorMessage("");
-      await invalidateDeviceQueries();
     },
+    mutationFn: async (device: DisplayCharm) => {
+      const isLinkedToSelectedProduct =
+        selectedProductId !== null &&
+        productDeviceLinks.some((link) => link.deviceId === device.id);
+
+      if (isLinkedToSelectedProduct) {
+        await disconnectProductDevice({
+          productId: selectedProductId,
+          deviceId: device.id,
+        });
+      }
+
+      await deleteDevice(device.id);
+      await disconnectLocalCharm(device.macAddress);
+    },
+    onSuccess: (_result, device) => {
+      onDeleteSuccess(device);
+      setErrorMessage("");
+    },
+    onSettled: invalidateDeviceQueries,
     onError: (error) =>
       setErrorMessage(
         error instanceof Error ? error.message : "참 삭제에 실패했습니다.",
