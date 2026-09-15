@@ -39,24 +39,24 @@ export function ReservationStatusCard({
   };
 
   return (
-    <Card className="mt-3 rounded-[20px] border-0 bg-concierge-surfaceMuted px-6 py-6">
+    <Card className="mt-3 rounded-[20px] border-0 bg-concierge-surfaceMuted px-3 py-5">
       <View className="flex-row items-center gap-2">
         <View
           className={`size-1.5 rounded-full ${
             isPendingApproval ? "bg-concierge-accentMuted" : "bg-concierge-primary"
           }`}
         />
-        <Text className="text-xs font-bold text-[#6D5243]">
+        <Text className="text-[15px] font-bold text-[#6D5243]">
           {isPendingApproval ? "승인 대기" : "예약 완료"}
         </Text>
         <View className="flex-1" />
-        <Text className="text-xs font-semibold text-[#8C6748]">
+        <Text className="text-[10px] font-semibold text-[#8C6748]">
           {RESERVATION_TYPE_LABEL[reservation.reservationType]}
         </Text>
       </View>
 
       {isPendingApproval ? (
-        <Text className="mt-2 text-sm text-concierge-textSecondary">
+        <Text className="mt-1 text-[10px] leading-[14px] text-concierge-textSecondary">
           매장 담당자가 예약을 확인하고 있어요. 확정되면 알려드릴게요.
         </Text>
       ) : null}

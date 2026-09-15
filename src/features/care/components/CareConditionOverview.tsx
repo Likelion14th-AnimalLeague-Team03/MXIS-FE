@@ -1,11 +1,19 @@
-import { Image, Text, View, type ImageSourcePropType } from "react-native";
+import { type ReactNode } from "react";
+import {
+  Image,
+  Text,
+  View,
+  type ImageSourcePropType,
+} from "react-native";
 
 import cautionImage from "@/features/care/assets/caution.png";
 import dangerImage from "@/features/care/assets/danger.png";
 import reportImage from "@/features/care/assets/report.png";
 import safeImage from "@/features/care/assets/safe.png";
-import temperatureIcon from "@/features/care/assets/temperature.png";
-import waterIcon from "@/features/care/assets/water.png";
+import {
+  CareHumidityIcon,
+  CareTemperatureIcon,
+} from "@/features/care/components/CareMetricIcons";
 import type { CareLevel } from "@/features/care/status";
 import { ShadowCard } from "@/shared/components/ShadowCard";
 
@@ -43,7 +51,7 @@ function MetricHalf({
   label,
   level,
 }: {
-  icon: ImageSourcePropType;
+  icon: ReactNode;
   label: string;
   level: CareLevel;
 }) {
@@ -54,7 +62,7 @@ function MetricHalf({
       className="flex-1 flex-row items-center pl-8"
       style={style.fill ? { backgroundColor: style.fill } : undefined}
     >
-      <Image source={icon} className="size-[20px]" resizeMode="contain" />
+      {icon}
       <View className="ml-2.5">
         <Text
           className="text-[11px] font-bold text-black"
@@ -87,12 +95,16 @@ export function MetricStatusBar({
       contentClassName="h-[59px] flex-row border border-concierge-primary bg-white"
     >
       <MetricHalf
-        icon={temperatureIcon}
+        icon={<CareTemperatureIcon />}
         label="온도"
         level={temperatureLevel}
       />
       <View className="w-px bg-concierge-border" />
-      <MetricHalf icon={waterIcon} label="습도" level={humidityLevel} />
+      <MetricHalf
+        icon={<CareHumidityIcon size={20} />}
+        label="습도"
+        level={humidityLevel}
+      />
     </ShadowCard>
   );
 }
@@ -101,19 +113,26 @@ export function ConditionCard({
   level,
   summary,
   detail,
+  width,
 }: {
   level: CareLevel;
   summary: string;
   detail: string;
+  width: number;
 }) {
   const image = CONDITION_IMAGE[level];
+  const aspectRatio = resolveConditionAspectRatio(image);
 
   return (
     <Image
       source={image}
       resizeMode="contain"
-      className="-mx-1 mt-3 self-stretch"
-      style={{ aspectRatio: resolveConditionAspectRatio(image) }}
+      style={{
+        alignSelf: "center",
+        marginTop: 12,
+        width,
+        height: width / aspectRatio,
+      }}
       accessible
       accessibilityRole="image"
       accessibilityLabel={`현재 컨디션. ${summary} ${detail}`}

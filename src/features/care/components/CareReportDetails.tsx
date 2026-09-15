@@ -1,10 +1,12 @@
 import { type ReactNode } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
-import outIcon from "@/features/care/assets/out.png";
-import popIcon from "@/features/care/assets/pop.png";
-import temperatureIcon from "@/features/care/assets/temperature.png";
-import waterIcon from "@/features/care/assets/water.png";
+import {
+  CareHumidityIcon,
+  CareShockIcon,
+  CareTemperatureIcon,
+  CareUsagePatternIcon,
+} from "@/features/care/components/CareMetricIcons";
 import type { Environment30d } from "@/features/care/types";
 import { MISSING_VALUE } from "@/features/care/utils/careReportPresentation";
 import { ShieldCheckIcon } from "@/shared/components/icons/ShieldIcon";
@@ -144,51 +146,27 @@ export function CareReportDetails({
         contentClassName="border border-concierge-border bg-white"
       >
         <SummaryRow
-          icon={
-            <Image
-              source={temperatureIcon}
-              className="size-[20px]"
-              resizeMode="contain"
-            />
-          }
+          icon={<CareTemperatureIcon />}
           label="평균 온도"
           caption={hasTemperature ? "최근 30일 평균" : "데이터 수집 중"}
           value={temperatureValue}
           note={environment?.temperatureDescription}
         />
         <SummaryRow
-          icon={
-            <Image
-              source={waterIcon}
-              className="size-[18px]"
-              resizeMode="contain"
-            />
-          }
+          icon={<CareHumidityIcon />}
           label="평균 습도"
           caption={hasHumidity ? "최근 30일 평균" : "데이터 수집 중"}
           value={humidityValue}
           note={environment?.humidityDescription}
         />
         <SummaryRow
-          icon={
-            <Image
-              source={popIcon}
-              className="size-[18px]"
-              resizeMode="contain"
-            />
-          }
+          icon={<CareShockIcon />}
           label="충격"
           caption={environment?.shockLevelLabel ? "최근 30일" : "분석 전"}
           value={environment?.shockLevelLabel ?? MISSING_VALUE}
         />
         <SummaryRow
-          icon={
-            <Image
-              source={outIcon}
-              className="size-[20px]"
-              resizeMode="contain"
-            />
-          }
+          icon={<CareUsagePatternIcon />}
           label="최근 사용 패턴"
           caption={
             environment?.outingCount != null ? "최근 30일 외출" : "분석 전"

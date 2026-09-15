@@ -207,13 +207,13 @@ export function HomeScreen() {
             ) : productState === "COLLECTING" ? (
               <Image
                 source={clockIcon}
-                className="size-13"
+                className="size-[44px]"
                 resizeMode="contain"
               />
             ) : (
               <Image
                 source={updateIcon}
-                className="size-13"
+                className="size-[58px]"
                 resizeMode="contain"
               />
             )}

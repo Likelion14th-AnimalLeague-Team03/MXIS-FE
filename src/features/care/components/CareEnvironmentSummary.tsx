@@ -1,10 +1,12 @@
 import { type ReactNode } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
-import outIcon from "@/features/care/assets/out.png";
-import popIcon from "@/features/care/assets/pop.png";
-import temperatureIcon from "@/features/care/assets/temperature.png";
-import waterIcon from "@/features/care/assets/water.png";
+import {
+  CareHumidityIcon,
+  CareShockIcon,
+  CareTemperatureIcon,
+  CareUsagePatternIcon,
+} from "@/features/care/components/CareMetricIcons";
 import { CARE_CARD_SHADOW } from "@/features/care/styles";
 import type { Environment30d } from "@/features/care/types";
 import { Card } from "@/shared/components/Card";
@@ -84,13 +86,7 @@ export function CareEnvironmentSummary({
 
       <View className="mt-3 flex-row flex-wrap justify-between gap-y-3">
         <StatCard
-          icon={
-            <Image
-              source={temperatureIcon}
-              className="mt-1.5 size-[18px]"
-              resizeMode="contain"
-            />
-          }
+          icon={<CareTemperatureIcon size={18} />}
           label="온도"
           caption={environment?.temperatureDescription ?? undefined}
           value={
@@ -101,13 +97,7 @@ export function CareEnvironmentSummary({
           muted={environment?.avgTemperature == null}
         />
         <StatCard
-          icon={
-            <Image
-              source={waterIcon}
-              className="mt-1.5 size-[18px]"
-              resizeMode="contain"
-            />
-          }
+          icon={<CareHumidityIcon size={18} />}
           label="습도"
           caption={environment?.humidityDescription ?? undefined}
           value={
@@ -118,25 +108,13 @@ export function CareEnvironmentSummary({
           muted={environment?.avgHumidity == null}
         />
         <StatCard
-          icon={
-            <Image
-              source={popIcon}
-              className="mt-1.5 size-[18px]"
-              resizeMode="contain"
-            />
-          }
+          icon={<CareShockIcon size={18} />}
           label="충격"
           value={environment?.shockLevelLabel ?? "수집중"}
           muted={!environment?.shockLevelLabel}
         />
         <StatCard
-          icon={
-            <Image
-              source={outIcon}
-              className="mt-1.5 size-[18px]"
-              resizeMode="contain"
-            />
-          }
+          icon={<CareUsagePatternIcon size={18} />}
           label="최근 이동"
           value={
             environment?.outingCount != null

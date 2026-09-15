@@ -20,6 +20,25 @@ const RECOMMENDED_GREEN = "#3F8F5D";
 const RECOMMENDED_BAND_FILL = "#E7F2E9";
 const AXIS_GRAY = "#9C968F";
 
+type AxisRow = { value: number; accent: boolean };
+
+function deduplicateAxisRows(rows: AxisRow[]) {
+  const rowsByLabel = new Map<number, AxisRow>();
+
+  rows.forEach((row) => {
+    const labelValue = Math.round(row.value);
+    const existing = rowsByLabel.get(labelValue);
+
+    if (!existing || row.accent) {
+      rowsByLabel.set(labelValue, row);
+    }
+  });
+
+  return [...rowsByLabel.values()].sort(
+    (first, second) => second.value - first.value,
+  );
+}
+
 type Props = {
   /** 빈 배열이면 점/선 없이 축과 권장 범위 밴드만 그려요 (데이터 수집중 상태용). */
   values: Array<number | null | undefined>;
@@ -118,7 +137,7 @@ export function HumidityLineChart({
         })()
       : null;
 
-  let axisRows: { value: number; accent: boolean }[];
+  let axisRows: AxisRow[];
   if (hasRecommended) {
     // 위/아래 칸이 휑해 보이지 않게, max~권장상단 사이와 권장하단~min 사이에도
     // 중간값을 계산해서 보조 점선을 하나씩 더 넣어요.
@@ -147,6 +166,7 @@ export function HumidityLineChart({
       { value: min, accent: false },
     ];
   }
+  const visibleAxisRows = deduplicateAxisRows(axisRows);
 
   return (
     <Svg
@@ -163,7 +183,7 @@ export function HumidityLineChart({
           fill={RECOMMENDED_BAND_FILL}
         />
       ) : null}
-      {axisRows.map((row) => (
+      {visibleAxisRows.map((row) => (
         <Line
           key={`grid-${row.value}`}
           x1={PLOT_LEFT}
@@ -175,7 +195,7 @@ export function HumidityLineChart({
           strokeDasharray="4 4"
         />
       ))}
-      {axisRows.map((row) => (
+      {visibleAxisRows.map((row) => (
         <SvgText
           key={`label-${row.value}`}
           x={0}

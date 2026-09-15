@@ -9,6 +9,12 @@
     "newArchEnabled": true,
     "android": {
       "package": "com.mxis.app",
+      "icon": "./assets/app-icon/app-icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/app-icon/adaptive-icon-foreground.png",
+        "backgroundImage": "./assets/app-icon/adaptive-icon-background.png",
+        "monochromeImage": "./assets/app-icon/adaptive-icon-monochrome.png"
+      },
       "permissions": [
         "BLUETOOTH",
         "BLUETOOTH_ADMIN",

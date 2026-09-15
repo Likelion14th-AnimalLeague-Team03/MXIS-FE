@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -23,6 +23,7 @@ import { SentenceList } from "@/shared/components/SentenceList";
 
 export function EnvironmentScreen() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
   const [range, setRange] = useState<EnvironmentRange>("최근 30일");
   const [metric, setMetric] = useState<EnvironmentMetric>("HUMIDITY");
   const { productId } = usePrimaryProductId();
@@ -32,6 +33,7 @@ export function EnvironmentScreen() {
     error,
   } = useCareEnvironmentOverview(productId);
   const presentation = createEnvironmentPresentation(overview, range, metric);
+  const chartWidth = Math.min(306, Math.max(windowWidth - 80, 1));
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
@@ -49,9 +51,9 @@ export function EnvironmentScreen() {
             </Text>
             <EnvironmentMetricToggle metric={metric} onSelect={setMetric} />
           </View>
-          <View className="mt-4">
+          <View className="mt-4 overflow-hidden">
             <HumidityLineChart
-              width={306}
+              width={chartWidth}
               values={presentation.values}
               min={presentation.chartMin}
               max={presentation.chartMax}

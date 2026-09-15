@@ -12,9 +12,9 @@ export function ProgressRing({
   percent,
   color,
   size = 60,
-  trackColor = "#EFEAE5",
+  trackColor = "#E9F0F4",
 }: Props) {
-  const strokeWidth = 5;
+  const strokeWidth = size * 0.05;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset =
@@ -52,7 +52,14 @@ export function ProgressRing({
           origin={`${size / 2}, ${size / 2}`}
         />
       </Svg>
-      <Text style={{ fontSize: size * 0.22, fontWeight: "700", color }}>
+      <Text
+        style={{
+          color,
+          fontSize: size * (14 / 60),
+          fontWeight: "700",
+          lineHeight: size * (16 / 60),
+        }}
+      >
         {percent}%
       </Text>
     </View>

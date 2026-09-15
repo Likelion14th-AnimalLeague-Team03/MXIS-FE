@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -15,8 +15,11 @@ import { useReservationStore } from "@/features/reservation/store";
 import type { ReservationType } from "@/features/reservation/types";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
 
+const REPORT_HORIZONTAL_PADDING = 24;
+
 export function ReportScreen() {
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
   const { productId } = usePrimaryProductId();
   const { data: report, isPending, error } = useCareReport(productId);
   const { data: latestReport } = useLatestCareReport(productId);
@@ -38,7 +41,13 @@ export function ReportScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">
-      <ScrollView className="flex-1 px-6" contentContainerClassName="pb-8">
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="pb-8"
+        contentContainerStyle={{
+          paddingHorizontal: REPORT_HORIZONTAL_PADDING,
+        }}
+      >
         <View className="mt-6">
           <ScreenHeader title="상태 리포트" onBack={() => router.back()} />
         </View>
@@ -51,6 +60,7 @@ export function ReportScreen() {
           level={presentation.conditionLevel}
           summary={presentation.conditionSummary}
           detail={presentation.conditionDetail}
+          width={screenWidth - REPORT_HORIZONTAL_PADDING * 2}
         />
 
         {error ? (

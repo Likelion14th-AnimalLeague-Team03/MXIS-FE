@@ -1,10 +1,12 @@
 import { type ReactNode } from "react";
-import { Image, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
-import outIcon from "@/features/care/assets/out.png";
-import popIcon from "@/features/care/assets/pop.png";
-import temperatureIcon from "@/features/care/assets/temperature.png";
-import waterIcon from "@/features/care/assets/water.png";
+import {
+  CareHumidityIcon,
+  CareShockIcon,
+  CareTemperatureIcon,
+  CareUsagePatternIcon,
+} from "@/features/care/components/CareMetricIcons";
 import type { PeriodEnvironment } from "@/features/care/types";
 
 function StatTile({
@@ -47,13 +49,7 @@ export function EnvironmentStats({
   return (
     <View className="mt-4 flex-row flex-wrap justify-between gap-y-3">
       <StatTile
-        icon={
-          <Image
-            source={temperatureIcon}
-            className="size-[18px]"
-            resizeMode="contain"
-          />
-        }
+        icon={<CareTemperatureIcon size={18} />}
         label="평균 온도"
         value={
           period?.avgTemperature != null
@@ -63,13 +59,7 @@ export function EnvironmentStats({
         muted={period?.avgTemperature == null}
       />
       <StatTile
-        icon={
-          <Image
-            source={waterIcon}
-            className="size-[18px]"
-            resizeMode="contain"
-          />
-        }
+        icon={<CareHumidityIcon size={18} />}
         label="평균 습도"
         value={
           period?.avgHumidity != null
@@ -79,17 +69,13 @@ export function EnvironmentStats({
         muted={period?.avgHumidity == null}
       />
       <StatTile
-        icon={
-          <Image source={outIcon} className="size-[18px]" resizeMode="contain" />
-        }
+        icon={<CareUsagePatternIcon size={18} />}
         label="외출"
         value={period?.outingCount != null ? `${period.outingCount}회` : "수집중"}
         muted={period?.outingCount == null}
       />
       <StatTile
-        icon={
-          <Image source={popIcon} className="size-[18px]" resizeMode="contain" />
-        }
+        icon={<CareShockIcon size={18} />}
         label="충격"
         value={period?.shockCount != null ? `${period.shockCount}회` : "수집중"}
         muted={period?.shockCount == null}

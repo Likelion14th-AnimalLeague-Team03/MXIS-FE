@@ -52,13 +52,17 @@ export function createEnvironmentPresentation(
   const hasData = numericValues.length > 0;
   const recommended = RECOMMENDED_RANGE[metric];
   const emptyRange = EMPTY_CHART_RANGE[metric];
+  const dataMin = hasData ? Math.min(...numericValues) : emptyRange.min;
+  const dataMax = hasData ? Math.max(...numericValues) : emptyRange.max;
 
   return {
-    chartMax: hasData ? Math.max(...numericValues) + 5 : emptyRange.max,
+    chartMax: hasData
+      ? Math.max(dataMax + 5, recommended.max)
+      : emptyRange.max,
     chartMin: hasData
       ? isHumidity
         ? 0
-        : Math.min(...numericValues) - 5
+        : Math.min(dataMin - 5, recommended.min)
       : emptyRange.min,
     hasData,
     isHumidity,
