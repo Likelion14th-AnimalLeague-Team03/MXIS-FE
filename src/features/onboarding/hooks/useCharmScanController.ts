@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { deviceQueryKeys } from "@/features/device/queryKeys";
+import type { Device } from "@/features/device/types";
 import { disconnectSmartCharmConnection } from "@/features/onboarding/ble/smartCharmBle";
 import { connectAndRegisterCharm } from "@/features/onboarding/services/connectAndRegisterCharm";
 import type {
@@ -20,6 +21,7 @@ type Options = {
     device: ScannedCharmDevice,
     registeredDeviceId: number,
     registeredSerialNumber: string,
+    registeredDeviceImageUrl: string | null | undefined,
   ) => void;
 };
 
@@ -37,6 +39,19 @@ function getFailureStatus(stage: string): CharmConnectionStatus {
   }
   if (stage === "서버 등록 중") return "server-failed";
   return "setup-failed";
+}
+
+function upsertRegisteredDevice(devices: Device[] | undefined, device: Device) {
+  if (!devices) return [device];
+
+  const existingIndex = devices.findIndex((item) => item.id === device.id);
+  if (existingIndex < 0) {
+    return [...devices, device];
+  }
+
+  return devices.map((item, index) =>
+    index === existingIndex ? { ...item, ...device } : item,
+  );
 }
 
 export function useCharmScanController({
@@ -131,13 +146,19 @@ export function useCharmScanController({
           selectedDevice,
           tokenType,
           onStage: updateStage,
-        });
+      });
+      queryClient.setQueryData<Device[]>(
+        deviceQueryKeys.devices,
+        (currentDevices) =>
+          upsertRegisteredDevice(currentDevices, registeredDevice),
+      );
       await queryClient.invalidateQueries({ queryKey: deviceQueryKeys.all });
       handedOffRef.current = true;
       onConnected(
         resolvedDevice,
         registeredDevice.id,
         registeredDevice.serialNumber,
+        registeredDevice.deviceImageUrl,
       );
     } catch (error) {
       if (!mountedRef.current) return;

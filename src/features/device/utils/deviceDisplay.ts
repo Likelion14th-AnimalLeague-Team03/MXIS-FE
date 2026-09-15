@@ -1,5 +1,7 @@
 import type { ImageSourcePropType } from "react-native";
 
+import arenCinnamonCharmImage from "@/features/device/assets/charms/aren-cinnamon.png";
+import mcmCognacCharmImage from "@/features/device/assets/charms/mcm-cognac.png";
 import type {
   Device,
   DeviceManagementSummary,
@@ -7,6 +9,27 @@ import type {
   DisplayCharm,
 } from "@/features/device/types";
 import type { Product } from "@/features/product/types";
+
+const LOCAL_CHARM_IMAGES = [
+  {
+    keywords: ["aren", "cinnamon"],
+    image: arenCinnamonCharmImage,
+  },
+  {
+    keywords: ["mcm", "cognac"],
+    image: mcmCognacCharmImage,
+  },
+] satisfies Array<{
+  keywords: string[];
+  image: ImageSourcePropType;
+}>;
+
+function getCharmImageDescriptor(device: Device) {
+  return [device.deviceName, device.deviceImageUrl]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .toLowerCase();
+}
 
 export function getProductImage(product: Product): ImageSourcePropType | null {
   if (product.productImageUrl) {
@@ -17,6 +40,15 @@ export function getProductImage(product: Product): ImageSourcePropType | null {
 }
 
 export function getCharmImage(device: Device): ImageSourcePropType | null {
+  const descriptor = getCharmImageDescriptor(device);
+  const localImage = LOCAL_CHARM_IMAGES.find(({ keywords }) =>
+    keywords.every((keyword) => descriptor.includes(keyword)),
+  );
+
+  if (localImage) {
+    return localImage.image;
+  }
+
   if (device.deviceImageUrl) {
     return { uri: device.deviceImageUrl };
   }

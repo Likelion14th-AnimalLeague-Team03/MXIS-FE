@@ -9,6 +9,19 @@ import { useCareDiagnosisHome } from "@/features/care/hooks/useCare";
 import { useCurrentProduct } from "@/features/product/hooks/useProduct";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 
+function isCollectingDataMessage(message?: string | null) {
+  if (!message) return false;
+
+  return [
+    "데이터가 없습니다",
+    "데이터가 부족",
+    "데이터가 충분",
+    "데이터를 수집",
+    "데이터가 수집",
+    "진단 데이터",
+  ].some((keyword) => message.includes(keyword));
+}
+
 export function CareHomeScreen() {
   const router = useRouter();
   const {
@@ -51,7 +64,9 @@ export function CareHomeScreen() {
     ? "로그인이 필요해요. 다시 로그인해 주세요."
     : hasNoProduct
       ? "등록된 제품이 없어요. 제품을 먼저 등록해 주세요."
-      : (productError?.message ?? error?.message ?? null);
+      : (productError?.message ??
+        (isCollectingDataMessage(error?.message) ? null : error?.message) ??
+        null);
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-concierge-bg">

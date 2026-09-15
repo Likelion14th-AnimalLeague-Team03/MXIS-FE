@@ -33,9 +33,15 @@ export function CharmScanScreen() {
     accessToken,
     ownerId,
     tokenType,
-    onConnected: (device, registeredDeviceId, registeredSerialNumber) => {
+    onConnected: (
+      device,
+      registeredDeviceId,
+      registeredSerialNumber,
+      registeredDeviceImageUrl,
+    ) => {
       const deviceId = String(registeredDeviceId);
       const deviceSerial = registeredSerialNumber || device.serialNumber;
+      const deviceImageUrl = registeredDeviceImageUrl ?? "";
 
       if (returnTo === "device") {
         addOwnedCharm(deviceId);
@@ -45,6 +51,7 @@ export function CharmScanScreen() {
             returnTo: "device",
             deviceId,
             deviceSerial,
+            deviceImageUrl,
           },
         });
         return;
@@ -52,7 +59,7 @@ export function CharmScanScreen() {
 
       router.replace({
         pathname: "/onboarding/charm-connected",
-        params: { deviceId, deviceSerial },
+        params: { deviceId, deviceSerial, deviceImageUrl },
       });
     },
   });

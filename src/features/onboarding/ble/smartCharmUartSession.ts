@@ -17,6 +17,12 @@ type PendingRequest = {
   resolve: (line: string) => void;
   reject: (error: Error) => void;
 };
+type RequestOptions = {
+  closeOnTimeout?: boolean;
+};
+
+const PING_TIMEOUT_MS = 5000;
+const PING_MAX_ATTEMPTS = 3;
 
 export function createUartSession(
   transport: UartTransport,
@@ -92,14 +98,25 @@ export function createUartSession(
     timeoutMs = timings.command,
     progressTimeout?: number,
     isProgress?: () => boolean,
+    options: RequestOptions = {},
   ) {
     if (closed) throw closed;
     const encoded = encodeCommand(command);
     let timer: ReturnType<typeof setTimeout>;
     let progress: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
     const cancelled = new Promise<never>((_, reject) => { cancelRequest = reject; });
     const response = new Promise<string>((resolve, reject) => {
-      const timeout = () => dispose(new Error(`${command.split(" ")[0]} 응답 시간 초과입니다. 재연결이 필요합니다.`));
+      const timeout = () => {
+        timedOut = true;
+        const error = new Error(`${command.split(" ")[0]} 응답 시간 초과입니다. 재연결이 필요합니다.`);
+        if (options.closeOnTimeout === false) {
+          pending = null;
+          reject(error);
+          return;
+        }
+        dispose(error);
+      };
       timer = setTimeout(timeout, timeoutMs);
       const resetProgress = () => {
         if (!progressTimeout) return;
@@ -126,7 +143,9 @@ export function createUartSession(
       ]);
       return line;
     } catch (error) {
-      dispose(error instanceof Error ? error : new Error(String(error)));
+      if (options.closeOnTimeout !== false || !timedOut) {
+        dispose(error instanceof Error ? error : new Error(String(error)));
+      }
       throw error;
     } finally {
       clearTimeout(timer!);
@@ -136,9 +155,39 @@ export function createUartSession(
     }
   }
 
-  async function command(value: string, accept: (line: string) => boolean, timeoutMs = timings.command, allowUnsupported = false) {
+  async function ping() {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < PING_MAX_ATTEMPTS; attempt++) {
+      try {
+        await command("PING", (line) => line === "PONG", PING_TIMEOUT_MS, false, {
+          closeOnTimeout: false,
+        });
+        return;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        if (closed || attempt === PING_MAX_ATTEMPTS - 1) break;
+        logCharmDebug("[Charm BLE] PING retrying", {
+          attempt: attempt + 2,
+          maxAttempts: PING_MAX_ATTEMPTS,
+          timeoutMs: PING_TIMEOUT_MS,
+        });
+        await new Promise((resolve) => setTimeout(resolve, timings.busy * (attempt + 1)));
+      }
+    }
+
+    throw lastError ?? new Error("PING 확인에 실패했습니다.");
+  }
+
+  async function command(
+    value: string,
+    accept: (line: string) => boolean,
+    timeoutMs = timings.command,
+    allowUnsupported = false,
+    requestOptions?: RequestOptions,
+  ) {
     for (let attempt = 0; attempt < 4; attempt++) {
-      const line = await request(value, accept, timeoutMs);
+      const line = await request(value, accept, timeoutMs, undefined, undefined, requestOptions);
       if ((line === "ERR,BUSY" || line === "ERR,INVALID_FRAME") && attempt < 3) {
         if (line === "ERR,INVALID_FRAME") {
           console.warn(`[Charm BLE] ${value} frame collision; retrying`, {
@@ -170,7 +219,7 @@ export function createUartSession(
     get isBusy() { return queued > 0; },
     setReadingHandler(handler?: (reading: SensorReadingDto) => void) { readingHandler = handler; },
     dispose,
-    ping: () => enqueue(() => command("PING", (line) => line === "PONG")),
+    ping: () => enqueue(ping),
     verifyProfile: () => enqueue(async () => {
       // UART v1 without the optional PROFILE command still identifies itself through ID/STATUS.
       const line = await command("PROFILE", (value) => value.startsWith("PROFILE,"), timings.command, true);

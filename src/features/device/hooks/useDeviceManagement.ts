@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
 import type {
+  Device,
   DeviceProduct,
   DisplayCharm,
   ProductDeviceManagementSummary,
@@ -19,7 +20,7 @@ import { useDeviceManagementQueries } from "./useDeviceManagementQueries";
 function createSummaryCharm(
   primaryDevice: NonNullable<ProductDeviceManagementSummary["primaryDevice"]>,
 ): DisplayCharm {
-  return {
+  const device: Device = {
     id: primaryDevice.deviceId,
     serialNumber: primaryDevice.serialNumber,
     deviceName: primaryDevice.deviceName ?? primaryDevice.serialNumber,
@@ -28,9 +29,11 @@ function createSummaryCharm(
     connectionStatus: primaryDevice.connectionStatus ?? "DISCONNECTED",
     lastSyncedAt: primaryDevice.lastSyncedAt ?? null,
     registeredAt: "",
-    image: primaryDevice.deviceImageUrl
-      ? { uri: primaryDevice.deviceImageUrl }
-      : null,
+  };
+
+  return {
+    ...device,
+    image: getCharmImage(device),
   };
 }
 
@@ -184,6 +187,8 @@ export function useDeviceManagement() {
       if (
         previous?.id === displayConnectedCharm.id &&
         previous?.serialNumber === displayConnectedCharm.serialNumber &&
+        previous?.deviceName === displayConnectedCharm.deviceName &&
+        previous?.deviceImageUrl === displayConnectedCharm.deviceImageUrl &&
         previous?.batteryLevel === displayConnectedCharm.batteryLevel &&
         previous?.connectionStatus === displayConnectedCharm.connectionStatus &&
         previous?.lastSyncedAt === displayConnectedCharm.lastSyncedAt

@@ -29,7 +29,7 @@ export function CareProductCard({
       className="mt-4 flex-row items-center gap-4 overflow-hidden border-1 border-concierge-primary bg-white p-0"
       style={CARE_CARD_SHADOW}
     >
-      <View className="h-[108px] w-[30%] overflow-hidden">
+      <View className="h-[108px] w-[40%] overflow-hidden">
         <Image
           source={careHeroBackground}
           className="size-full"

@@ -6,7 +6,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import charmOnboardingDevice from "@/features/onboarding/assets/charm-onboarding-device.png";
 import { PrimaryButton } from "@/shared/components/PrimaryButton";
 import { ScreenHeader } from "@/shared/components/ScreenHeader";
-import { SecondaryButton } from "@/shared/components/SecondaryButton";
 
 function CharmDevicePreview() {
   return (
@@ -73,11 +72,6 @@ export function CharmOnboardingScreen() {
           <PrimaryButton
             label="MXIS Charm 연결하기"
             onPress={() => router.push("/onboarding/bluetooth-permission")}
-          />
-          <SecondaryButton
-            className="mt-2"
-            label="메인으로 건너뛰기"
-            onPress={() => router.replace("/(tabs)")}
           />
           <Text className="mt-3 text-center text-sm text-concierge-textSecondary">
             연결 과정은 약 1분 정도 걸릴 수 있습니다.

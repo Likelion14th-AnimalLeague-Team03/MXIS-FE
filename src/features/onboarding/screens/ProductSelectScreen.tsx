@@ -93,8 +93,9 @@ function ProductCard({
 
 export function ProductSelectScreen() {
   const router = useRouter();
-  const { deviceId, deviceSerial } = useLocalSearchParams<{
+  const { deviceId, deviceImageUrl, deviceSerial } = useLocalSearchParams<{
     deviceId?: string;
+    deviceImageUrl?: string;
     deviceSerial?: string;
   }>();
   const {
@@ -134,6 +135,7 @@ export function ProductSelectScreen() {
         modelCode: selectedProduct.modelCode ?? "",
         productImageUrl: selectedProduct.productImageUrl ?? "",
         deviceId,
+        deviceImageUrl: deviceImageUrl ?? "",
         deviceSerial,
       },
     });

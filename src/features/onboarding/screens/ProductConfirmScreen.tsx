@@ -9,6 +9,7 @@ import { useAuthStore } from "@/features/auth/store/authStore";
 import { careQueryKeys } from "@/features/care/queryKeys";
 import { deviceQueryKeys } from "@/features/device/queryKeys";
 import { homeQueryKeys } from "@/features/home/queryKeys";
+import { productQueryKeys } from "@/features/product/queryKeys";
 import {
   linkProductDevice,
 } from "@/features/onboarding/api/onboardingApi";
@@ -105,6 +106,7 @@ export function ProductConfirmScreen() {
       .finally(() => {
         void Promise.all([
           queryClient.invalidateQueries({ queryKey: deviceQueryKeys.all }),
+          queryClient.invalidateQueries({ queryKey: productQueryKeys.all }),
           queryClient.invalidateQueries({ queryKey: homeQueryKeys.all }),
           queryClient.invalidateQueries({ queryKey: careQueryKeys.all }),
         ]).catch((error: unknown) => {

@@ -1,20 +1,16 @@
 import { useEffect, useState } from "react";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
-import {
-  getOnboardingProducts,
-  type OnboardingProductResponse,
-} from "@/features/onboarding/api/onboardingApi";
+import { getProducts } from "@/features/product/api/productApi";
+import type { Product } from "@/features/product/types";
 import type { OnboardingProduct } from "@/features/onboarding/types";
 
-function toOnboardingProduct(
-  product: OnboardingProductResponse,
-): OnboardingProduct {
+function toOnboardingProduct(product: Product): OnboardingProduct {
   return {
-    id: String(product.productId),
-    productId: product.productId,
+    id: String(product.id),
+    productId: product.id,
     name: product.productName,
-    material: product.materialDisplayName,
+    material: product.materialDisplayName ?? "",
     color: product.color ?? "",
     productCode: product.dppCode || product.modelCode || "",
     modelCode: product.modelCode ?? undefined,
@@ -24,7 +20,6 @@ function toOnboardingProduct(
 
 export function useOnboardingProducts() {
   const accessToken = useAuthStore((state) => state.accessToken);
-  const tokenType = useAuthStore((state) => state.tokenType);
   const [products, setProducts] = useState<OnboardingProduct[]>([]);
   const [selectedProductId, setSelectedProductId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -43,7 +38,7 @@ export function useOnboardingProducts() {
       try {
         setIsLoading(true);
         setErrorMessage("");
-        const response = await getOnboardingProducts(accessToken, tokenType);
+        const response = await getProducts();
         const nextProducts = response.map(toOnboardingProduct);
 
         if (!mounted) return;
@@ -72,7 +67,7 @@ export function useOnboardingProducts() {
     return () => {
       mounted = false;
     };
-  }, [accessToken, tokenType]);
+  }, [accessToken]);
 
   return {
     errorMessage,
