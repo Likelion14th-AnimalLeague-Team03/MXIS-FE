@@ -40,7 +40,6 @@ export function DeviceScreen() {
     isMainProduct,
     isPendingCharmLinked,
     isSetPrimaryPending,
-    isSyncPending,
     lastSyncedLabel,
     moveProduct,
     openDeleteModal,
@@ -53,8 +52,6 @@ export function DeviceScreen() {
     selectProduct,
     setPrimarySelectedProduct,
     showCharmImage,
-    syncCharm,
-    syncMessage,
     toggleCharmExpanded,
     toggleCharmListExpanded,
     visibleError,
@@ -128,9 +125,6 @@ export function DeviceScreen() {
             connectedCharm={displayConnectedCharm}
             hasConnectedCharm={hasConnectedCharm}
             lastSyncedLabel={lastSyncedLabel}
-            syncMessage={syncMessage}
-            syncPending={isSyncPending}
-            onSyncCharm={syncCharm}
           />
 
           {visibleError ? (

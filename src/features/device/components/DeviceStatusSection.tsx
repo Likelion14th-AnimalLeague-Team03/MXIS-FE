@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import type { ProductDeviceManagementSummary } from "@/features/device/types";
 import type { DeviceProduct, DisplayCharm } from "@/features/device/types";
@@ -10,7 +10,6 @@ import {
 } from "@/features/device/utils/deviceDisplay";
 import { BatteryIcon } from "@/shared/components/icons/BatteryIcon";
 import { InfoIcon } from "@/shared/components/icons/InfoIcon";
-import { RefreshIcon } from "@/shared/components/icons/RefreshIcon";
 
 type DeviceStatusSectionProps = {
   product: DeviceProduct | null;
@@ -18,9 +17,6 @@ type DeviceStatusSectionProps = {
   connectedCharm: DisplayCharm | null;
   hasConnectedCharm: boolean;
   lastSyncedLabel: string;
-  syncMessage: { serial: string; text: string } | null;
-  syncPending: boolean;
-  onSyncCharm: (device: DisplayCharm) => void;
 };
 
 export function DeviceStatusSection({
@@ -29,9 +25,6 @@ export function DeviceStatusSection({
   connectedCharm,
   hasConnectedCharm,
   lastSyncedLabel,
-  syncMessage,
-  syncPending,
-  onSyncCharm,
 }: DeviceStatusSectionProps) {
   return (
     <>
@@ -94,32 +87,6 @@ export function DeviceStatusSection({
         </View>
       </View>
 
-      {connectedCharm?.serialNumber.startsWith("SC-OB-") ? (
-        <View className="mt-4 gap-2">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="센서 동기화"
-            accessibilityState={{ disabled: syncPending, busy: syncPending }}
-            disabled={syncPending}
-            onPress={() => onSyncCharm(connectedCharm)}
-            className="min-h-[44px] flex-row items-center justify-center gap-2"
-            style={{ opacity: syncPending ? 0.5 : 1 }}
-          >
-            <RefreshIcon size={20} />
-            <Text className="text-[14px] font-semibold text-[#262626]">
-              {syncPending ? "동기화 중" : "센서 동기화"}
-            </Text>
-          </Pressable>
-          {syncMessage?.serial === connectedCharm.serialNumber ? (
-            <Text
-              accessibilityLiveRegion="polite"
-              className="text-center text-[12px] text-[#686868]"
-            >
-              {syncMessage.text}
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
     </>
   );
 }
